@@ -52,16 +52,16 @@ class ToolLauncher:
                 '图片转PDF': 'Tu Pian Zhuan PDF_Alpha1-0-1.py'
             },
             '图片工具': {
-                '九宫格分割': 'Tu Pian Fen Ge Jiu Gong Ge_Alpha1-0-0.py',
-                '格式转换': 'Tu Pian Ge Shi Zhuan Huan_Alpha1-0-0.py',
-                'ICO转换': 'Tu Pian Zhuan ico_Alpha1-0-0.py',
+                '九宫格分割': 'Tu Pian Fen Ge Jiu Gong Ge_Alpha1-0-1.py',
+                '格式转换': 'Tu Pian Ge Shi Zhuan Huan_Alpha1-0-1.py',
+                'ICO转换': 'Tu Pian Zhuan ico_Alpha1-0-1.py',
                 '图片合成': 'Tu_Pian_He_Cheng_Alpha1-0-0.py'
             },
             '音频工具': {
-                '音频提取': 'Yin Pin Ti Qu_Alpha1-0-2.py'
+                '音频提取': 'Yin Pin Ti Qu_Alpha1-0-3.py'
             },
             '文件工具': {
-                '目录树生成器': 'Mu Lu Shu Sheng Cheng Qi_Alpha1-0-0.py',
+                '目录树生成器': 'Mu Lu Shu Sheng Cheng Qi_Alpha1-0-1.py',
             },
             '其他工具': {
                 '数字小写转大写': 'Shu Zi Xiao Xie Zhuan Da Xie_Alpha1-0-0.py',
@@ -421,9 +421,12 @@ V1.3.0 (2025-6-6)
 - 4.新增长度单位换算工具
 - 5.新增空文件夹清理工具
 V1.3.1 (2025-6-7)
--1.对PDF工具列表中，帮助的代码片段进行优化
--2.对PDF列表模块添加禁止生成 .pyc 文件
-
+- 1.对PDF工具列表中，帮助的代码片段进行优化
+- 2.对PDF列表模块添加禁止生成 .pyc 文件
+V1.3.2 (2025-6-8)
+- 1.对图形工具列表中，部分模块的帮助的代码片段进行优化，添加禁止生成 .pyc 文件
+- 2.对音频工具列表中，帮助的代码片段进行优化，并添加禁止生成 .pyc 文件
+- 3.对文件工具列表中，帮助的代码片段进行优化，并添加禁止生成 .pyc 文件
         """
         
         # 创建更新日志窗口

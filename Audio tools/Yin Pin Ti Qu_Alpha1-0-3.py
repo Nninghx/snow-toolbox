@@ -1,12 +1,21 @@
+# 禁止生成 .pyc 文件
+import sys
+sys.dont_write_bytecode = True
+
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import subprocess
 import os
 
+from os.path import dirname, join
+sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
+from BangZhu import get_help_system
+
+
 class AudioExtractorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("视频提取音频工具Alpha1.0.2")
+        self.root.title("视频提取音频工具Alpha1.0.3")
         self.root.geometry("480x200")
         self.root.resizable(False, False)
 
@@ -62,36 +71,25 @@ class AudioExtractorApp:
 - 添加帮助文档
 - 支持MP4/AVI/MKV/MOV输入格式
 - 支持MP3/WAV输出格式
-
 版本: Alpha1.0.1 (2025-05-23)
 - 界面尺寸优化为480x200
 - 新增WAV格式支持
 - 错误处理优化
 - 修复在处理大体积视频时会出现内存溢出或中断报错
-
 版本: Alpha1.0.2 (2025-05-26)
 - 添加更新日志
+版本 Alpha1.0.3 (2025-6-7)
+- 1.对帮助文档调用进行拆分，简化代码长度
+- 2.禁止生成 .pyc 文件
+
+
 """
         messagebox.showinfo("更新日志", changelog_text)
 
     def show_help(self):
-        help_text = """视频提取音频工具使用说明:
+        help_system = get_help_system()
+        help_system.show_help("视频提取音频")
 
-1. 点击"浏览..."按钮选择输入视频文件
-2. 点击"浏览..."按钮选择输出音频文件路径
-3. 点击"开始提取"按钮执行转换
-4. 确保系统已安装FFmpeg并添加到PATH环境变量
-
-支持的输入格式: MP4, AVI, MKV, MOV
-支持的输出格式: MP3, WAV
-
-提示:
-- 作者:叁垣伍瑞肆凶廿捌宿宿
-- 联系方式:https://space.bilibili.com/556216088
-- 版权:Apache-2.0 License
-
-"""
-        messagebox.showinfo("帮助", help_text)
 
     def extract_audio(self):
         video_file = self.video_path.get()

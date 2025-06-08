@@ -31,7 +31,7 @@ class HelpSystem:
         self.help_contents = {
 # PDF工具帮助内容合集
     # PDF拆分帮助内容
-    "PDF拆分": 
+                        "PDF拆分": 
 """
 PDF拆分工具使用帮助
 功能说明：
@@ -42,7 +42,7 @@ PDF拆分工具使用帮助
 2. 在拆分选项框中选择按页拆分还是按范围拆分
 3. 点击"开始拆分"按钮进行处理
 """,
-# PDF合并帮助内容
+    # PDF合并帮助内容
                         "PDF合并":
 """
 PDF合并工具使用帮助
@@ -53,7 +53,7 @@ PDF合并工具使用帮助
 2. 选择那些哪些页面需要合并
 3. 点击"开始合并"按钮进行处理
 """,
-# PDF转图片帮助内容
+    # PDF转图片帮助内容
                         "PDF转图片":
 """
 PDF转图片工具使用帮助
@@ -73,9 +73,12 @@ PDF转图片工具使用帮助
 5. 点击"开始转换"按钮开始转换
 """,
 
-# 图片转PDF帮助内容
+    # 图片转PDF帮助内容
                         "图片转PDF":
 """
+功能说明：
+可以将图片转换为PDF文件。
+使用步骤：
 1. 添加图片 - 点击"添加图片"按钮选择一张或多张图片
 2. 选择输出PDF - 点击"选择输出PDF"按钮指定保存位置
 3. 管理图片列表:
@@ -85,9 +88,12 @@ PDF转图片工具使用帮助
 5. 转换完成后会自动打开输出文件夹
 """,
 
-# PDF转Word帮助内容
+    # PDF转Word帮助内容
                         "PDF转Word":
 """
+功能说明：
+可以将PDF文件转换为woed文件。
+使用步骤：
 1. 点击"选择PDF"按钮选择要转换的PDF文件
 2. 点击"转换为Word"按钮开始转换
 3. 选择保存位置和文件名
@@ -96,8 +102,7 @@ PDF转图片工具使用帮助
 - 转换时间取决于PDF文件大小
 - 转换过程中请勿关闭程序
 """,
-
-# PDF加水印帮助内容
+    # PDF加水印帮助内容
                         "PDF加水印":
 """
 PDF加水印工具使用帮助
@@ -115,34 +120,71 @@ PDF加水印工具使用帮助
 4. 选择保存位置和文件名
 """,
 
+#图片工具帮助内容合集
+    #图片九宫格分割帮助内容
+                        "图片九宫格分割":
+"""
+功能说明
+一张图片分割成九宫格
+使用步骤
+1. 点击"浏览..."按钮选择要分割的图片
+2. 点击"浏览..."按钮选择输出目录
+3. 点击"开始分割"按钮进行分割
+4. 分割完成后，将在输出目录下创建一个以图片名命名的文件夹
+""",
 
-
-
-
-
+    #图片格式转换帮助内容
+                        "图片格式转换":
+"""
+使用步骤
+1. 选择转换模式:
+   - 单文件模式: 转换单个图片文件
+   - 批量模式: 转换整个目录中的图片
+2. 设置输出格式和质量:
+   - 从下拉列表中选择输出格式
+   - 输入1-100的质量值(数值越大质量越好)
+3. 设置输出目录:
+   - 可以指定输出目录或单独选择每个文件的保存位置
+4. 点击"转换"按钮开始转换
+   - 批量转换时会显示进度条
+   - 转换结果会显示在状态栏
+""",
+    #图片转图标
+                        "图片转图标":
+"""
+使用方法：
+1. 点击"浏览..."选择源图片
+2. 选择标准尺寸或输入自定义尺寸
+3. 点击"转换为ICO"按钮
+4. 选择保存位置
+""",
+#其他工具帮助内容合集
+#音频工具帮助内容合集
+    #视频提取音频
+                        "视频提取音频":
+"""
+使用方法：
+1. 点击"浏览..."按钮选择输入视频文件
+2. 点击"浏览..."按钮选择输出音频文件路径
+3. 点击"开始提取"按钮执行转换
+4. 确保系统已安装FFmpeg并添加到PATH环境变量
+""",
+#文件工具帮助内容合集
+    #目录树生成器
+                        "目录树生成器":
+"""
+使用方法:
+1. 浏览按钮：点击后可以选择要分析的目录
+2. 生成目录树按钮：根据所选目录生成文件结构图
+3. 保存结果按钮：将当前显示的目录结构保存到文件
+4. 清空按钮：清除输入框和输出区域的内容
+""",
 
 
             # 其他工具帮助内容可以继续添加...
         }
 
     def show_help(self, module_id: str) -> None:
-        """
-        显示指定模块的帮助内容。
-        
-        该方法会：
-        1. 通过get_help_content获取帮助文本
-        2. 在独立的消息框中显示帮助内容
-        3. 自动处理异常情况
-
-        Args:
-            module_id (str): 模块的唯一标识符，应与help_contents中的键匹配
-
-        Returns:
-            None
-
-        Raises:
-            捕获所有异常并通过消息框显示错误信息
-        """
         try:
             # 获取格式化后的帮助内容
             help_content = self.get_help_content(module_id)
@@ -180,29 +222,11 @@ PDF加水印工具使用帮助
         return self._get_default_help()
 
     def _get_default_help(self) -> str:
-        """
-        获取默认的帮助内容。
-        
-        当请求的模块帮助不存在时，返回默认帮助内容。
-
-        Returns:
-            str: 仅包含作者信息的默认帮助内容
-        """
         return self.AUTHOR_INFO
-
 # 创建全局帮助系统实例
 help_system = HelpSystem()
 
 def get_help_system() -> HelpSystem:
-    """
-    获取全局帮助系统实例。
-    
-    通过单例模式提供全局唯一的帮助系统实例，
-    确保整个应用程序使用同一套帮助内容。
-
-    Returns:
-        HelpSystem: 全局唯一的帮助系统实例
-    """
     return help_system
 
 # 使用示例：
@@ -210,28 +234,3 @@ if __name__ == "__main__":
     # 创建测试窗口
     root = tk.Tk()
     root.title("帮助系统测试")
-    
-    # 获取帮助系统实例
-    help_sys = get_help_system()
-    
-    # 创建测试按钮
-    def show_pdf_help():
-        help_sys.show_help("pdf_splitter")
-    
-    def show_image_help():
-        help_sys.show_help("image_converter")
-    
-    def show_audio_help():
-        help_sys.show_help("audio_extractor")
-    
-    def show_invalid_help():
-        help_sys.show_help("invalid_module")
-    
-    # 添加测试按钮
-    tk.Button(root, text="显示PDF拆分帮助", command=show_pdf_help).pack(pady=5)
-    tk.Button(root, text="显示图片转换帮助", command=show_image_help).pack(pady=5)
-    tk.Button(root, text="显示音频提取帮助", command=show_audio_help).pack(pady=5)
-    tk.Button(root, text="测试无效模块", command=show_invalid_help).pack(pady=5)
-    
-    # 运行测试窗口
-    root.mainloop()

@@ -1,3 +1,7 @@
+# 禁止生成 .pyc 文件
+import sys
+sys.dont_write_bytecode = True
+
 import os
 import sys
 import threading
@@ -7,6 +11,10 @@ from PIL import Image
 from tkinter import Tk, filedialog, messagebox, StringVar, OptionMenu, IntVar
 from tkinter.ttk import Frame, Button, Label, Entry, Checkbutton, Radiobutton, Progressbar, Separator
 
+from os.path import dirname, join
+sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
+from BangZhu import get_help_system
+
 class ImageConverter:
     SUPPORTED_FORMATS = [
         'jpg', 'jpeg', 'png', 'webp', 
@@ -15,7 +23,7 @@ class ImageConverter:
     
     def __init__(self):
         self.root = Tk()
-        self.root.title("图片格式转换工具Alpha1.0.0")
+        self.root.title("图片格式转换工具Alpha1.0.1")
         
         # 设置窗口图标
         try:
@@ -87,6 +95,9 @@ class ImageConverter:
         
         # 帮助按钮
         Button(button_frame, text="帮助", command=self.show_help).pack(side='left', padx=5)
+        
+        # 更新日志按钮
+        Button(button_frame, text="更新日志", command=self.show_changelog).pack(side='left', padx=5)
         
         # 转换按钮
         Button(button_frame, text="转换", command=self.start_conversion).pack(side='right', padx=5)
@@ -176,36 +187,24 @@ class ImageConverter:
         self.root.update_idletasks()
         
     def show_help(self):
-        """显示帮助信息"""
-        help_text = """图片格式转换工具 使用说明
-
-1. 选择转换模式:
-   - 单文件模式: 转换单个图片文件
-   - 批量模式: 转换整个目录中的图片
-
-2. 设置输出格式和质量:
-   - 从下拉列表中选择输出格式
-   - 输入1-100的质量值(数值越大质量越好)
-
-3. 设置输出目录:
-   - 可以指定输出目录或单独选择每个文件的保存位置
-
-4. 点击"转换"按钮开始转换
-   - 批量转换时会显示进度条
-   - 转换结果会显示在状态栏
-
-注意:
-- 支持格式: JPG, PNG, WEBP, BMP, GIF, TIFF, PSD
-- 高质量设置会生成更大的文件 
-
-提示:
-- 作者:叁垣伍瑞肆凶廿捌宿宿
-- 联系方式:https://space.bilibili.com/556216088
-- 版权:Apache-2.0 License
-
+        help_system = get_help_system()
+        help_system.show_help("图片格式转换")
+        
+    def show_changelog(self):
+        """显示更新日志"""
+        changelog = """
+图片格式转换工具 更新日志
+版本 Alpha1.0.0 (2025-5-20)
+- 1.初始版本发布
+- 2.支持JPG/PNG/WEBP/BMP/GIF/TIFF格式转换
+- 3.支持单文件和批量转换模式
+版本 Alpha1.0.1 (2025-6-7)
+- 1.新增更新日志功能
+- 2.对帮助文档调用进行拆分，简化代码长度
+- 3.禁止生成 .pyc 文件
 
 """
-        messagebox.showinfo("帮助", help_text)
+        messagebox.showinfo("更新日志", changelog)
         
     def convert(self):
         """主转换逻辑"""

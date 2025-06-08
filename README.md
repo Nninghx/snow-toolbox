@@ -1,34 +1,48 @@
-## 项目概述
-三垣工具启动器，用于统一启动本up开发的小工具!本UP非专业开发者，处于一边学习一边开发阶段，还请各位多多包涵。本项目采用Apache-2.0 License开源协议。
-## 工具列表
+# 三垣工具集
+
+## 项目简介
+三垣工具集是一个由宁幻雪开发的Python工具集合，包含多种实用小工具。项目采用Apache-2.0 License开源协议。
+直接运行San Yuan Gong Ju_V1-3-1.py，即可运行所有工具。前提是已经安装了Python环境和所有依赖库。
+或根据工具目录运行对应工具即可。
+整体采用模块化的设计，方便扩展维护，可独立运行
+Learn文件夹中为学习笔记，删除不影响使用。
+Tool module本文件夹请勿删除，为项目调用的核心模块之一，否则无法运行。
+## 工具目录
 ### PDF工具
-| 工具名称 | 功能描述 | 版本 |
-|---------|---------|---------|
-| PDF拆分 | 将PDF文件拆分为单页文件 | `PDF Chai Fen Alpha1.0.2.py` |
-| PDF合并 | 合并多个PDF文件 | `PDF He Bing Alpha1.0.1.py` |
-| PDF转Word | 转换为可编辑Word文档 | `PDF_to_Word_Alpha1.0.0.py` |
-| PDF加水印 | 添加文字 | `PDF_Watermark_Alpha1.0.0.py` |
+| 工具名称 | 功能描述 | 版本 | 文件路径 |
+|---------|---------|------|---------|
+| PDF拆分 | 将PDF文件拆分为单页 | Alpha1.0.3 | `PDF tool/PDF Chai Fen` |
+| PDF合并 | 合并多个PDF文件 | Alpha1.0.3 | `PDF tool/PDF He Bing` |
+| PDF转Word | 转换为可编辑Word文档 | Alpha1.0.2 | `PDF tool/PDF_to_Word` |
+| PDF加水印 | 添加文字水印 | Alpha1.0.1 | `PDF tool/PDF Jia Shui Yin` |
+| PDF转图片 | 将PDF转换为图片 | Alpha1.0.1 | `PDF tool/PDF Zhuan Tu Pian` |
+| 图片转PDF | 将图片转换为PDF | Alpha1.0.1 | `PDF tool/Tu Pian Zhuan PDF` | 
 
 ### 图片工具
-| 工具名称 | 功能描述 | 版本 |
-|---------|---------|---------|
-| 九宫格分割 | 3×3网格分割 | `Alpha1.0.0` |
-| 格式转换 | 支持7种格式互转 | `Alpha1.0.0` |
-| ICO转换 | 生成16-256px图标 | `Alpha1.0.0` |
-| 图片合成 | 多图合成单图 | `Alpha1.0.0` |
+| 工具名称 | 功能描述 | 版本 | 文件路径 |
+|---------|---------|------|---------|
+| 九宫格分割 | 3×3网格分割图片 | Alpha1.0.0 | `Picture tool/Tu Pian Fen Ge Jiu Gong Ge` |
+| 图片格式转换 | 支持多种格式互转 | Alpha1.0.0 | `Picture tool/Tu Pian Ge Shi Zhuan Huan` |
+| ICO转换 | 生成16-256px图标 | Alpha1.0.0 | `Picture tool/Tu Pian Zhuan ico` |
+| 图片合成 | 多图合成单图 | Alpha1.0.0 | `Picture tool/Tu_Pian_He_Chengy` |
 
 ### 音频工具
-| 工具名称 | 功能描述 | 版本 |
-|---------|---------|---------|
-| 音频提取 | 从视频提取音频 | `Alpha1.0.2` |
+| 工具名称 | 功能描述 | 版本 | 文件路径 |
+|---------|---------|------|---------|
+| 音频提取 | 从视频提取音频 | Alpha1.0.2 | `Audio tools/Yin Pin Ti Qu` |
 
 ### 文件工具
-| 工具名称 | 功能描述 | 版本 |
-|---------|---------|---------|
-| 音频提取 | 从视频提取音频 | `Yin Pin Ti Qu-Alpha1.0.1.py` |
+| 工具名称 | 功能描述 | 版本 | 文件路径 |
+|---------|---------|------|---------|
+| 目录树生成 | 生成目录结构树 | Alpha1.0.0 | `File tool/Mu Lu Shu Sheng Cheng Qi` |
+### 其他工具
+| 工具名称 | 功能描述 | 版本 | 文件路径 |
+|---------|---------|------|---------|
+| 长度单位换算 | 多种单位转换 | Alpha1.0.0 | `Other tool/Chang Du Dan Wei Huan Suan` |
+| 数字大小写转换 | 数字转中文大写 | Alpha1.0.0 | `Other tool/Shu Zi Xiao Xie Zhuan Da Xie` |
+| 空文件夹清理 | 清理空文件夹 | Alpha1.0.0 | `Other tool/Kong Wen Jian Jia Qing Li` | 
 
-## 运行环境
-### 基础开发环境
+## 环境要求
 - **Python 3.6+**
 ```
 依赖安装
@@ -40,13 +54,18 @@ pip install PyPDF2 pillow pydub pdf2docx pdfrw
 安装FFmpeg（用于音频提取工具）:
 Windows: 下载并解压FFmpeg，将bin目录添加到PATH。
 
-## License Agreement  许可协议
-**版本**: V1.3.0  
-**作者**: [宁幻雪]   
+## 快速开始
+1. 克隆本项目
+2. 安装依赖
+3. 运行所需工具脚本
+
+## 许可协议
+**版本**: V1.3.1  
+**作者**: 宁幻雪  
 **联系方式**: [Bilibili空间](https://space.bilibili.com/556216088)  
 **开源协议**: Apache-2.0 License
 
-“我们鼓励商业使用者联系作者以告知使用情况，但这不是强制要求。我们希望通过这种方式，便于我们对本项目进行更好的优化更新版本迭代”
+"我们鼓励商业使用者联系作者以告知使用情况，但这不是强制要求。我们希望通过这种方式，便于我们对本项目进行更好的优化更新版本迭代"
 
 Copyright [2025] [宁幻雪]
 

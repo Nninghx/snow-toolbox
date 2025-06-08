@@ -1,12 +1,20 @@
+# 禁止生成 .pyc 文件
+import sys
+sys.dont_write_bytecode = True
+
 from PIL import Image
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
+from os.path import dirname, join
+sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
+from BangZhu import get_help_system
+
 class ImageSplitterApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("图片九宫格分割工具Alpha1.0.0")
+        self.root.title("图片九宫格分割工具Alpha1.0.1")
         
         # 输入图片
         tk.Label(root, text="输入图片:").grid(row=0, column=0, padx=5, pady=5)
@@ -27,21 +35,24 @@ class ImageSplitterApp:
         # 分割按钮和帮助按钮
         tk.Button(root, text="开始分割", command=self.start_split).grid(row=3, column=1, pady=10)
         tk.Button(root, text="帮助", command=self.show_help).grid(row=3, column=0, pady=10, padx=5)
+        tk.Button(root, text="更新日志", command=self.show_changelog).grid(row=3, column=2, pady=10, padx=5)
     
     def show_help(self):
-        help_text = """图片九宫格分割工具使用说明
+        help_system = get_help_system()
+        help_system.show_help("图片九宫格分割")
         
-1. 点击"浏览..."按钮选择要分割的图片
-2. 点击"浏览..."按钮选择输出目录
-3. 点击"开始分割"按钮进行分割
-4. 分割完成后，将在输出目录下创建一个以图片名命名的文件夹
+    def show_changelog(self):
+        changelog = """图片九宫格分割工具 更新日志
+版本 Alpha1.0.0 (2025-5-18)
+- 1.初始发布版本
+- 2.实现基本图片分割功能
+版本 Alpha1.0.1 (2025-6-7)
+- 1.新增更新日志功能
+- 2.对帮助文档调用进行拆分，简化代码长度
+- 3.禁止生成 .pyc 文件
 
-提示:
-- 作者:叁垣伍瑞肆凶廿捌宿宿
-- 联系方式:https://space.bilibili.com/556216088
-- 版权:Apache-2.0 License
 """
-        messagebox.showinfo("帮助", help_text)
+        messagebox.showinfo("更新日志", changelog)
     
     def browse_input(self):
         filepath = filedialog.askopenfilename(

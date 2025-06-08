@@ -12,14 +12,6 @@ class ImageCombinerApp:
         master.title("图片合成工具 Alpha1.0.0")
         master.geometry("400x500")
 
-        # 尝试设置图标
-        try:
-            icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
-            if os.path.exists(icon_path):
-                master.iconbitmap(icon_path)
-        except:
-            pass
-        
         # 初始化变量
         self.image_paths = []
         self.layout_mode = tk.StringVar(value="uniform")

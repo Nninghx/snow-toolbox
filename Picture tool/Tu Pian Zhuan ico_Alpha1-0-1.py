@@ -1,12 +1,20 @@
+# 禁止生成 .pyc 文件
+import sys
+sys.dont_write_bytecode = True
+
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image
 import os
 
+from os.path import dirname, join
+sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
+from BangZhu import get_help_system
+
 class IconConverterApp:
     def __init__(self, master):
         self.master = master
-        master.title("图片转图标Alpha1.0.0")
+        master.title("图片转图标Alpha1.0.1")
         
         # 默认尺寸
         self.default_sizes = [16, 32, 48, 64, 128]
@@ -53,6 +61,9 @@ class IconConverterApp:
         # 帮助按钮
         tk.Button(button_frame, text="使用帮助", command=self.show_help, width=8).pack(side="right", padx=5)
         
+        # 更新日志按钮
+        tk.Button(button_frame, text="更新日志", command=self.show_changelog, width=8).pack(side="right", padx=5)
+        
         # 转换按钮
         tk.Button(button_frame, text="转换为ICO", command=self.convert_to_ico, width=12).pack(side="right")
     
@@ -68,33 +79,25 @@ class IconConverterApp:
             self.file_entry.delete(0, tk.END)
             self.file_entry.insert(0, filepath)
     
-    def show_help(self):
-        help_text = """图标转换工具使用说明
+    def show_changelog(self):
+        changelog = """更新日志 - 图片转图标工具
 
-功能：
-- 将PNG/JPG/BMP图片转换为ICO图标
-
-- 支持标准尺寸：16x16 到 128x128
-- 支持自定义尺寸(16-256像素)
-
-使用方法：
-1. 点击"浏览..."选择源图片
-2. 选择标准尺寸或输入自定义尺寸
-3. 点击"转换为ICO"按钮
-4. 选择保存位置
-
-注意：
-- 自定义尺寸格式：宽x高 (如64x64)
-- 尺寸范围：16-256像素
-
-提示:
-- 支持JPG/PNG/BMP/GIF等常见图片格式
-- 作者:叁垣伍瑞肆凶廿捌宿宿
-- 联系方式:https://space.bilibili.com/556216088
-- 版权:Apache-2.0 License
+版本 Alpha1.0.0 (2025-5*14)
+- 实现基本图片转ICO功能
+- 支持标准尺寸选择
+- 支持自定义尺寸输入
+- 添加使用帮助功能
+版本 Alpha1.0.1 (2025-6-7)
+- 1.新增更新日志功能
+- 2.对帮助文档调用进行拆分，简化代码长度
+- 3.禁止生成 .pyc 文件
 
 """
-        messagebox.showinfo("帮助", help_text)
+        messagebox.showinfo("更新日志", changelog)
+
+    def show_help(self):
+        help_system = get_help_system()
+        help_system.show_help("图片转图标")
     
     def convert_to_ico(self):
         input_path = self.file_entry.get()
