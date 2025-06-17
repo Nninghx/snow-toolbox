@@ -10,16 +10,17 @@ import os
 class ToolLauncher:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("工具启动器-V1.3.0")
+        self.root.title("工具启动器-V1.3.2")
         self.root.geometry("440x500")
         self.root.minsize(440, 500)
-        # 分类折叠状态
+        # 分类折叠状态，折叠状态(True)，展开状态(False)
         self.category_states = {
             'PDF工具': False,
             '图片工具': False,
             '音频工具': False,
             '文件工具': False,
-            '其他工具': False
+            '其他工具': False,
+            'B站专用工具': True
         }
         
         # 创建顶部按钮框架
@@ -44,7 +45,6 @@ class ToolLauncher:
         self.tools = {
             'PDF工具': {
                 'PDF拆分': 'PDF Chai Fen_Alpha1-0-3.py',
-                
                 'PDF合并': 'PDF He Bing_Alpha1-0-3.py',
                 'PDF转Word': 'PDF_to_Word_Alpha1-0-2.py',
                 'PDF加水印': 'PDF Jia Shui Yin_Alpha1-0-1.py',
@@ -67,7 +67,13 @@ class ToolLauncher:
                 '数字小写转大写': 'Shu Zi Xiao Xie Zhuan Da Xie_Alpha1-0-0.py',
                 '长度单位换算': 'Chang Du Dan Wei Huan Suan_Alpha1-0-0.py',
                 '空文件夹清理': 'Kong Wen Jian Jia Qing Li_Alpha1-0-0.py',
+                '英文大小写转换': 'Ying Wen Da Xiao Xie Zhuan Huan_Alpha1-0-0.py',
+                '字符频率分析器': 'Zi Fu Pin Lv Fen Xi Qi_Alpha1-0-0.py',
+            },
+            'B站专用工具': {
+
             }
+
         }
         
         # 设置窗口图标
@@ -80,13 +86,11 @@ class ToolLauncher:
         
         # 检查工具完整性
         self.check_tools()
-        
         self.setup_ui()
         
     def check_tools(self):
         """检查工具完整性"""
         missing_tools = []
-        
         for category, tools in self.tools.items():
             for tool_name, file_name in tools.items():
                 # 特殊处理不同工具类型的路径
@@ -100,6 +104,8 @@ class ToolLauncher:
                     tool_path = os.path.join(os.path.dirname(__file__), 'File tool', file_name)
                 elif category == '其他工具':
                     tool_path = os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
+                elif category == 'B站专用工具':
+                    tool_path = os.path.join(os.path.dirname(__file__), 'B站专用工具', file_name)
                 else:
                     tool_path = os.path.join(os.path.dirname(__file__), file_name)
                 if not os.path.exists(tool_path):
@@ -172,6 +178,8 @@ class ToolLauncher:
                     tool_path = os.path.join(os.path.dirname(__file__), 'File tool', file_name)
                 elif category == '其他工具':
                     tool_path = os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
+                elif category == 'B站专用工具':
+                    tool_path = os.path.join(os.path.dirname(__file__), 'B站专用工具', file_name)
                 else:
                     tool_path = os.path.join(os.path.dirname(__file__), file_name)
                 button = ttk.Button(tools_container, text=tool_name, width=50,
@@ -201,6 +209,8 @@ class ToolLauncher:
             tool_path = os.path.join(os.path.dirname(__file__), 'File tool', file_name)
         elif category == '其他工具':
             tool_path = os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
+        elif category == 'B站专用工具':
+            tool_path = os.path.join(os.path.dirname(__file__), 'B站专用工具', file_name)
         else:
             tool_path = os.path.join(os.path.dirname(__file__), file_name)
         return os.path.exists(tool_path)
@@ -217,6 +227,8 @@ class ToolLauncher:
             return os.path.join(os.path.dirname(__file__), 'File tool', file_name)
         elif category == '其他工具':
             return os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
+        elif category == 'B站专用工具':
+            return os.path.join(os.path.dirname(__file__), 'B站专用工具', file_name)
         else:
             return os.path.join(os.path.dirname(__file__), file_name)
 
@@ -427,6 +439,9 @@ V1.3.2 (2025-6-8)
 - 1.对图形工具列表中，部分模块的帮助的代码片段进行优化，添加禁止生成 .pyc 文件
 - 2.对音频工具列表中，帮助的代码片段进行优化，并添加禁止生成 .pyc 文件
 - 3.对文件工具列表中，帮助的代码片段进行优化，并添加禁止生成 .pyc 文件
+V1.4.0 (2025-6-17)
+- 1.新增字符频率分析器
+- 2.新增英文大小写转换
         """
         
         # 创建更新日志窗口
@@ -463,24 +478,6 @@ V1.3.2 (2025-6-8)
    - 工具将在独立窗口中启动
    - 可以同时运行多个工具
    - 状态栏会显示工具的启动状态
-
-3. 工具说明
-   PDF工具：
-   - PDF拆分：将PDF文件拆分为单页文件
-   - PDF合并：将多个PDF文件合并为一个文件
-   - PDF转Word：将PDF转换为Word文档并保留格式
-   - PDF加水印：为PDF文件添加水印
-   - PDF转图片：将PDF转换为图片
-   - 图片转PDF：将图片转换为PDF文件
-   图片工具：
-   - 九宫格分割：将图片分割为九宫格
-   - 格式转换：转换图片格式
-   - ICO转换：将图片转换为ICO图标
-   - 图片合成：将多张图片合成为一张
-   音频工具：
-   - 音频提取：从视频文件中提取音频
-   文件工具：
-   - 目录树生成器：生成目录树结构
         """
         
         # 创建帮助窗口
