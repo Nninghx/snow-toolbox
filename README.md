@@ -97,7 +97,7 @@ pip install pydub
 
 
 ## 许可协议
-**版本**: V1.3.1  
+**版本**: V1.5.0  
 **作者**: 宁幻雪  
 **联系方式**: [Bilibili空间](https://space.bilibili.com/556216088)  
 **协议**: Apache-2.0 License
