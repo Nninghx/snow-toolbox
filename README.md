@@ -10,11 +10,11 @@
 
 **注意**：
 - `Learn/`：学习笔记目录（可删除）
-- `Tool module/`：核心模块目录（必须保留）
+- `Tool module/`：核心模块目录（必须保留，删除会导致部分模块出现问题）
 
 ---
 
-## 工具目录
+## 工具目录概况
 
 ### PDF工具
 | 工具名称       | 功能描述               | 版本      | 文件路径                     |
@@ -50,8 +50,24 @@
 | 长度单位换算   | 多种单位转换           | Alpha1.0.0 | `Other tool/Chang Du Dan Wei Huan Suan` |
 | 数字大小写转换 | 数字转中文大写         | Alpha1.0.0 | `Other tool/Shu Zi Xiao Xie Zhuan Da Xie` |
 | 空文件夹清理   | 清理空文件夹           | Alpha1.0.0 | `Other tool/Kong Wen Jian Jia Qing Li` |
+| 英文大小写转换   | 英文首字母全量大小写互转        | Alpha1.0.0 | `Ying Wen Da Xiao Xie Zhuan Huan` |
+| 字符频率分析器   | 支持字母汉字等字符出现频率分析    | Alpha1.0.0 | `Other tool/Kong Wen Jian Jia Qing Li` |
 
----
+
+
+
+### 破站工具
+| 工具名称       | 功能描述               | 版本      | 文件路径                     |
+|----------------|------------------------|-----------|------------------------------|
+|  封面与表情包图片批量压缩  | 透图图片批量压缩           | Alpha1.0.0 | `Feng Mian Yu Biao Qing Bao Tu Pian Pi Liang Ya Suo_Alpha1-0-0` |
+
+
+
+
+
+
+
+
 
 ## 环境安装
 

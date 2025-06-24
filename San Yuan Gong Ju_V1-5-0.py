@@ -10,16 +10,16 @@ import os
 class ToolLauncher:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("工具启动器-V1.3.2")
+        self.root.title("工具启动器-V1.5.0")
         self.root.geometry("440x500")
         self.root.minsize(440, 500)
         # 分类折叠状态，折叠状态(True)，展开状态(False)
         self.category_states = {
-            'PDF工具': False,
-            '图片工具': False,
-            '音频工具': False,
-            '文件工具': False,
-            '其他工具': False,
+            'PDF工具': True,
+            '图片工具': True,
+            '音频工具': True,
+            '文件工具': True,
+            '其他工具': True,
             'B站专用工具': True
         }
         
@@ -71,6 +71,7 @@ class ToolLauncher:
                 '字符频率分析器': 'Zi Fu Pin Lv Fen Xi Qi_Alpha1-0-0.py',
             },
             'B站专用工具': {
+                '封面与表情包图片批量压缩': 'Feng Mian Yu Biao Qing Bao Tu Pian Pi Liang Ya Suo_Alpha1-0-0.py',
 
             }
 
@@ -105,7 +106,7 @@ class ToolLauncher:
                 elif category == '其他工具':
                     tool_path = os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
                 elif category == 'B站专用工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'B站专用工具', file_name)
+                    tool_path = os.path.join(os.path.dirname(__file__), 'Station B tool', file_name)
                 else:
                     tool_path = os.path.join(os.path.dirname(__file__), file_name)
                 if not os.path.exists(tool_path):
@@ -179,7 +180,7 @@ class ToolLauncher:
                 elif category == '其他工具':
                     tool_path = os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
                 elif category == 'B站专用工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'B站专用工具', file_name)
+                    tool_path = os.path.join(os.path.dirname(__file__), 'Station B tool', file_name)
                 else:
                     tool_path = os.path.join(os.path.dirname(__file__), file_name)
                 button = ttk.Button(tools_container, text=tool_name, width=50,
@@ -210,7 +211,7 @@ class ToolLauncher:
         elif category == '其他工具':
             tool_path = os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
         elif category == 'B站专用工具':
-            tool_path = os.path.join(os.path.dirname(__file__), 'B站专用工具', file_name)
+            tool_path = os.path.join(os.path.dirname(__file__), 'Station B tool', file_name)
         else:
             tool_path = os.path.join(os.path.dirname(__file__), file_name)
         return os.path.exists(tool_path)
@@ -228,7 +229,7 @@ class ToolLauncher:
         elif category == '其他工具':
             return os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
         elif category == 'B站专用工具':
-            return os.path.join(os.path.dirname(__file__), 'B站专用工具', file_name)
+            return os.path.join(os.path.dirname(__file__), 'Station B tool', file_name)
         else:
             return os.path.join(os.path.dirname(__file__), file_name)
 
@@ -369,6 +370,10 @@ class ToolLauncher:
 - 作者:叁垣伍瑞肆凶廿捌宿宿
 - 联系方式:https://space.bilibili.com/556216088
 - 版权:Apache-2.0 License
+- 代码层面无需联网，无需登录，无需注册，无需授权
+- 功能设计无需联网,数据完全本地处理
+- 本程序不收集任何用户数据，不上传任何用户数据
+
         """
         
         # 创建关于窗口
@@ -444,7 +449,9 @@ V1.4.0 (2025-6-9)
 - 2.新增英文大小写转换
 V1.4.1 (2025-6-17)
 - 1.优化部分错误
-
+V1.5.0 (2025-6-24)
+- 1.新增B站专用封面与表情包图片批量压缩工具
+- 2.对于帮助界面用词进行了修改，于完善
         """
         
         # 创建更新日志窗口
