@@ -9,7 +9,7 @@ class ImageCombinerApp:
 
     def __init__(self, master):
         self.master = master
-        master.title("图片合成工具 Alpha1.0.0")
+        master.title("图片合成工具")
         master.geometry("400x500")
 
         # 初始化变量

@@ -15,7 +15,7 @@ from BangZhu import get_help_system
 class AudioExtractorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("视频提取音频工具Alpha1.0.3")
+        self.root.title("音频提取工具")
         self.root.geometry("480x200")
         self.root.resizable(False, False)
 

@@ -34,7 +34,7 @@ def generate_dir_tree(path='.', ignore=None, prefix=''):
 class DirTreeGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("目录树生成器Alpha1.0.1")
+        self.root.title("目录树生成器")
         # 设置窗口大小并居中显示
         window_width = 800
         window_height = 600

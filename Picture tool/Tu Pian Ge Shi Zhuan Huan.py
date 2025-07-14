@@ -23,7 +23,7 @@ class ImageConverter:
     
     def __init__(self):
         self.root = Tk()
-        self.root.title("图片格式转换工具Alpha1.0.1")
+        self.root.title("图片格式转换工具")
         
         # 设置窗口图标
         try:

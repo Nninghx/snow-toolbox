@@ -14,7 +14,7 @@ from BangZhu import get_help_system
 class ImageSplitterApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("图片九宫格分割工具Alpha1.0.1")
+        self.root.title("图片九宫格分割工具")
         
         # 输入图片
         tk.Label(root, text="输入图片:").grid(row=0, column=0, padx=5, pady=5)

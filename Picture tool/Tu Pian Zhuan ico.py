@@ -14,7 +14,7 @@ from BangZhu import get_help_system
 class IconConverterApp:
     def __init__(self, master):
         self.master = master
-        master.title("图片转图标Alpha1.0.1")
+        master.title("图片转图标")
         
         # 默认尺寸
         self.default_sizes = [16, 32, 48, 64, 128]

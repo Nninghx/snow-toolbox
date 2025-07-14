@@ -15,7 +15,7 @@ class Application:
         self.root.resizable(False, True)  
         # 设置窗口图标(请替换为实际图标路径)
         # 参数: .ico格式图标文件路径
-        #self.root.iconbitmap("path/to/icon.ico")
+        self.root.iconbitmap("path/to/icon.ico")
 
 
 if __name__ == "__main__":

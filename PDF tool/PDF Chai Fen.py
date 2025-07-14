@@ -69,7 +69,6 @@ class PDFSplitterApp:
         self.action_frame = tk.Frame(root)
         self.action_frame.grid(row=3, column=0, sticky="ew", padx=10, pady=5)
         tk.Button(self.action_frame, text="帮助", command=self.show_help).pack(side=tk.LEFT, padx=5)
-        tk.Button(self.action_frame, text="更新日志", command=self.show_changelog).pack(side=tk.LEFT, padx=5)
         tk.Button(self.action_frame, text="拆分PDF", command=self.split_pdf).pack(side=tk.RIGHT, padx=5)
     def select_file(self):
         file = filedialog.askopenfilename(
@@ -90,26 +89,6 @@ class PDFSplitterApp:
         if dir:
             self.output_dir = dir
             self.output_label.config(text=dir)
-    def show_changelog(self):
-        # 更新日志内容
-        changelog = """PDF拆分工具 - 更新日志
-版本 Alpha1.0.0(2025-05-18)
-- 1.支持按页数拆分PDF 
-- 2.支持按范围拆分PDF   
-- 3.添加图形用户界面
-- 4.含有帮助文档
-版本 Alpha1.0.0(2025-05-21)
-- 1.新增文件验证功能
-- 2.增强PDF有效性检测
-- 3.优化错误提示与用户引导
-版本 Alpha1.0.2(2025-05-26)
-- 1.添加更新日志
-版本 Alpha1.0.3(2025-06-7)
-- 1.对帮助文档调用进行拆分，简化代码长度
-- 2.禁止生成 .pyc 文件
-"""
-        # 显示更新日志
-        messagebox.showinfo("更新日志", changelog)
     def show_help(self):
         """
         显示帮助信息，使用统一的帮助系统

@@ -10,7 +10,7 @@ import os
 class ToolLauncher:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("工具启动器-V1.5.0")
+        self.root.title("工具启动器-V2.0.0")
         self.root.geometry("440x500")
         self.root.minsize(440, 500)
         # 分类折叠状态，折叠状态(True)，展开状态(False)
@@ -20,7 +20,8 @@ class ToolLauncher:
             '音频工具': True,
             '文件工具': True,
             '其他工具': True,
-            'B站专用工具': True
+            'B站专用工具': True,
+            '计算器工具': True
         }
         
         # 创建顶部按钮框架
@@ -44,37 +45,46 @@ class ToolLauncher:
         # 工具列表
         self.tools = {
             'PDF工具': {
-                'PDF拆分': 'PDF Chai Fen_Alpha1-0-3.py',
-                'PDF合并': 'PDF He Bing_Alpha1-0-3.py',
-                'PDF转Word': 'PDF_to_Word_Alpha1-0-2.py',
-                'PDF加水印': 'PDF Jia Shui Yin_Alpha1-0-1.py',
-                'PDF转图片': 'PDF Zhuan Tu Pian_Alpha1-0-1.py',
-                '图片转PDF': 'Tu Pian Zhuan PDF_Alpha1-0-1.py'
+                'PDF拆分': 'PDF Chai Fen.py',
+                'PDF合并': 'PDF He Bing.py',
+                'PDF转Word': 'PDF_to_Word.py',
+                'PDF加水印': 'PDF Jia Shui Yin.py',
+                'PDF转图片': 'PDF Zhuan Tu Pian.py',
+                '图片转PDF': 'Tu Pian Zhuan PDF.py'
             },
             '图片工具': {
-                '九宫格分割': 'Tu Pian Fen Ge Jiu Gong Ge_Alpha1-0-1.py',
-                '格式转换': 'Tu Pian Ge Shi Zhuan Huan_Alpha1-0-1.py',
-                'ICO转换': 'Tu Pian Zhuan ico_Alpha1-0-1.py',
-                '图片合成': 'Tu_Pian_He_Cheng_Alpha1-0-0.py'
+                '九宫格分割': 'Tu Pian Fen Ge Jiu Gong Ge.py',
+                '格式转换': 'Tu Pian Ge Shi Zhuan Huan.py',
+                'ICO转换': 'Tu Pian Zhuan ico.py',
+                '图片合成': 'Tu_Pian_He_Cheng.py'
             },
             '音频工具': {
-                '音频提取': 'Yin Pin Ti Qu_Alpha1-0-3.py'
+                '音频提取': 'Yin Pin Ti Qu.py'
             },
             '文件工具': {
-                '目录树生成器': 'Mu Lu Shu Sheng Cheng Qi_Alpha1-0-1.py',
+                '目录树生成器': 'Mu Lu Shu Sheng Cheng Qi.py',
             },
             '其他工具': {
-                '数字小写转大写': 'Shu Zi Xiao Xie Zhuan Da Xie_Alpha1-0-0.py',
-                '长度单位换算': 'Chang Du Dan Wei Huan Suan_Alpha1-0-0.py',
-                '空文件夹清理': 'Kong Wen Jian Jia Qing Li_Alpha1-0-0.py',
-                '英文大小写转换': 'Ying Wen Da Xiao Xie Zhuan Huan_Alpha1-0-0.py',
-                '字符频率分析器': 'Zi Fu Pin Lv Fen Xi Qi_Alpha1-0-0.py',
+                '数字小写转大写': 'Shu Zi Xiao Xie Zhuan Da Xie.py',
+                '长度单位换算': 'Chang Du Dan Wei Huan Suan.py',
+                '空文件夹清理': 'Kong Wen Jian Jia Qing Li.py',
+                '英文大小写转换': 'Ying Wen Da Xiao Xie Zhuan Huan.py',
+                '字符频率分析器': 'Zi Fu Pin Lv Fen Xi Qi.py',
             },
             'B站专用工具': {
-                '封面与表情包图片批量压缩': 'Feng Mian Yu Biao Qing Bao Tu Pian Pi Liang Ya Suo_Alpha1-0-0.py',
+                '封面与表情包图片批量压缩': 'Feng Mian Yu Biao Qing Bao Tu Pian Pi Liang Ya Suo.py',
+
+            },
+            '计算器工具': {
+                '最小公倍数计算器': 'Zui Xiao Gong Bei Shu Ji Suan Qi.py',
+                '平方根计算器': 'Ping Fang Gen Ji Suan Qi.py',
+                '重复组合计算器': 'Chong Fu Zu He Ji Suan Qi.py',
+                '立方根计算器': 'Li Fang Gen Ji Suan Qi.py',
+                '排列计算器': 'Pai Lie Ji Suan Qi.py',
+                '因数计算器': 'Yin Shu Ji Suan Qi.py',
+
 
             }
-
         }
         
         # 设置窗口图标
@@ -107,6 +117,9 @@ class ToolLauncher:
                     tool_path = os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
                 elif category == 'B站专用工具':
                     tool_path = os.path.join(os.path.dirname(__file__), 'Station B tool', file_name)
+                elif category == '计算器工具':
+                    tool_path = os.path.join(os.path.dirname(__file__), 'Calculator tool', file_name)
+
                 else:
                     tool_path = os.path.join(os.path.dirname(__file__), file_name)
                 if not os.path.exists(tool_path):
@@ -181,6 +194,8 @@ class ToolLauncher:
                     tool_path = os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
                 elif category == 'B站专用工具':
                     tool_path = os.path.join(os.path.dirname(__file__), 'Station B tool', file_name)
+                elif category == '计算器工具':
+                    tool_path = os.path.join(os.path.dirname(__file__), 'Calculator tool', file_name)
                 else:
                     tool_path = os.path.join(os.path.dirname(__file__), file_name)
                 button = ttk.Button(tools_container, text=tool_name, width=50,
@@ -212,6 +227,8 @@ class ToolLauncher:
             tool_path = os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
         elif category == 'B站专用工具':
             tool_path = os.path.join(os.path.dirname(__file__), 'Station B tool', file_name)
+        elif category == '计算器工具':
+            tool_path = os.path.join(os.path.dirname(__file__), 'Calculator tool', file_name)
         else:
             tool_path = os.path.join(os.path.dirname(__file__), file_name)
         return os.path.exists(tool_path)
@@ -230,6 +247,8 @@ class ToolLauncher:
             return os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
         elif category == 'B站专用工具':
             return os.path.join(os.path.dirname(__file__), 'Station B tool', file_name)
+        elif category == '计算器工具':
+            return os.path.join(os.path.dirname(__file__), 'Calculator tool', file_name)
         else:
             return os.path.join(os.path.dirname(__file__), file_name)
 
@@ -365,7 +384,7 @@ class ToolLauncher:
         """显示关于信息"""
         about_text = """
 这是一个用于启动各种三垣开发的小工具模块的程序，提供了统一的启动界面。
-版本说明，本启动器为正式发布版本，但目前配套的工具模块均为Alphaha版本，可能存在未知bug。
+版本说明，本启动器为正式发布版本
 本项目在部署完整的开发环境后，可以离线本地运行。
 - 作者:叁垣伍瑞肆凶廿捌宿宿
 - 联系方式:https://space.bilibili.com/556216088
@@ -373,7 +392,6 @@ class ToolLauncher:
 - 代码层面无需联网，无需登录，无需注册，无需授权
 - 功能设计无需联网,数据完全本地处理
 - 本程序不收集任何用户数据，不上传任何用户数据
-
         """
         
         # 创建关于窗口
@@ -410,48 +428,13 @@ class ToolLauncher:
         """显示更新日志"""
         changelog_text = """
 三垣工具启动器 更新日志
-V1.0.0 (2025-5-24)
-- 1.初始版本发布
-- 2.包含PDF工具、图片工具和音频工具启动功能
-- 3.实现工具完整性检查
-- 4.添加帮助和关于页面
-V1.0.1 (2025-5-25)
-- 1.修复了音频工具刷新后无法使用的问题
-V1.0.2 (2025-5-26)
-- 1.添加更新日志
-v1.1.0 (2025-5-27)
-- 1.修复V1.0.2版，调用工具名称错误的问题
-- 2.新增目录树生成器工具
-- 3.优化界面大小
-V1.1.1 (2025-5-28)
-- 1.新增加折叠/展开功能
-- 2.新增工具列表添加了垂直滚动条
-- 3.支持鼠标滚轮滚动
-- 4.调整目录树生成器工具位置
-- 5.优化工具列表布局
-V1.2.0 (2025-5-31)
-- 1.新增PDF转图片工具
-V1.3.0 (2025-6-6)
-- 1.新增图片转PDF工具
-- 2.新增数字小写转大写工具
-- 3.优化工具列表布局
-- 4.新增长度单位换算工具
-- 5.新增空文件夹清理工具
-V1.3.1 (2025-6-7)
-- 1.对PDF工具列表中，帮助的代码片段进行优化
-- 2.对PDF列表模块添加禁止生成 .pyc 文件
-V1.3.2 (2025-6-8)
-- 1.对图形工具列表中，部分模块的帮助的代码片段进行优化，添加禁止生成 .pyc 文件
-- 2.对音频工具列表中，帮助的代码片段进行优化，并添加禁止生成 .pyc 文件
-- 3.对文件工具列表中，帮助的代码片段进行优化，并添加禁止生成 .pyc 文件
-V1.4.0 (2025-6-9)
-- 1.新增字符频率分析器
-- 2.新增英文大小写转换
-V1.4.1 (2025-6-17)
-- 1.优化部分错误
-V1.5.0 (2025-6-24)
-- 1.新增B站专用封面与表情包图片批量压缩工具
-- 2.对于帮助界面用词进行了修改，于完善
+V2.0.0 (2025-7-14)
+- 1.新增最小公倍数计算器
+- 2.新增平方根计算器
+- 3.新增重复组合计算器
+- 4.新增立方根计算器
+- 5.新增排列计算器
+- 6.新增因数计算器
         """
         
         # 创建更新日志窗口
@@ -481,7 +464,7 @@ V1.5.0 (2025-6-24)
 工具启动器使用帮助
 
 1. 功能说明
-   本程序用于启动各种工具模块，包括PDF处理、图片处理和音频处理工具。
+   本程序用于启动各种工具模块，包括PDF处理、图片处理和音频处理等工具。
 
 2. 使用方法
    - 在界面上选择需要使用的工具，点击对应按钮
