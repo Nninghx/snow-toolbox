@@ -7,10 +7,33 @@ from tkinter import ttk, messagebox
 import subprocess
 import os
 
+class PathUtils:
+    """统一路径处理工具类"""
+    @staticmethod
+    def get_tool_path(category, file_name):
+        """根据分类获取工具路径"""
+        base_dir = os.path.dirname(__file__)
+        category_map = {
+            'PDF工具': 'PDF tool',
+            '图片工具': 'Picture tool',
+            '音频工具': 'Audio tools',
+            '文件工具': 'File tool',
+            '其他工具': 'Other tool',
+            'B站专用工具': 'Station B tool',
+            '计算器工具': 'Calculator tool'
+        }
+        sub_dir = category_map.get(category)
+        return os.path.join(base_dir, sub_dir, file_name) if sub_dir else os.path.join(base_dir, file_name)
+
+    @staticmethod
+    def get_icon_path():
+        """获取图标路径"""
+        return os.path.join(os.path.dirname(__file__), 'icon.ico')
+
 class ToolLauncher:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("工具启动器-V2.0.0")
+        self.root.title("工具启动器-V2.0.1")
         self.root.geometry("440x500")
         self.root.minsize(440, 500)
         # 分类折叠状态，折叠状态(True)，展开状态(False)
@@ -89,7 +112,7 @@ class ToolLauncher:
         
         # 设置窗口图标
         try:
-            icon_path = os.path.join(os.path.dirname(__file__), 'icon.ico')
+            icon_path = PathUtils.get_icon_path()
             if os.path.exists(icon_path):
                 self.root.iconbitmap(icon_path)
         except:
@@ -104,24 +127,7 @@ class ToolLauncher:
         missing_tools = []
         for category, tools in self.tools.items():
             for tool_name, file_name in tools.items():
-                # 特殊处理不同工具类型的路径
-                if category == 'PDF工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'PDF tool', file_name)
-                elif category == '图片工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'Picture tool', file_name)
-                elif category == '音频工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'Audio tools', file_name)
-                elif category == '文件工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'File tool', file_name)
-                elif category == '其他工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
-                elif category == 'B站专用工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'Station B tool', file_name)
-                elif category == '计算器工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'Calculator tool', file_name)
-
-                else:
-                    tool_path = os.path.join(os.path.dirname(__file__), file_name)
+                tool_path = PathUtils.get_tool_path(category, file_name)
                 if not os.path.exists(tool_path):
                     missing_tools.append(f"{category} - {tool_name} ({file_name})")
         
@@ -181,23 +187,7 @@ class ToolLauncher:
                 tools_container.pack(fill="x")
             for tool_name, file_name in tools.items():
                 # 检查工具是否存在
-                # 特殊处理不同工具类型的路径
-                if category == 'PDF工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'PDF tool', file_name)
-                elif category == '图片工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'Picture tool', file_name)
-                elif category == '音频工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'Audio tools', file_name)
-                elif category == '文件工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'File tool', file_name)
-                elif category == '其他工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
-                elif category == 'B站专用工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'Station B tool', file_name)
-                elif category == '计算器工具':
-                    tool_path = os.path.join(os.path.dirname(__file__), 'Calculator tool', file_name)
-                else:
-                    tool_path = os.path.join(os.path.dirname(__file__), file_name)
+                tool_path = PathUtils.get_tool_path(category, file_name)
                 button = ttk.Button(tools_container, text=tool_name, width=50,
                                   command=lambda f=file_name, c=category: self.run_tool(f, c))
                 
@@ -215,42 +205,12 @@ class ToolLauncher:
         
     def check_tool_exists(self, category, file_name):
         """检查工具文件是否存在"""
-        if category == 'PDF工具':
-            tool_path = os.path.join(os.path.dirname(__file__), 'PDF tool', file_name)
-        elif category == '图片工具':
-            tool_path = os.path.join(os.path.dirname(__file__), 'Picture tool', file_name)
-        elif category == '音频工具':
-            tool_path = os.path.join(os.path.dirname(__file__), 'Audio tools', file_name)
-        elif category == '文件工具':
-            tool_path = os.path.join(os.path.dirname(__file__), 'File tool', file_name)
-        elif category == '其他工具':
-            tool_path = os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
-        elif category == 'B站专用工具':
-            tool_path = os.path.join(os.path.dirname(__file__), 'Station B tool', file_name)
-        elif category == '计算器工具':
-            tool_path = os.path.join(os.path.dirname(__file__), 'Calculator tool', file_name)
-        else:
-            tool_path = os.path.join(os.path.dirname(__file__), file_name)
+        tool_path = PathUtils.get_tool_path(category, file_name)
         return os.path.exists(tool_path)
 
     def get_tool_path(self, category, file_name):
         """获取工具文件的完整路径"""
-        if category == 'PDF工具':
-            return os.path.join(os.path.dirname(__file__), 'PDF tool', file_name)
-        elif category == '图片工具':
-            return os.path.join(os.path.dirname(__file__), 'Picture tool', file_name)
-        elif category == '音频工具':
-            return os.path.join(os.path.dirname(__file__), 'Audio tools', file_name)
-        elif category == '文件工具':
-            return os.path.join(os.path.dirname(__file__), 'File tool', file_name)
-        elif category == '其他工具':
-            return os.path.join(os.path.dirname(__file__), 'Other tool', file_name)
-        elif category == 'B站专用工具':
-            return os.path.join(os.path.dirname(__file__), 'Station B tool', file_name)
-        elif category == '计算器工具':
-            return os.path.join(os.path.dirname(__file__), 'Calculator tool', file_name)
-        else:
-            return os.path.join(os.path.dirname(__file__), file_name)
+        return PathUtils.get_tool_path(category, file_name)
 
     def refresh_tools(self):
         """刷新工具状态并更新界面"""
@@ -401,10 +361,9 @@ class ToolLauncher:
         about_window.resizable(False, False)
         
         # 添加图标标签（如果有的话）
+        icon_path = PathUtils.get_icon_path()
         try:
-            icon_path = os.path.join(os.path.dirname(__file__), 'icon.ico')
             if os.path.exists(icon_path):
-                from PIL import Image, ImageTk
                 icon = Image.open(icon_path)
                 icon = icon.resize((64, 64), Image.Resampling.LANCZOS)
                 icon_photo = ImageTk.PhotoImage(icon)
@@ -428,13 +387,8 @@ class ToolLauncher:
         """显示更新日志"""
         changelog_text = """
 三垣工具启动器 更新日志
-V2.0.0 (2025-7-14)
-- 1.新增最小公倍数计算器
-- 2.新增平方根计算器
-- 3.新增重复组合计算器
-- 4.新增立方根计算器
-- 5.新增排列计算器
-- 6.新增因数计算器
+V2.0.1 (2025-7-15)
+1.统一处理主程序的路径逻辑，减少重复代码
         """
         
         # 创建更新日志窗口
