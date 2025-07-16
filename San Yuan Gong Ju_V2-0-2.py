@@ -16,7 +16,7 @@ class PathUtils:
         category_map = {
             'PDF工具': 'PDF tool',
             '图片工具': 'Picture tool',
-            '音频工具': 'Audio tools',
+            '音频工具': 'Audio tool',
             '文件工具': 'File tool',
             '其他工具': 'Other tool',
             'B站专用工具': 'Station B tool',
@@ -33,7 +33,7 @@ class PathUtils:
 class ToolLauncher:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("工具启动器-V2.0.1")
+        self.root.title("工具启动器-V2.0.2")
         self.root.geometry("440x500")
         self.root.minsize(440, 500)
         # 分类折叠状态，折叠状态(True)，展开状态(False)
@@ -105,11 +105,8 @@ class ToolLauncher:
                 '立方根计算器': 'Li Fang Gen Ji Suan Qi.py',
                 '排列计算器': 'Pai Lie Ji Suan Qi.py',
                 '因数计算器': 'Yin Shu Ji Suan Qi.py',
-
-
             }
         }
-        
         # 设置窗口图标
         try:
             icon_path = PathUtils.get_icon_path()
@@ -122,13 +119,66 @@ class ToolLauncher:
         self.check_tools()
         self.setup_ui()
         
+    def _create_scrollable_frame(self, parent):
+        """创建可滚动框架的公共方法"""
+        frame = ttk.LabelFrame(parent, text="可用工具", padding="10")
+        frame.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        canvas = tk.Canvas(frame)
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y", padx=(0,1))
+        
+        return scrollable_frame
+
+    def _create_tool_buttons(self, scrollable_frame, check_exists=True):
+        """创建工具按钮的公共方法"""
+        for category, tools in self.tools.items():
+            category_frame = ttk.Frame(scrollable_frame)
+            category_frame.pack(fill="x", pady=(10,0))
+            
+            toggle_text = "▼" if self.category_states[category] else "▲"
+            toggle_btn = ttk.Button(category_frame, text=toggle_text, width=2,
+                                 command=lambda c=category: self.toggle_category(c))
+            toggle_btn.pack(side="left")
+            toggle_btn.category = category
+            
+            ttk.Label(category_frame, text=f"{category}：", font=("", 10, "bold")).pack(side="left", anchor="w")
+            
+            tools_container = ttk.Frame(scrollable_frame)
+            if not self.category_states[category]:
+                tools_container.pack(fill="x")
+                
+            for tool_name, file_name in tools.items():
+                button = ttk.Button(tools_container, text=tool_name, width=50,
+                                  command=lambda f=file_name, c=category: self.run_tool(f, c))
+                
+                if check_exists and not self.check_tool_exists(category, file_name):
+                    button.state(['disabled'])
+                    self.create_tooltip(button, f"工具文件不存在: {file_name}")
+                else:
+                    self.create_tooltip(button, f"启动{tool_name}")
+                button.pack(pady=2)
+
     def check_tools(self):
         """检查工具完整性"""
         missing_tools = []
         for category, tools in self.tools.items():
             for tool_name, file_name in tools.items():
-                tool_path = PathUtils.get_tool_path(category, file_name)
-                if not os.path.exists(tool_path):
+                if not self.check_tool_exists(category, file_name):
                     missing_tools.append(f"{category} - {tool_name} ({file_name})")
         
         if missing_tools:
@@ -136,69 +186,8 @@ class ToolLauncher:
             messagebox.showwarning("工具缺失", warning_message)
         
     def setup_ui(self):
-        # 创建工具列表框架
-        frame = ttk.LabelFrame(self.root, text="可用工具", padding="10")
-        frame.pack(fill="both", expand=True, padx=10, pady=5)
-        
-        # 创建Canvas和滚动条
-        canvas = tk.Canvas(frame)
-        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
-        
-        # 配置Canvas
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(
-                scrollregion=canvas.bbox("all")
-            )
-        )
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        # 绑定鼠标滚轮事件
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        
-        # 布局Canvas和滚动条
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y", padx=(0,1))
-        
-        # 动态创建工具按钮
-        for category, tools in self.tools.items():
-            # 创建分类标题框架
-            category_frame = ttk.Frame(scrollable_frame)
-            category_frame.pack(fill="x", pady=(10,0))
-            
-            # 添加折叠/展开按钮
-            toggle_text = "▼" if self.category_states[category] else "▲"
-            toggle_btn = ttk.Button(category_frame, text=toggle_text, width=2,
-                                 command=lambda c=category: self.toggle_category(c))
-            toggle_btn.pack(side="left")
-            toggle_btn.category = category  # 标记按钮所属分类
-            
-            # 添加分类标签
-            ttk.Label(category_frame, text=f"{category}：", font=("", 10, "bold")).pack(side="left", anchor="w")
-            
-            # 添加工具按钮容器
-            tools_container = ttk.Frame(scrollable_frame)
-            if not self.category_states[category]:
-                tools_container.pack(fill="x")
-            for tool_name, file_name in tools.items():
-                # 检查工具是否存在
-                tool_path = PathUtils.get_tool_path(category, file_name)
-                button = ttk.Button(tools_container, text=tool_name, width=50,
-                                  command=lambda f=file_name, c=category: self.run_tool(f, c))
-                
-                # 如果工具不存在，禁用按钮
-                if not os.path.exists(tool_path):
-                    button.state(['disabled'])
-                    self.create_tooltip(button, f"工具文件不存在: {file_name}")
-                else:
-                    self.create_tooltip(button, f"启动{tool_name}")
-                button.pack(pady=2)
-        # 状态栏
+        scrollable_frame = self._create_scrollable_frame(self.root)
+        self._create_tool_buttons(scrollable_frame)
         self.status_var = tk.StringVar(value="就绪")
         self.status_bar = ttk.Label(self.root, textvariable=self.status_var, relief="sunken")
         self.status_bar.pack(side="bottom", fill="x", padx=10, pady=5)
@@ -214,7 +203,6 @@ class ToolLauncher:
 
     def refresh_tools(self):
         """刷新工具状态并更新界面"""
-        # 更新状态
         self.status_var.set("正在刷新工具列表...")
         self.root.update()
         
@@ -223,74 +211,19 @@ class ToolLauncher:
             if isinstance(widget, ttk.LabelFrame):
                 widget.destroy()
         
-        # 创建新的工具列表框架
-        frame = ttk.LabelFrame(self.root, text="可用工具", padding="10")
-        frame.pack(fill="both", expand=True, padx=10, pady=5)
+        # 创建新的UI
+        scrollable_frame = self._create_scrollable_frame(self.root)
         
-        # 创建Canvas和滚动条
-        canvas = tk.Canvas(frame)
-        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
-        
-        # 配置Canvas
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(
-                scrollregion=canvas.bbox("all")
-            )
+        # 统计工具数量
+        total_tools = sum(len(tools) for tools in self.tools.values())
+        available_tools = sum(
+            1 for category, tools in self.tools.items()
+            for file_name in tools.values()
+            if self.check_tool_exists(category, file_name)
         )
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
         
-        # 绑定鼠标滚轮事件
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        
-        # 布局Canvas和滚动条
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y", padx=(0,5))
-        
-        # 动态创建工具按钮
-        available_tools = 0
-        total_tools = 0
-        
-        for category, tools in self.tools.items():
-            # 创建分类标题框架
-            category_frame = ttk.Frame(scrollable_frame)
-            category_frame.pack(fill="x", pady=(10,0))
-            
-            # 添加折叠/展开按钮
-            toggle_text = "▼" if self.category_states[category] else "▲"
-            toggle_btn = ttk.Button(category_frame, text=toggle_text, width=2,
-                                 command=lambda c=category: self.toggle_category(c))
-            toggle_btn.pack(side="left")
-            toggle_btn.category = category  # 标记按钮所属分类
-            
-            # 添加分类标签
-            ttk.Label(category_frame, text=f"{category}：", font=("", 10, "bold")).pack(side="left", anchor="w")
-            
-            # 添加工具按钮容器
-            tools_container = ttk.Frame(scrollable_frame)
-            if not self.category_states[category]:
-                tools_container.pack(fill="x")
-            
-            for tool_name, file_name in tools.items():
-                total_tools += 1
-                button = ttk.Button(tools_container, text=tool_name, width=50,
-                                  command=lambda f=file_name, c=category: self.run_tool(f, c))
-                
-                # 检查工具是否存在
-                if not self.check_tool_exists(category, file_name):
-                    button.state(['disabled'])
-                    self.create_tooltip(button, f"工具文件不存在: {file_name}")
-                else:
-                    available_tools += 1
-                    self.create_tooltip(button, f"启动{tool_name}")
-                
-                button.pack(pady=2)
-        
-        # 更新状态栏
+        # 创建工具按钮
+        self._create_tool_buttons(scrollable_frame, check_exists=False)
         self.status_var.set(f"刷新完成 - 可用工具: {available_tools}/{total_tools}")
         
     def create_tooltip(self, widget, text):
