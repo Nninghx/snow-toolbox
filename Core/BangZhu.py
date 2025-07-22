@@ -23,7 +23,7 @@ class HelpSystem:
     AUTHOR_INFO = """
 提示：
 如果发现发现Bug或需要新的功能，请联系作者：
-- 作者:宁幻雪(叁垣伍瑞肆凶廿捌宿宿)
+- 作者:宁幻雪
 - 联系方式:https://space.bilibili.com/556216088
 - 版权:Apache-2.0 License
 """

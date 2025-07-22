@@ -9,11 +9,26 @@ class SquareRootCalculator:
         self.root.geometry("400x300")
         self.root.resizable(False, False)
         
-        # 设置字体
-        self.font = ("Arial", 12)
+        # 加载并设置字体
+        self.font = self.load_font_settings()
         
         # 创建界面组件
         self.create_widgets()
+
+    def load_font_settings(self):
+        """从ziti.json加载字体设置，默认返回Arial"""
+        import json
+        import os
+        
+        try:
+            ziti_path = os.path.join("Core", "ziti.json")
+            if os.path.exists(ziti_path):
+                with open(ziti_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                return (data.get('family', 'Arial'), 12)
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+        return ("Arial", 12)  # 默认字体
     
     def create_widgets(self):
         # 输入框标签

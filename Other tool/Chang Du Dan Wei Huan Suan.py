@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, font
 
 # 单位字典定义为全局常量
 # 单位分类字典
@@ -154,6 +154,74 @@ def convert_and_display():
 root = tk.Tk()
 root.title("长度单位换算")
 root.minsize(400, 400)  # 增大窗口尺寸以容纳历史记录
+
+# 读取字体设置
+try:
+    import json
+    import os
+    # 构建正确的文件路径并验证
+    font_path = os.path.join('Core', 'ziti.json')
+    if not os.path.exists(font_path):
+        raise FileNotFoundError(f"字体配置文件 {font_path} 不存在")
+    
+    # 检查文件可读性
+    if not os.access(font_path, os.R_OK):
+        raise PermissionError(f"无法读取字体配置文件 {font_path}")
+    
+    # 读取并验证JSON文件
+    with open(font_path, 'r', encoding='utf-8') as f:
+        try:
+            font_data = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"字体配置文件格式错误: {str(e)}")
+        
+        # 提取字体名称并验证
+        font_family = font_data.get('family')
+        if not font_family or not isinstance(font_family, str):
+            raise ValueError("字体配置文件中'family'字段无效或缺失")
+        
+        print(f"成功读取字体配置: {font_family}")
+        
+        # 检查字体是否可用
+        available_fonts = list(tk.font.families())
+        print("系统中可用字体列表:", available_fonts)
+        
+        # 更灵活的字体名称匹配
+        matched_font = None
+        for f in available_fonts:
+            if font_family.lower() in f.lower():
+                matched_font = f
+                break
+        
+        if not matched_font:
+            # 尝试匹配更通用的名称
+            for f in available_fonts:
+                if '阿里巴巴' in f or 'Alibaba' in f:
+                    matched_font = f
+                    break
+            
+            if not matched_font:
+                raise ValueError(
+                    f"无法找到匹配的字体 '{font_family}'\n"
+                    f"可用字体列表:\n{', '.join(available_fonts)}"
+                )
+            else:
+                print(f"使用替代字体: {matched_font}")
+        
+        # 创建字体对象并全局应用
+        try:
+            default_font = tk.font.nametofont("TkDefaultFont")
+            default_font.configure(family=matched_font, size=10)
+            # 确保所有控件使用新字体
+            root.option_add("*Font", default_font)
+            print(f"成功应用字体: {matched_font}")
+        except tk.TclError as e:
+            raise ValueError(f"无法应用字体 '{matched_font}': {str(e)}")
+        
+except Exception as e:
+    error_msg = f"字体设置失败: {str(e)}，使用默认字体"
+    print(error_msg)
+    messagebox.showwarning("字体设置", error_msg)
 
 # 使用Frame容器
 main_frame = ttk.Frame(root, padding="10")

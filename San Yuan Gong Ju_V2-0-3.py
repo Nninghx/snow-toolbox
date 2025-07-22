@@ -33,9 +33,16 @@ class PathUtils:
 class ToolLauncher:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("工具启动器-V2.0.2")
+        self.root.title("工具启动器-V2.0.3")
         self.root.geometry("440x500")
         self.root.minsize(440, 500)
+        
+        # 默认字体设置
+        self.current_font = ("微软雅黑", 10)
+        
+        # 尝试加载保存的字体设置
+        self.load_font_settings()
+        
         # 分类折叠状态，折叠状态(True)，展开状态(False)
         self.category_states = {
             'PDF工具': True,
@@ -52,18 +59,27 @@ class ToolLauncher:
         self.top_frame.pack(fill="x", padx=10, pady=5)
         
         # 添加刷新按钮
-        refresh_button = ttk.Button(self.top_frame, text="刷新", command=self.refresh_tools)
+        refresh_button = tk.Button(self.top_frame, text="刷新", command=self.refresh_tools)
         refresh_button.pack(side="left", padx=5)
+        refresh_button.configure(font=self.current_font)
+        
+        # 添加字体设置按钮
+        font_button = tk.Button(self.top_frame, text="字体设置", command=self.show_font_settings)
+        font_button.pack(side="left", padx=5)
+        font_button.configure(font=self.current_font)
         
         # 添加帮助、关于和更新日志按钮
-        help_button = ttk.Button(self.top_frame, text="帮助", command=self.show_help)
+        help_button = tk.Button(self.top_frame, text="帮助", command=self.show_help)
         help_button.pack(side="right", padx=5)
+        help_button.configure(font=self.current_font)
         
-        about_button = ttk.Button(self.top_frame, text="关于", command=self.show_about)
+        about_button = tk.Button(self.top_frame, text="关于", command=self.show_about)
         about_button.pack(side="right", padx=5)
+        about_button.configure(font=self.current_font)
         
-        changelog_button = ttk.Button(self.top_frame, text="更新日志", command=self.show_changelog)
+        changelog_button = tk.Button(self.top_frame, text="更新日志", command=self.show_changelog)
         changelog_button.pack(side="right", padx=5)
+        changelog_button.configure(font=self.current_font)
         
         # 工具列表
         self.tools = {
@@ -105,8 +121,11 @@ class ToolLauncher:
                 '立方根计算器': 'Li Fang Gen Ji Suan Qi.py',
                 '排列计算器': 'Pai Lie Ji Suan Qi.py',
                 '因数计算器': 'Yin Shu Ji Suan Qi.py',
+
+
             }
         }
+        
         # 设置窗口图标
         try:
             icon_path = PathUtils.get_icon_path()
@@ -146,25 +165,35 @@ class ToolLauncher:
 
     def _create_tool_buttons(self, scrollable_frame, check_exists=True):
         """创建工具按钮的公共方法"""
+        # 清空之前的引用
+        self.tool_buttons = []
+        self.category_labels = []
+        
         for category, tools in self.tools.items():
             category_frame = ttk.Frame(scrollable_frame)
             category_frame.pack(fill="x", pady=(10,0))
             
             toggle_text = "▼" if self.category_states[category] else "▲"
-            toggle_btn = ttk.Button(category_frame, text=toggle_text, width=2,
+            toggle_btn = tk.Button(category_frame, text=toggle_text, width=2,
                                  command=lambda c=category: self.toggle_category(c))
             toggle_btn.pack(side="left")
             toggle_btn.category = category
+            toggle_btn.configure(font=self.current_font)
             
-            ttk.Label(category_frame, text=f"{category}：", font=("", 10, "bold")).pack(side="left", anchor="w")
+            label = tk.Label(category_frame, text=f"{category}：", font=("", 10, "bold"))
+            label.pack(side="left", anchor="w")
+            label.configure(font=self.current_font)
+            self.category_labels.append(label)  # 保存分类标签引用
             
             tools_container = ttk.Frame(scrollable_frame)
             if not self.category_states[category]:
                 tools_container.pack(fill="x")
                 
             for tool_name, file_name in tools.items():
-                button = ttk.Button(tools_container, text=tool_name, width=50,
+                button = tk.Button(tools_container, text=tool_name, width=50,
                                   command=lambda f=file_name, c=category: self.run_tool(f, c))
+                button.configure(font=self.current_font)
+                self.tool_buttons.append(button)  # 保存工具按钮引用
                 
                 if check_exists and not self.check_tool_exists(category, file_name):
                     button.state(['disabled'])
@@ -189,8 +218,9 @@ class ToolLauncher:
         scrollable_frame = self._create_scrollable_frame(self.root)
         self._create_tool_buttons(scrollable_frame)
         self.status_var = tk.StringVar(value="就绪")
-        self.status_bar = ttk.Label(self.root, textvariable=self.status_var, relief="sunken")
+        self.status_bar = tk.Label(self.root, textvariable=self.status_var, relief="sunken")
         self.status_bar.pack(side="bottom", fill="x", padx=10, pady=5)
+        self.status_bar.configure(font=self.current_font)
         
     def check_tool_exists(self, category, file_name):
         """检查工具文件是否存在"""
@@ -279,7 +309,7 @@ class ToolLauncher:
 这是一个用于启动各种三垣开发的小工具模块的程序，提供了统一的启动界面。
 版本说明，本启动器为正式发布版本
 本项目在部署完整的开发环境后，可以离线本地运行。
-- 作者:叁垣伍瑞肆凶廿捌宿宿
+- 作者:宁幻雪
 - 联系方式:https://space.bilibili.com/556216088
 - 版权:Apache-2.0 License
 - 代码层面无需联网，无需登录，无需注册，无需授权
@@ -320,8 +350,9 @@ class ToolLauncher:
         """显示更新日志"""
         changelog_text = """
 三垣工具启动器 更新日志
-V2.0.1 (2025-7-15)
-1.统一处理主程序的路径逻辑，减少重复代码
+V2.0.3 (2025-7-15)
+1.新增字体设置，允许用户自定义界面字体，如果你用于商业用途，请确保你获得该字体的授权。
+2.修复V2.0.2版本，核心模块导入错误问题。
         """
         
         # 创建更新日志窗口
@@ -345,6 +376,88 @@ V2.0.1 (2025-7-15)
         close_button = ttk.Button(changelog_window, text="关闭", command=changelog_window.destroy)
         close_button.pack(pady=10)
     
+    def show_font_settings(self):
+        """显示字体设置窗口"""
+        font_window = tk.Toplevel(self.root)
+        font_window.title("字体设置")
+        font_window.geometry("300x150")
+        
+        # 添加字体选择控件
+        ttk.Label(font_window, text="选择字体:").pack(pady=10)
+        font_family = ttk.Combobox(font_window, values=["阿里巴巴普惠体 3 115 Black", "阿里巴巴普惠体 3 55 Regular L3", "阿里巴巴普惠体 3.0 35 Thin", "Arial"])
+        font_family.pack(pady=5)
+        font_family.set("阿里巴巴普惠体 3 115 Black")
+        
+        # 添加应用按钮
+        apply_button = ttk.Button(font_window, text="应用", 
+                                command=lambda: self.apply_font_settings(font_family.get(), 10))  # 固定字体大小为10
+        apply_button.pack(pady=10)
+
+    def apply_font_settings(self, family, size):
+        """应用字体设置"""
+        self.current_font = (family, size)
+        
+        # 更新所有控件的字体
+        self.update_fonts()
+        messagebox.showinfo("提示", f"已应用字体设置: {family} {size}px")
+        
+        # 保存字体设置到文件
+        self.save_font_settings()
+        
+        # 自动执行刷新操作
+        self.refresh_tools()
+        
+    def save_font_settings(self):
+        """保存字体设置到Core/ziti.json文件"""
+        import json
+        try:
+            # 确保Core文件夹存在
+            core_dir = os.path.join(os.path.dirname(__file__), "Core")
+            if not os.path.exists(core_dir):
+                os.makedirs(core_dir)
+            
+            font_data = {
+                "family": self.current_font[0]  # 只保存字体类型
+            }
+            font_path = os.path.join(core_dir, "ziti.json")
+            with open(font_path, "w", encoding="utf-8") as f:
+                json.dump(font_data, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print(f"保存字体设置失败: {e}")
+            
+    def load_font_settings(self):
+        """从Core/ziti.json文件加载字体设置"""
+        import json
+        try:
+            font_path = os.path.join(os.path.dirname(__file__), "Core", "ziti.json")
+            if os.path.exists(font_path):
+                with open(font_path, "r", encoding="utf-8") as f:
+                    font_data = json.load(f)
+                    self.current_font = (font_data["family"], 10)  # 固定字体大小为10
+        except Exception as e:
+            print(f"加载字体设置失败: {e}")
+        
+    def update_fonts(self):
+        """更新所有控件的字体"""
+        # 更新顶部按钮字体
+        for widget in self.top_frame.winfo_children():
+            if isinstance(widget, tk.Button):
+                widget.configure(font=self.current_font)
+        
+        # 更新工具按钮字体
+        for button in self.tool_buttons:
+            button.configure(font=self.current_font)
+        
+        # 更新分类标签字体
+        for label in self.category_labels:
+            label.configure(font=self.current_font)
+        
+        # 更新状态栏字体
+        self.status_bar.configure(font=self.current_font)
+        
+        # 强制刷新界面
+        self.root.update()
+        
     def show_help(self):
         """显示帮助信息"""
         help_text = """

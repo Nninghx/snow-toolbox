@@ -3,9 +3,28 @@ import sys
 sys.dont_write_bytecode = True
 
 import os
+import json
+from pathlib import Path
 from tkinter import *
 from tkinter import filedialog, messagebox
 import os
+
+from os.path import dirname, join
+sys.path.insert(0, join(dirname(__file__), "..", "Core"))
+from BangZhu import get_help_system
+
+
+def load_font_family():
+    try:
+        # 获取当前文件的目录，然后找到Core/ziti.json
+        current_dir = Path(__file__).parent
+        font_path = current_dir.parent / "Core" / "ziti.json"
+        with open(font_path, 'r', encoding='utf-8') as f:
+            font_data = json.load(f)
+        return font_data.get('family', 'Arial')  # 默认使用Arial
+    except Exception as e:
+        print(f"加载字体配置出错: {e}")
+        return 'Arial'  # 出错时使用默认字体
 
 from os.path import dirname, join
 sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
@@ -34,6 +53,7 @@ def generate_dir_tree(path='.', ignore=None, prefix=''):
 class DirTreeGUI:
     def __init__(self, root):
         self.root = root
+        self.font_family = load_font_family()  # 加载字体配置
         self.root.title("目录树生成器")
         # 设置窗口大小并居中显示
         window_width = 800
@@ -43,35 +63,37 @@ class DirTreeGUI:
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
         self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        # 定义字体设置
+        self.base_font = (self.font_family, 12)
+        self.button_font = (self.font_family, 12)
+        self.mono_font = ('Courier New', 10)  # 输出框保持等宽字体
         self.create_widgets()
     def create_widgets(self):
         # 目录选择框架
         dir_frame = Frame(self.root)
         dir_frame.pack(pady=10, padx=10, fill=X)
-        self.dir_entry = Entry(dir_frame, font=('Arial', 12))
+        self.dir_entry = Entry(dir_frame, font=self.base_font)
         self.dir_entry.pack(side=LEFT, expand=True, fill=X)
-        browse_btn = Button(dir_frame, text="浏览", command=self.browse_directory, width=8)
+        browse_btn = Button(dir_frame, text="浏览", command=self.browse_directory, width=8, font=self.button_font)
         browse_btn.pack(side=LEFT, padx=5)
         # 按钮框架
         btn_frame = Frame(self.root)
         btn_frame.pack(pady=10)
-        generate_btn = Button(btn_frame, text="生成目录树", command=self.generate_tree, width=15, font=('Arial', 12))
+        generate_btn = Button(btn_frame, text="生成目录树", command=self.generate_tree, width=15, font=self.button_font)
         generate_btn.pack(side=LEFT, padx=5)
-        save_btn = Button(btn_frame, text="保存结果", command=self.save_result, width=10, font=('Arial', 12))
+        save_btn = Button(btn_frame, text="保存结果", command=self.save_result, width=10, font=self.button_font)
         save_btn.pack(side=LEFT, padx=5)
-        clear_btn = Button(btn_frame, text="清空", command=self.clear_output, width=10, font=('Arial', 12))
+        clear_btn = Button(btn_frame, text="清空", command=self.clear_output, width=10, font=self.button_font)
         clear_btn.pack(side=LEFT, padx=5)
-        help_btn = Button(btn_frame, text="帮助", command=self.show_help, width=8, font=('Arial', 12))
+        help_btn = Button(btn_frame, text="帮助", command=self.show_help, width=8, font=self.button_font)
         help_btn.pack(side=LEFT, padx=5)
-        changelog_btn = Button(btn_frame, text="更新日志", command=self.show_changelog, width=8, font=('Arial', 12))
-        changelog_btn.pack(side=LEFT, padx=5)
         # 输出框架
         output_frame = Frame(self.root)
         output_frame.pack(pady=10, padx=10, fill=BOTH, expand=True)
         # 创建带滚动条的文本框
         output_scrollbar = Scrollbar(output_frame)
         output_scrollbar.pack(side=RIGHT, fill=Y)
-        self.output_text = Text(output_frame, wrap=NONE, yscrollcommand=output_scrollbar.set, font=('Courier New', 10))
+        self.output_text = Text(output_frame, wrap=NONE, yscrollcommand=output_scrollbar.set, font=self.mono_font)
         self.output_text.pack(side=LEFT, fill=BOTH, expand=True)
         output_scrollbar.config(command=self.output_text.yview)
     def browse_directory(self):
@@ -113,22 +135,6 @@ class DirTreeGUI:
         help_system = get_help_system()
         help_system.show_help("目录树生成器")
         
-    def show_changelog(self):
-        changelog_text = """
-        ==== 更新日志 ====
-版本: Alpha1.0.0(2025-5-27)
-1. 初始版本发布
-2. 实现基本目录树生成功能
-3. 添加图形用户界面
-4. 支持保存生成结果
-5. 添加帮助文档
-版本 Alpha1.0.1 (2025-6-7)
-- 1.对帮助文档调用进行拆分，简化代码长度
-- 2.禁止生成 .pyc 文件
-
-
-        """
-        messagebox.showinfo("更新日志", changelog_text.strip())
 if __name__ == '__main__':
     root = Tk()
     app = DirTreeGUI(root)

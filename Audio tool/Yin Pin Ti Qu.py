@@ -6,9 +6,10 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import subprocess
 import os
+import json
 
 from os.path import dirname, join
-sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
+sys.path.insert(0, join(dirname(__file__), "..", "Core"))
 from BangZhu import get_help_system
 
 
@@ -16,8 +17,15 @@ class AudioExtractorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("音频提取工具")
-        self.root.geometry("480x200")
+        self.root.geometry("530x200")
         self.root.resizable(False, False)
+        
+        # 加载字体配置
+        font_config_path = join(dirname(__file__), "..", "Core", "ziti.json")
+        with open(font_config_path, 'r', encoding='utf-8') as f:
+            font_config = json.load(f)
+        self.current_font = (font_config["family"], 10)
+        self.root.option_add("*Font", self.current_font)
 
         # 视频文件路径
         self.video_path = tk.StringVar()
@@ -34,12 +42,11 @@ class AudioExtractorApp:
         # 提取按钮
         tk.Button(root, text="开始提取", command=self.extract_audio).grid(row=2, column=1, pady=10)
 
-        # 帮助和更新日志按钮
+        # 帮助按钮
         button_frame = tk.Frame(root)
         button_frame.grid(row=3, column=1, pady=5)
         
         tk.Button(button_frame, text="帮助", command=self.show_help).pack(side="left", padx=5)
-        tk.Button(button_frame, text="更新日志", command=self.show_changelog).pack(side="left", padx=5)
 
         # 状态显示
         self.status_label = tk.Label(root, text="", fg="green")
@@ -62,33 +69,17 @@ class AudioExtractorApp:
         if file_path:
             self.audio_path.set(file_path)
 
-    def show_changelog(self):
-        changelog_text = """视频提取音频工具更新日志
-
-版本: Alpha1.0.0 (2025-05-22)
-- 初始版本发布
-- 实现基本视频提取音频功能
-- 添加帮助文档
-- 支持MP4/AVI/MKV/MOV输入格式
-- 支持MP3/WAV输出格式
-版本: Alpha1.0.1 (2025-05-23)
-- 界面尺寸优化为480x200
-- 新增WAV格式支持
-- 错误处理优化
-- 修复在处理大体积视频时会出现内存溢出或中断报错
-版本: Alpha1.0.2 (2025-05-26)
-- 添加更新日志
-版本 Alpha1.0.3 (2025-6-7)
-- 1.对帮助文档调用进行拆分，简化代码长度
-- 2.禁止生成 .pyc 文件
-
-
-"""
-        messagebox.showinfo("更新日志", changelog_text)
-
     def show_help(self):
         help_system = get_help_system()
         help_system.show_help("视频提取音频")
+        
+    def update_font(self, font_family, font_size=10):
+        """更新界面字体"""
+        self.current_font = (font_family, font_size)
+        self.root.option_add("*Font", self.current_font)
+        # 刷新界面以应用新字体
+        for widget in self.root.winfo_children():
+            widget.configure(font=self.current_font)
 
 
     def extract_audio(self):
