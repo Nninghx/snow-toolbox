@@ -1,12 +1,28 @@
 import re
+import json
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, font
 from collections import Counter
 
 class CharacterFrequencyAnalyzer:
     def __init__(self, root):
         self.root = root
         self.root.title("字符频率分析器")
+        
+        # 从ziti.json读取字体设置
+        try:
+            with open("Core/ziti.json", "r", encoding="utf-8") as f:
+                font_data = json.load(f)
+                font_family = font_data.get("family", "Microsoft YaHei")
+        except Exception as e:
+            font_family = "Microsoft YaHei"
+        
+        # 设置字体
+        self.custom_font = font.Font(family=font_family, size=12)
+        
+        # 配置ttk样式
+        self.style = ttk.Style()
+        self.style.configure(".", font=(font_family, 12))
         
         # 创建界面组件
         self.create_widgets()
@@ -16,7 +32,7 @@ class CharacterFrequencyAnalyzer:
         self.text_label = ttk.Label(self.root, text="输入文本或选择文件:")
         self.text_label.pack(pady=5)
         
-        self.text_input = tk.Text(self.root, height=10, width=50)
+        self.text_input = tk.Text(self.root, height=10, width=50, font=self.custom_font)
         self.text_input.pack(pady=5)
         
         # 统计选项区域
@@ -72,13 +88,6 @@ class CharacterFrequencyAnalyzer:
         )
         self.help_button.pack(side=tk.LEFT, padx=5)
         
-        self.changelog_button = ttk.Button(
-            self.button_frame,
-            text="更新日志",
-            command=self.show_changelog
-        )
-        self.changelog_button.pack(side=tk.LEFT, padx=5)
-        
         self.export_button = ttk.Button(
             self.button_frame,
             text="导出表格",
@@ -97,7 +106,8 @@ class CharacterFrequencyAnalyzer:
         self.hanzi_tree = ttk.Treeview(
             self.hanzi_frame, 
             columns=("character", "count"), 
-            show="headings"
+            show="headings",
+            style="Custom.Treeview"
         )
         self.hanzi_tree.heading("character", text="汉字")
         self.hanzi_tree.heading("count", text="出现次数")
@@ -110,7 +120,8 @@ class CharacterFrequencyAnalyzer:
         self.letter_tree = ttk.Treeview(
             self.letter_frame, 
             columns=("character", "count"), 
-            show="headings"
+            show="headings",
+            style="Custom.Treeview"
         )
         self.letter_tree.heading("character", text="字母")
         self.letter_tree.heading("count", text="出现次数")
@@ -123,7 +134,8 @@ class CharacterFrequencyAnalyzer:
         self.digit_tree = ttk.Treeview(
             self.digit_frame, 
             columns=("character", "count"), 
-            show="headings"
+            show="headings",
+            style="Custom.Treeview"
         )
         self.digit_tree.heading("character", text="数字")
         self.digit_tree.heading("count", text="出现次数")
@@ -205,20 +217,6 @@ class CharacterFrequencyAnalyzer:
 5. 可以通过滚动条查看完整结果"""
         
         messagebox.showinfo("帮助", help_text)
-    
-    def show_changelog(self):
-        """显示更新日志"""
-        changelog = """
-版本更新日志：
-Alpha1.0.0 (2025-06-09)
-- 添加帮助和更新日志功能
-- 优化界面布局
-- 添加字符类型选择功能
-- 支持汉字、字母、数字独立统计
-- 支持导出当前显示的频率数据为CSV文件
-"""
-        
-        messagebox.showinfo("更新日志", changelog)
     
     def export_data(self):
         """导出当前显示的频率数据为CSV文件"""

@@ -1,5 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
+import json
+import os
 
 def to_upper(text):
     """Convert text to uppercase"""
@@ -19,8 +21,26 @@ def reverse_case(text):
 
 def create_gui():
     """Create and run the GUI interface"""
+    # Load font settings
+    try:
+        with open('Core/ziti.json', 'r', encoding='utf-8') as f:
+            font_data = json.load(f)
+        font_family = font_data['family']
+    except Exception as e:
+        print(f"无法加载字体设置: {e}")
+        font_family = "Microsoft YaHei"  # Fallback font
+    
     root = tk.Tk()
     root.title("英文大小写转换工具")
+    
+    # Set default font
+    default_font = (font_family, 10)
+    root.option_add('*Font', default_font)
+    
+    # Configure ttk style
+    style = ttk.Style()
+    style.configure('TRadiobutton', font=default_font)
+    style.configure('TButton', font=default_font)
     
     # Input frame
     input_frame = ttk.Frame(root, padding="10")

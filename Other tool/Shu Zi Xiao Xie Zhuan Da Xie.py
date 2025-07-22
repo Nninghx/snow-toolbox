@@ -4,6 +4,16 @@ import re
 
 class RMBConverter:
     def __init__(self):
+        # 读取字体配置
+        try:
+            import json
+            with open('Core/ziti.json', 'r', encoding='utf-8') as f:
+                font_config = json.load(f)
+            self.font_family = font_config['family']
+        except Exception as e:
+            print(f"字体配置读取失败，使用默认字体: {str(e)}")
+            self.font_family = ''  # 空字符串表示使用系统默认字体
+
         # 数字到中文大写的映射
         self.num_map = {
             '0': '零', '1': '壹', '2': '贰', '3': '叁', '4': '肆',
@@ -29,10 +39,12 @@ class RMBConverter:
         
         # 创建样式
         style = ttk.Style()
-        style.configure('Title.TLabel', font=('', 16, 'bold'))  # 使用系统默认字体
-        style.configure('TLabel', font=('', 12))  # 使用系统默认字体
-        style.configure('TEntry', font=('', 12))  # 使用系统默认字体
-        style.configure('TButton', font=('', 12))  # 使用系统默认字体
+        title_font = (self.font_family, 16, 'bold') if self.font_family else ('', 16, 'bold')
+        default_font = (self.font_family, 12) if self.font_family else ('', 12)
+        style.configure('Title.TLabel', font=title_font)
+        style.configure('TLabel', font=default_font)
+        style.configure('TEntry', font=default_font)
+        style.configure('TButton', font=default_font)
         
         # 创建标题
         title_frame = ttk.Frame(self.root, padding="10")
@@ -62,14 +74,14 @@ class RMBConverter:
         ttk.Button(btn_frame, text="清除", command=self.clear_input).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="复制结果", command=self.copy_result).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="帮助", command=self.show_help).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="更新日志", command=self.show_changelog).pack(side=tk.LEFT, padx=5)
         
         # 创建结果显示区域
         result_frame = ttk.Frame(self.root, padding="10")
         result_frame.pack(fill=tk.BOTH, expand=True)
         
         ttk.Label(result_frame, text="转换结果：").pack(anchor=tk.W)
-        self.result_text = tk.Text(result_frame, font=('', 14), wrap=tk.WORD, height=12)  # 使用系统默认字体
+        result_font = (self.font_family, 14) if self.font_family else ('', 14)
+        self.result_text = tk.Text(result_frame, font=result_font, wrap=tk.WORD, height=12)
         self.result_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
 
@@ -253,16 +265,6 @@ class RMBConverter:
 - 版权:Apache-2.0 License
 """
         messagebox.showinfo("帮助", help_text)
-
-    def show_changelog(self):
-        """显示更新日志"""
-        changelog = """版本更新日志：
-        
-Alpha1.0.0 (当前版本):
-- 初始版本发布
-- 实现数字小写转大写基本功能
-- 支持实时转换和结果复制"""
-        messagebox.showinfo("更新日志", changelog)
 
     def run(self):
         """运行程序"""

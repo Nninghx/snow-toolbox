@@ -1,30 +1,33 @@
 import os
+import json
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import font, filedialog, messagebox
 
 class EmptyFolderCleaner:
     def __init__(self, root):
         self.root = root
+        try:
+            with open('Core/ziti.json', 'r', encoding='utf-8') as f:
+                font_config = json.load(f)
+            self.custom_font = font.Font(family=font_config['family'], size=10)
+        except (FileNotFoundError, tk.TclError):
+            self.custom_font = font.Font(family="Arial", size=10)
         self.setup_ui()
         
     def setup_ui(self):
         self.root.title("空文件夹清理工具")
         self.root.geometry("400x200")
         
-        tk.Label(self.root, text="选择要清理的目录:").pack(pady=10)
+        tk.Label(self.root, text="选择要清理的目录:", font=self.custom_font).pack(pady=10)
         
         self.path_var = tk.StringVar()
-        tk.Entry(self.root, textvariable=self.path_var, width=40).pack()
+        tk.Entry(self.root, textvariable=self.path_var, width=40, font=self.custom_font).pack()
         
-        tk.Button(self.root, text="浏览", command=self.browse_directory).pack(pady=5)
-        tk.Button(self.root, text="清理空文件夹", command=self.clean_empty_folders).pack(pady=10)
+        tk.Button(self.root, text="浏览", command=self.browse_directory, font=self.custom_font).pack(pady=5)
+        tk.Button(self.root, text="清理空文件夹", command=self.clean_empty_folders, font=self.custom_font).pack(pady=10)
         
-        # 添加帮助和更新日志按钮
-        button_frame = tk.Frame(self.root)
-        button_frame.pack(pady=5)
-        
-        tk.Button(button_frame, text="帮助", command=self.show_help).pack(side=tk.LEFT, padx=5)
-        tk.Button(button_frame, text="更新日志", command=self.show_changelog).pack(side=tk.LEFT, padx=5)
+        # 添加帮助按钮
+        tk.Button(self.root, text="帮助", command=self.show_help, font=self.custom_font).pack(pady=5)
         
     def show_help(self):
         help_text = """空文件夹清理工具使用说明:
@@ -39,14 +42,6 @@ class EmptyFolderCleaner:
 - 版权:Apache-2.0 License
 """
         messagebox.showinfo("帮助", help_text)
-        
-    def show_changelog(self):
-        changelog = """更新日志:
-        
-v1.0 - 初始版本
-- 实现基本空文件夹清理功能
-- 添加帮助和更新日志功能"""
-        messagebox.showinfo("更新日志", changelog)
         
     def browse_directory(self):
         directory = filedialog.askdirectory()
