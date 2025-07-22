@@ -3,20 +3,25 @@ import sys
 sys.dont_write_bytecode = True
 
 import os
+import json
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, ttk, font
 from PyPDF2 import PdfReader, PdfWriter
 import sys
 import os.path
 
 from os.path import dirname, join
-sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
+sys.path.insert(0, join(dirname(__file__), "..", "Core"))
 from BangZhu import get_help_system
 
 class PDFSplitterApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("PDF拆分工具Alpha-1.0.3")
+        # 首先读取并应用字体设置
+        self.font_family = self.load_font_setting()
+        self._setup_default_fonts()
+        
+        self.root.title("PDF拆分工具")
         self.root.geometry("400x300")
         self.input_file = None
         self.output_dir = None
@@ -70,6 +75,79 @@ class PDFSplitterApp:
         self.action_frame.grid(row=3, column=0, sticky="ew", padx=10, pady=5)
         tk.Button(self.action_frame, text="帮助", command=self.show_help).pack(side=tk.LEFT, padx=5)
         tk.Button(self.action_frame, text="拆分PDF", command=self.split_pdf).pack(side=tk.RIGHT, padx=5)
+        # 在所有UI控件初始化完成后应用字体设置
+        self.apply_font()
+    def load_font_setting(self):
+        """从ziti.json加载字体设置"""
+        try:
+            font_path = os.path.join(os.path.dirname(__file__), "..", "Core", "ziti.json")
+            print(f"尝试从 {font_path} 加载字体配置")
+            
+            with open(font_path, "r", encoding="utf-8") as f:
+                font_data = json.load(f)
+                font_name = font_data.get("family", "Microsoft YaHei")
+                print(f"读取到的字体名称: {font_name}")
+                
+                # 打印系统可用字体
+                print("\n系统可用字体:")
+                for f in tk.font.families():
+                    print(f)
+                    
+                return font_name
+        except Exception as e:
+            print(f"加载字体配置出错: {str(e)}")
+            return "Microsoft YaHei"  # 异常时使用默认字体
+
+    def _setup_default_fonts(self):
+        """在控件创建前设置默认字体"""
+        try:
+            # 检查字体是否存在
+            test_font = tk.font.Font(family=self.font_family, size=10)
+            if test_font.actual()["family"] != self.font_family:
+                raise tk.TclError("字体不存在")
+            
+            # 设置全局默认字体
+            font_settings = {
+                "TkDefaultFont": (self.font_family, 10),
+                "TkTextFont": (self.font_family, 10),
+                "TkFixedFont": (self.font_family, 10),
+                "TkMenuFont": (self.font_family, 10),
+                "TkHeadingFont": (self.font_family, 10),
+                "TkCaptionFont": (self.font_family, 10),
+                "TkSmallCaptionFont": (self.font_family, 10),
+                "TkIconFont": (self.font_family, 10),
+                "TkTooltipFont": (self.font_family, 10)
+            }
+            
+            for setting, font_spec in font_settings.items():
+                self.root.option_add(f"*{setting}", font_spec)
+                
+        except tk.TclError:
+            # 字体不存在时使用系统默认字体
+            print(f"警告: 字体'{self.font_family}'未安装，使用默认字体")
+            self.font_family = "Microsoft YaHei"
+            
+    def apply_font(self):
+        """为已创建的控件应用字体"""
+        # 获取所有需要设置字体的控件
+        widgets = [
+            self.file_label, self.output_label,
+            *self.file_frame.winfo_children(),
+            *self.output_frame.winfo_children(),
+            *self.option_frame.winfo_children(),
+            *self.action_frame.winfo_children()
+        ]
+        
+        # 为每个控件设置字体
+        for widget in widgets:
+            try:
+                if isinstance(widget, (tk.Label, tk.Button, tk.Radiobutton, tk.Entry)):
+                    widget.config(font=(self.font_family, 10))
+                elif isinstance(widget, tk.LabelFrame):
+                    widget.config(font=(self.font_family, 10, "bold"))
+            except:
+                continue
+
     def select_file(self):
         file = filedialog.askopenfilename(
             title="选择PDF文件",

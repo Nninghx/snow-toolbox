@@ -242,6 +242,17 @@ class CompressorGUI:
         self.window.title("B站专用封面与表情包图片批量压缩工具")
         self.window.geometry("600x400")
         
+        # 动态加载字体设置
+        try:
+            import json
+            with open('Core/ziti.json', 'r', encoding='utf-8') as f:
+                font_settings = json.load(f)
+            font_family = font_settings.get('family', 'Microsoft YaHei')
+            self.window.option_add('*Font', (font_family, 10))
+        except Exception as e:
+            print(f"加载字体设置失败: {str(e)}")
+            self.window.option_add('*Font', ('Microsoft YaHei', 10))
+        
         self.processor = ImageProcessor()
         self.setup_gui()
         
@@ -294,9 +305,6 @@ class CompressorGUI:
         
         # 帮助按钮
         ttk.Button(button_frame, text="帮助", command=self.show_help).pack(side=tk.LEFT, padx=5)
-        
-        # 更新日志按钮
-        ttk.Button(button_frame, text="更新日志", command=self.show_changelog).pack(side=tk.LEFT, padx=5)
         
         # 开始按钮
         self.start_button = ttk.Button(button_frame, text="开始压缩", command=self.start_processing)
@@ -469,16 +477,6 @@ class CompressorGUI:
 
 """
         messagebox.showinfo("帮助", help_text)
-        
-    def show_changelog(self):
-        """显示更新日志"""
-        changelog = """版本 1.0.0 (2025-06-08)
-- 初始版本发布
-- 支持B站封面图和表情图压缩
-- 支持批量处理图片文件
-- 提供图形化界面操作
-"""
-        messagebox.showinfo("更新日志", changelog)
         
     def start_processing(self):
         """开始处理图片"""

@@ -5,14 +5,15 @@ sys.dont_write_bytecode = True
 import os
 import sys
 import threading
+import json
 from queue import Queue
 from datetime import datetime
 from PIL import Image
-from tkinter import Tk, filedialog, messagebox, StringVar, OptionMenu, IntVar
-from tkinter.ttk import Frame, Button, Label, Entry, Checkbutton, Radiobutton, Progressbar, Separator
+from tkinter import Tk, filedialog, messagebox, StringVar, OptionMenu, IntVar, font
+from tkinter.ttk import Frame, Button, Label, Entry, Checkbutton, Radiobutton, Progressbar, Separator, Style
 
-from os.path import dirname, join
-sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
+from os.path import dirname, join, abspath
+sys.path.insert(0, join(dirname(__file__), "..", "Core"))
 from BangZhu import get_help_system
 
 class ImageConverter:
@@ -33,6 +34,16 @@ class ImageConverter:
         except:
             pass
             
+        # 读取字体配置
+        try:
+            font_path = abspath(join(dirname(__file__), "..", "Core", "ziti.json"))
+            with open(font_path, 'r', encoding='utf-8') as f:
+                font_config = json.load(f)
+                self.custom_font = font.Font(family=font_config['family'])
+        except Exception as e:
+            print(f"加载字体配置失败: {str(e)}")
+            self.custom_font = None
+            
         self.task_queue = Queue()
         self.running = False
         self.status_var = StringVar()
@@ -44,6 +55,22 @@ class ImageConverter:
         main_frame = Frame(self.root, padding="10")
         main_frame.pack(fill='both', expand=True)
         
+        # 创建全局Style对象
+        self.style = Style()
+        
+        # 应用字体设置
+        def apply_font(widget):
+            if self.custom_font:
+                # 区分tkinter和ttk控件
+                if isinstance(widget, (Button, Label, Entry, Radiobutton, Checkbutton)):
+                    # ttk控件需要使用style
+                    style_name = f"CustomStyle.{widget.winfo_class()}"
+                    self.style.configure(style_name, font=self.custom_font)
+                    widget.configure(style=style_name)
+                else:
+                    # 普通tkinter控件
+                    widget.config(font=self.custom_font)
+        
         # 模式选择
         Label(main_frame, text="转换模式:").grid(row=0, column=0, sticky='w')
         self.mode_var = StringVar(value='single')
@@ -52,38 +79,60 @@ class ImageConverter:
         # 单文件模式组件
         single_frame = Frame(main_frame)
         single_frame.grid(row=1, column=0, columnspan=3, sticky='ew')
-        Label(single_frame, text="单文件:").grid(row=0, column=0, sticky='w')
+        label = Label(single_frame, text="单文件:")
+        apply_font(label)
+        label.grid(row=0, column=0, sticky='w')
         self.input_entry = Entry(single_frame, width=40)
+        apply_font(self.input_entry)
         self.input_entry.grid(row=0, column=1)
-        Button(single_frame, text="浏览...", command=self.select_input).grid(row=0, column=2)
+        button = Button(single_frame, text="浏览...", command=self.select_input)
+        apply_font(button)
+        button.grid(row=0, column=2)
         
         # 批量模式组件
         batch_frame = Frame(main_frame)
         batch_frame.grid(row=2, column=0, columnspan=3, sticky='ew')
-        Label(batch_frame, text="批量目录:").grid(row=0, column=0, sticky='w')
+        label = Label(batch_frame, text="批量目录:")
+        apply_font(label)
+        label.grid(row=0, column=0, sticky='w')
         self.batch_entry = Entry(batch_frame, width=40)
+        apply_font(self.batch_entry)
         self.batch_entry.grid(row=0, column=1)
-        Button(batch_frame, text="浏览...", command=self.select_batch).grid(row=0, column=2)
+        button = Button(batch_frame, text="浏览...", command=self.select_batch)
+        apply_font(button)
+        button.grid(row=0, column=2)
         
         # 输出格式选择
-        Label(main_frame, text="输出格式:").grid(row=3, column=0, sticky='w')
+        label = Label(main_frame, text="输出格式:")
+        apply_font(label)
+        label.grid(row=3, column=0, sticky='w')
         self.format_var = StringVar(value='png')
-        OptionMenu(main_frame, self.format_var, *self.SUPPORTED_FORMATS).grid(row=3, column=1, sticky='w')
+        option_menu = OptionMenu(main_frame, self.format_var, *self.SUPPORTED_FORMATS)
+        apply_font(option_menu)
+        option_menu.grid(row=3, column=1, sticky='w')
         
         # 质量设置
-        Label(main_frame, text="输出质量 (1-100):").grid(row=4, column=0, sticky='w')
+        label = Label(main_frame, text="输出质量 (1-100):")
+        apply_font(label)
+        label.grid(row=4, column=0, sticky='w')
         self.quality_var = IntVar(value=100)
         quality_entry = Entry(main_frame, textvariable=self.quality_var, width=5)
+        apply_font(quality_entry)
         quality_entry.grid(row=4, column=1, sticky='w')
         
         # 分隔线
         Separator(main_frame, orient='horizontal').grid(row=5, column=0, columnspan=3, sticky='ew', pady=5)
         
         # 输出目录选择
-        Label(main_frame, text="输出目录:").grid(row=6, column=0, sticky='w')
+        label = Label(main_frame, text="输出目录:")
+        apply_font(label)
+        label.grid(row=6, column=0, sticky='w')
         self.output_entry = Entry(main_frame, width=40)
+        apply_font(self.output_entry)
         self.output_entry.grid(row=6, column=1)
-        Button(main_frame, text="浏览...", command=self.select_output).grid(row=6, column=2)
+        button = Button(main_frame, text="浏览...", command=self.select_output)
+        apply_font(button)
+        button.grid(row=6, column=2)
         
         # 进度条
         self.progress = Progressbar(main_frame, orient="horizontal", length=200, mode="determinate")
@@ -94,22 +143,34 @@ class ImageConverter:
         button_frame.grid(row=7, column=0, columnspan=3, pady=10, sticky='ew')
         
         # 帮助按钮
-        Button(button_frame, text="帮助", command=self.show_help).pack(side='left', padx=5)
+        help_button = Button(button_frame, text="帮助", command=self.show_help)
+        apply_font(help_button)
+        help_button.pack(side='left', padx=5)
         
         # 更新日志按钮
-        Button(button_frame, text="更新日志", command=self.show_changelog).pack(side='left', padx=5)
+        changelog_button = Button(button_frame, text="更新日志", command=self.show_changelog)
+        apply_font(changelog_button)
+        changelog_button.pack(side='left', padx=5)
         
         # 转换按钮
-        Button(button_frame, text="转换", command=self.start_conversion).pack(side='right', padx=5)
+        convert_button = Button(button_frame, text="转换", command=self.start_conversion)
+        apply_font(convert_button)
+        convert_button.pack(side='right', padx=5)
         
         # 状态标签
         self.status_var = StringVar(value="就绪")
-        Label(main_frame, textvariable=self.status_var).grid(row=8, column=0, columnspan=3, sticky='w')
+        status_label = Label(main_frame, textvariable=self.status_var)
+        apply_font(status_label)
+        status_label.grid(row=8, column=0, columnspan=3, sticky='w')
         
         # 模式切换
         self.mode_var.trace('w', self.toggle_mode)
-        Radiobutton(main_frame, text="单文件模式", variable=self.mode_var, value='single').grid(row=0, column=1, sticky='w')
-        Radiobutton(main_frame, text="批量模式", variable=self.mode_var, value='batch').grid(row=0, column=2, sticky='w')
+        single_radio = Radiobutton(main_frame, text="单文件模式", variable=self.mode_var, value='single')
+        apply_font(single_radio)
+        single_radio.grid(row=0, column=1, sticky='w')
+        batch_radio = Radiobutton(main_frame, text="批量模式", variable=self.mode_var, value='batch')
+        apply_font(batch_radio)
+        batch_radio.grid(row=0, column=2, sticky='w')
         
     def toggle_mode(self, *args):
         if self.mode_var.get() == 'single':

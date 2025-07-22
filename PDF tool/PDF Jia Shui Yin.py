@@ -11,13 +11,36 @@ from reportlab.lib.pagesizes import letter
 import io
 
 from os.path import dirname, join
-sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
+sys.path.insert(0, join(dirname(__file__), "..", "Core"))
 from BangZhu import get_help_system
+import json
+
+def load_font_config():
+    """从ziti.json加载字体配置"""
+    try:
+        with open(join(dirname(__file__), "..", "Core", "ziti.json"), "r", encoding="utf-8") as f:
+            config = json.load(f)
+            return config.get("family", "微软雅黑")  # 默认使用微软雅黑
+    except Exception:
+        return "微软雅黑"
 
 class PDFWatermarkApp:
     def __init__(self, master):
         self.master = master
-        self.master.title("PDF加水印工具Alpha1.0.1")
+        self.master.title("PDF加水印工具")
+        # 设置全局字体
+        self.font_family = load_font_config()
+        font_style = (self.font_family, 12)
+        # 使用ttk.Style设置所有组件的字体
+        style = ttk.Style()
+        style.configure(".", font=font_style)
+        style.configure("TButton", font=font_style)
+        style.configure("TLabel", font=font_style)
+        style.configure("TEntry", font=font_style)
+        style.configure("TRadiobutton", font=font_style)
+        style.configure("TFrame", font=font_style)
+        style.configure("TLabelFrame", font=font_style)
+        style.configure("TSpinbox", font=font_style)
         
         # 主框架
         self.main_frame = ttk.Frame(self.master)
@@ -63,14 +86,13 @@ class PDFWatermarkApp:
                     ("左下", "bottomleft"), ("右下", "bottomright")]
         for text, value in positions:
             ttk.Radiobutton(self.position_frame, text=text, variable=self.position, 
-                           value=value).pack(side="left", padx=5)
+                          value=value).pack(side="left", padx=5)
         
         # 操作按钮
         self.button_frame = ttk.Frame(self.main_frame)
         self.button_frame.pack(fill="x", padx=5, pady=10)
         
         ttk.Button(self.button_frame, text="帮助", command=self.show_help).pack(side="left", padx=5)
-        ttk.Button(self.button_frame, text="更新日志", command=self.show_changelog).pack(side="left", padx=5)
         ttk.Button(self.button_frame, text="添加水印", command=self.add_watermark).pack(side="right", padx=5)
         
 
@@ -88,7 +110,7 @@ class PDFWatermarkApp:
         packet = io.BytesIO()
         can = canvas.Canvas(packet, pagesize=letter)
         can.setFillColorRGB(0.5, 0.5, 0.5, self.opacity.get())
-        can.setFont("Helvetica", self.font_size.get())
+        can.setFont(self.font_family, self.font_size.get())
         
         text = self.watermark_text.get()
         width, height = letter
@@ -120,21 +142,6 @@ class PDFWatermarkApp:
         help_system = get_help_system()
         help_system.show_help("PDF加水印")
         
-    def show_changelog(self):
-        """显示更新日志"""
-        changelog = """
-        PDF加水印工具 更新日志
-版本 Alpha1.0.0 (2025-6-1)
-- 1.初始版本发布
-- 2.支持添加文本水印
-- 3.支持调整水印位置、大小和透明度
-版本 Alpha1.0.1 (2025-6-7)
-- 1.对帮助文档调用进行拆分，简化代码长度
-- 2.禁止生成 .pyc 文件
-
-        """
-        messagebox.showinfo("更新日志", changelog)
-    
     def add_watermark(self):
         """添加水印到PDF"""
         pdf_path = self.pdf_path.get()

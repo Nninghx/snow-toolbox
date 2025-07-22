@@ -8,6 +8,7 @@ import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from tkinter.scrolledtext import ScrolledText
+import json
 import fitz  
 from PIL import Image, ImageTk
 import tempfile
@@ -15,7 +16,7 @@ import shutil
 from pathlib import Path
 
 from os.path import dirname, join
-sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
+sys.path.insert(0, join(dirname(__file__), "..", "Core"))
 from BangZhu import get_help_system
 
 class PDFToImageApp:
@@ -27,6 +28,31 @@ class PDFToImageApp:
         self.root.title("PDF转图片工具Alpha1.0.1")
         self.root.geometry("900x700")
         self.root.minsize(800, 600)
+        
+        # 设置样式
+        self.style = ttk.Style()
+        self.style.configure("TButton", padding=6, relief="flat", background="#ccc")
+        self.style.configure("TFrame", background="#f0f0f0")
+        self.style.configure("TLabel", background="#f0f0f0")
+        self.style.configure("TCheckbutton", background="#f0f0f0")
+        self.style.configure("TRadiobutton", background="#f0f0f0")
+        
+        # 动态读取字体设置
+        font_path = os.path.join(os.path.dirname(__file__), "..", "Core", "ziti.json")
+        try:
+            with open(font_path, "r", encoding="utf-8") as f:
+                font_data = json.load(f)
+                font_family = font_data.get("family", ("Microsoft YaHei", 10))
+                if isinstance(font_family, str):
+                    font_family = (font_family, 10)  # 默认大小10
+                self.root.option_add("*Font", font_family)
+                # 设置TTK组件字体
+                self.style.configure('.', font=font_family)
+        except Exception as e:
+            print(f"警告: 无法加载字体设置: {str(e)}")
+            self.root.option_add("*Font", ("Microsoft YaHei", 10))
+            # 设置TTK组件默认字体
+            self.style.configure('.', font=("Microsoft YaHei", 10))
         
         # 设置应用程序图标
         # self.root.iconbitmap("icon.ico")  # 如果有图标文件，可以取消注释
@@ -43,14 +69,6 @@ class PDFToImageApp:
         self.pdf_document = None
         self.preview_images = []
         self.temp_dir = tempfile.mkdtemp()
-        
-        # 设置样式
-        self.style = ttk.Style()
-        self.style.configure("TButton", padding=6, relief="flat", background="#ccc")
-        self.style.configure("TFrame", background="#f0f0f0")
-        self.style.configure("TLabel", background="#f0f0f0")
-        self.style.configure("TCheckbutton", background="#f0f0f0")
-        self.style.configure("TRadiobutton", background="#f0f0f0")
         
         # 创建主框架
         self.main_frame = ttk.Frame(self.root)

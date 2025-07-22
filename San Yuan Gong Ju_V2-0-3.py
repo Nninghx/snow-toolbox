@@ -350,9 +350,9 @@ class ToolLauncher:
         """显示更新日志"""
         changelog_text = """
 三垣工具启动器 更新日志
-V2.0.3 (2025-7-15)
-1.新增字体设置，允许用户自定义界面字体，如果你用于商业用途，请确保你获得该字体的授权。
-2.修复V2.0.2版本，核心模块导入错误问题。
+V2.0.4 (2025-7-23)
+1.字体全局设置完成，允许用户自定义界面字体，如果你用于商业用途，请确保你获得该字体的授权。
+2.修复V2.0.3版本，核心模块导入错误问题。
         """
         
         # 创建更新日志窗口
@@ -382,9 +382,9 @@ V2.0.3 (2025-7-15)
         font_window.title("字体设置")
         font_window.geometry("300x150")
         
-        # 添加字体选择控件
+        # 添加字体选择控件，如果你需要自定义字体，请在以下代码修改或添加新字体族
         ttk.Label(font_window, text="选择字体:").pack(pady=10)
-        font_family = ttk.Combobox(font_window, values=["阿里巴巴普惠体 3 115 Black", "阿里巴巴普惠体 3 55 Regular L3", "阿里巴巴普惠体 3.0 35 Thin", "Arial"])
+        font_family = ttk.Combobox(font_window, values=["阿里巴巴普惠体 3 115 Black", "阿里巴巴普惠体 3 55 Regular L3", "阿里巴巴普惠体 3.0 35 Thin"])
         font_family.pack(pady=5)
         font_family.set("阿里巴巴普惠体 3 115 Black")
         

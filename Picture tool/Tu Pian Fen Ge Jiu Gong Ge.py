@@ -8,7 +8,8 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from os.path import dirname, join
-sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
+import json
+sys.path.insert(0, join(dirname(__file__), "..", "Core"))
 from BangZhu import get_help_system
 
 class ImageSplitterApp:
@@ -16,15 +17,21 @@ class ImageSplitterApp:
         self.root = root
         self.root.title("图片九宫格分割工具")
         
+        # 读取字体设置
+        font_path = join(dirname(__file__), "..", "Core", "ziti.json")
+        with open(font_path, "r", encoding="utf-8") as f:
+            font_settings = json.load(f)
+        self.font_family = font_settings["family"]
+        
         # 输入图片
-        tk.Label(root, text="输入图片:").grid(row=0, column=0, padx=5, pady=5)
-        self.input_entry = tk.Entry(root, width=40)
+        tk.Label(root, text="输入图片:", font=(self.font_family, 10)).grid(row=0, column=0, padx=5, pady=5)
+        self.input_entry = tk.Entry(root, width=40, font=(self.font_family, 10))
         self.input_entry.grid(row=0, column=1, padx=5, pady=5)
         tk.Button(root, text="浏览...", command=self.browse_input).grid(row=0, column=2, padx=5, pady=5)
         
         # 输出目录
-        tk.Label(root, text="输出目录:").grid(row=1, column=0, padx=5, pady=5)
-        self.output_entry = tk.Entry(root, width=40)
+        tk.Label(root, text="输出目录:", font=(self.font_family, 10)).grid(row=1, column=0, padx=5, pady=5)
+        self.output_entry = tk.Entry(root, width=40, font=(self.font_family, 10))
         self.output_entry.grid(row=1, column=1, padx=5, pady=5)
         tk.Button(root, text="浏览...", command=self.browse_output).grid(row=1, column=2, padx=5, pady=5)
         
@@ -33,9 +40,9 @@ class ImageSplitterApp:
         self.progress.grid(row=2, column=0, columnspan=3, padx=5, pady=10)
         
         # 分割按钮和帮助按钮
-        tk.Button(root, text="开始分割", command=self.start_split).grid(row=3, column=1, pady=10)
-        tk.Button(root, text="帮助", command=self.show_help).grid(row=3, column=0, pady=10, padx=5)
-        tk.Button(root, text="更新日志", command=self.show_changelog).grid(row=3, column=2, pady=10, padx=5)
+        tk.Button(root, text="开始分割", command=self.start_split, font=(self.font_family, 10)).grid(row=3, column=1, pady=10)
+        tk.Button(root, text="帮助", command=self.show_help, font=(self.font_family, 10)).grid(row=3, column=0, pady=10, padx=5)
+        tk.Button(root, text="更新日志", command=self.show_changelog, font=(self.font_family, 10)).grid(row=3, column=2, pady=10, padx=5)
     
     def show_help(self):
         help_system = get_help_system()

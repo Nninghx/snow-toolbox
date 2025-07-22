@@ -6,15 +6,27 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image
 import os
+import json
 
 from os.path import dirname, join
-sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
+sys.path.insert(0, join(dirname(__file__), "..", "Core"))
 from BangZhu import get_help_system
 
 class IconConverterApp:
     def __init__(self, master):
         self.master = master
         master.title("图片转图标")
+        
+        # 读取字体设置
+        try:
+            with open(join(dirname(__file__), "..", "Core", "ziti.json"), "r", encoding="utf-8") as f:
+                font_data = json.load(f)
+                font_family = font_data.get("family", "Microsoft YaHei")
+                # 应用字体设置
+                self.default_font = (font_family, 10)
+        except Exception as e:
+            print(f"读取字体设置失败: {e}")
+            self.default_font = ("Microsoft YaHei", 10)
         
         # 默认尺寸
         self.default_sizes = [16, 32, 48, 64, 128]
@@ -24,13 +36,13 @@ class IconConverterApp:
     
     def create_widgets(self):
         # 文件选择部分
-        tk.Label(self.master, text="选择源图片:").grid(row=0, column=0, sticky="w")
-        self.file_entry = tk.Entry(self.master, width=40)
+        tk.Label(self.master, text="选择源图片:", font=self.default_font).grid(row=0, column=0, sticky="w")
+        self.file_entry = tk.Entry(self.master, width=40, font=self.default_font)
         self.file_entry.grid(row=0, column=1)
-        tk.Button(self.master, text="浏览...", command=self.browse_file).grid(row=0, column=2)
+        tk.Button(self.master, text="浏览...", command=self.browse_file, font=self.default_font).grid(row=0, column=2)
         
         # 图标尺寸选择
-        tk.Label(self.master, text="选择图标尺寸:").grid(row=1, column=0, sticky="w")
+        tk.Label(self.master, text="选择图标尺寸:", font=self.default_font).grid(row=1, column=0, sticky="w")
         self.size_frame = tk.Frame(self.master)
         self.size_frame.grid(row=1, column=1, columnspan=2, sticky="w")
         
@@ -38,34 +50,31 @@ class IconConverterApp:
         self.size_var = tk.IntVar(value=self.default_sizes[0])  # 默认选中第一个尺寸
         for i, size in enumerate(self.default_sizes):
             rb = tk.Radiobutton(self.size_frame, text=f"{size}x{size}", 
-                              variable=self.size_var, value=size)
+                              variable=self.size_var, value=size, font=self.default_font)
             rb.grid(row=0, column=i, sticky="w")
         
         # 自定义尺寸
         custom_frame = tk.Frame(self.master)
         custom_frame.grid(row=2, column=0, columnspan=3, sticky="we", padx=5, pady=5)
         
-        tk.Label(custom_frame, text="自定义尺寸:").pack(side="left")
-        self.custom_entry = tk.Entry(custom_frame, width=15)
+        tk.Label(custom_frame, text="自定义尺寸:", font=self.default_font).pack(side="left")
+        self.custom_entry = tk.Entry(custom_frame, width=15, font=self.default_font)
         self.custom_entry.pack(side="left", padx=5)
         self.custom_entry.insert(0, "宽x高")
         self.custom_entry.bind("<FocusIn>", lambda e: self.clear_placeholder())
         
-        tk.Label(custom_frame, text="(16-256像素)").pack(side="left")
-        tk.Label(custom_frame, text="示例: 256x256", fg="gray").pack(side="left", padx=5)
+        tk.Label(custom_frame, text="(16-256像素)", font=self.default_font).pack(side="left")
+        tk.Label(custom_frame, text="示例: 256x256", fg="gray", font=self.default_font).pack(side="left", padx=5)
         
         # 按钮区域
         button_frame = tk.Frame(self.master)
         button_frame.grid(row=3, column=0, columnspan=3, pady=10, sticky="e")
         
         # 帮助按钮
-        tk.Button(button_frame, text="使用帮助", command=self.show_help, width=8).pack(side="right", padx=5)
-        
-        # 更新日志按钮
-        tk.Button(button_frame, text="更新日志", command=self.show_changelog, width=8).pack(side="right", padx=5)
+        tk.Button(button_frame, text="使用帮助", command=self.show_help, width=8, font=self.default_font).pack(side="right", padx=5)
         
         # 转换按钮
-        tk.Button(button_frame, text="转换为ICO", command=self.convert_to_ico, width=12).pack(side="right")
+        tk.Button(button_frame, text="转换为ICO", command=self.convert_to_ico, width=12, font=self.default_font).pack(side="right")
     
     def clear_placeholder(self):
         if self.custom_entry.get() == "宽x高":
@@ -79,22 +88,6 @@ class IconConverterApp:
             self.file_entry.delete(0, tk.END)
             self.file_entry.insert(0, filepath)
     
-    def show_changelog(self):
-        changelog = """更新日志 - 图片转图标工具
-
-版本 Alpha1.0.0 (2025-5*14)
-- 实现基本图片转ICO功能
-- 支持标准尺寸选择
-- 支持自定义尺寸输入
-- 添加使用帮助功能
-版本 Alpha1.0.1 (2025-6-7)
-- 1.新增更新日志功能
-- 2.对帮助文档调用进行拆分，简化代码长度
-- 3.禁止生成 .pyc 文件
-
-"""
-        messagebox.showinfo("更新日志", changelog)
-
     def show_help(self):
         help_system = get_help_system()
         help_system.show_help("图片转图标")

@@ -9,10 +9,20 @@ from tkinter import ttk, filedialog, messagebox
 from PIL import Image
 import fitz  # PyMuPDF
 from pathlib import Path
-
 from os.path import dirname, join
-sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
+import json
+sys.path.insert(0, join(dirname(dirname(__file__)), "Core"))
 from BangZhu import get_help_system
+
+def load_font_settings():
+    """加载字体设置"""
+    try:
+        with open(join(dirname(dirname(__file__)), "Core", "ziti.json"), 
+                 encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"无法加载字体设置: {str(e)}")
+        return {"family": "Microsoft YaHei"}
 
 class ImageToPDFApp:
     """图片转PDF应用程序主类"""
@@ -23,6 +33,11 @@ class ImageToPDFApp:
         self.root.title("图片转PDF工具Alpha1.0.1")
         self.root.geometry("800x600")
         self.root.minsize(600, 400)
+        
+        # 加载并应用字体设置
+        font_settings = load_font_settings()
+        default_font = (font_settings["family"], 10)
+        self._apply_font_settings(default_font)
         
         # 应用程序变量
         self.image_paths = []
@@ -83,9 +98,8 @@ class ImageToPDFApp:
         status_label = ttk.Label(action_frame, textvariable=self.status_var)
         status_label.pack(side=tk.LEFT, padx=5, pady=5)
         
-        # 帮助和更新日志按钮
+        # 帮助按钮
         ttk.Button(action_frame, text="帮助", command=self._show_help).pack(side=tk.RIGHT, padx=5, pady=5)
-        ttk.Button(action_frame, text="更新日志", command=self._show_changelog).pack(side=tk.RIGHT, padx=5, pady=5)
         
         # 转换按钮
         ttk.Button(action_frame, text="开始转换", command=self._start_conversion).pack(side=tk.RIGHT, padx=5, pady=5)
@@ -211,28 +225,17 @@ class ImageToPDFApp:
         except Exception as e:
             print(f"无法打开输出文件夹: {str(e)}")
     
+    def _apply_font_settings(self, font):
+        """应用字体设置到所有UI组件"""
+        self.root.option_add("*Font", font)
+        style = ttk.Style()
+        style.configure(".", font=font)
+    
     def _show_help(self):
         """显示帮助信息"""
         help_system = get_help_system()
         help_system.show_help("图片转PDF")
     
-    def _show_changelog(self):
-        """显示更新日志"""
-        changelog = """版本更新日志
-        
-版本 Alpha1.0.0  (2025-06-01)
-- 初始版本发布
-- 支持多种图片格式转PDF
-- 支持图片列表管理
-- 支持右键移除图片
-版本 Alpha1.0.1 (2025-6-7)
-- 1.对帮助文档调用进行拆分，简化代码长度
-- 2.禁止生成 .pyc 文件
-
-
-"""
-        messagebox.showinfo("更新日志", changelog)
-
 
 def main():
     """主函数"""

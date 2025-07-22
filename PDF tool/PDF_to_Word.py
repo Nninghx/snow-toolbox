@@ -7,10 +7,11 @@ from tkinter import filedialog, messagebox
 from pdf2docx import Converter
 import os
 import traceback
+import json
 from typing import Callable, Optional
+from os.path import dirname, join, exists
 
-from os.path import dirname, join
-sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
+sys.path.insert(0, join(dirname(__file__), "..", "Core"))
 from BangZhu import get_help_system
 
 class ConfigManager:
@@ -19,6 +20,19 @@ class ConfigManager:
     # 应用版本信息
     VERSION = "Alpha 1.0.2"
     TITLE = f"PDF转Word工具 {VERSION}"
+    
+    @staticmethod
+    def load_font_settings():
+        """从ziti.json加载字体设置"""
+        font_path = join(dirname(__file__), "..", "Core", "ziti.json")
+        if exists(font_path):
+            try:
+                with open(font_path, "r", encoding="utf-8") as f:
+                    font_data = json.load(f)
+                    return font_data.get("family", "Microsoft YaHei")
+            except Exception:
+                return "Microsoft YaHei"
+        return "Microsoft YaHei"
     
     # 帮助文档由BangZhu模块统一管理
     
@@ -175,6 +189,14 @@ class UIComponents:
         self.pdf_path = tk.StringVar()
         self.status_var = tk.StringVar()
         self.status_var.set("准备就绪")
+        
+        # 设置字体
+        font_family = ConfigManager.load_font_settings()
+        default_font = ("Microsoft YaHei", 10)
+        try:
+            self.master.option_add("*Font", (font_family, 10))
+        except:
+            self.master.option_add("*Font", default_font)
     
     def create_widgets(self):
         """创建所有UI组件"""

@@ -4,6 +4,7 @@ from PIL import Image, ImageTk
 import os
 import threading
 import math
+import json
 
 class ImageCombinerApp:
 
@@ -11,6 +12,15 @@ class ImageCombinerApp:
         self.master = master
         master.title("图片合成工具")
         master.geometry("400x500")
+        
+        # 读取字体设置
+        try:
+            with open("Core/ziti.json", "r", encoding="utf-8") as f:
+                font_settings = json.load(f)
+                self.font_family = font_settings.get("family", "微软雅黑")
+        except Exception as e:
+            print(f"无法加载字体设置: {str(e)}")
+            self.font_family = "微软雅黑"
 
         # 初始化变量
         self.image_paths = []
@@ -26,6 +36,10 @@ class ImageCombinerApp:
         # 主容器 - 使用grid布局
         main_frame = tk.Frame(self.master, padx=10, pady=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 设置默认字体
+        default_font = (self.font_family, 10)
+        self.master.option_add("*Font", default_font)
         
         # 顶部控制区域
         control_frame = tk.LabelFrame(main_frame, text="控制面板", padx=10, pady=10)
