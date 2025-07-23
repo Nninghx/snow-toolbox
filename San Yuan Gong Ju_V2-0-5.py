@@ -33,7 +33,7 @@ class PathUtils:
 class ToolLauncher:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("工具启动器-V2.0.3")
+        self.root.title("工具启动器-V2.0.5")
         self.root.geometry("440x500")
         self.root.minsize(440, 500)
         
@@ -121,6 +121,13 @@ class ToolLauncher:
                 '立方根计算器': 'Li Fang Gen Ji Suan Qi.py',
                 '排列计算器': 'Pai Lie Ji Suan Qi.py',
                 '因数计算器': 'Yin Shu Ji Suan Qi.py',
+                '二次方程计算器': 'Er Ci Fang Cheng Ji Suan Qi.py',
+                '二进制计算器': 'Er Jin Zhi Ji Suan Qi.py',
+                '分数化简计算器': 'Fen Shu Hua Jian Ji Suan Qi.py',
+                '取模计算器': 'Qu Mo Ji Suan Qi.py',
+                '四舍五入计算器': 'Si She Wu Ru Ji Suan Qi.py',
+                'N次方根计算器': 'N Ci Fang Gen Ji Suan Qi.py',
+
 
 
             }
@@ -350,9 +357,8 @@ class ToolLauncher:
         """显示更新日志"""
         changelog_text = """
 三垣工具启动器 更新日志
-V2.0.4 (2025-7-23)
-1.字体全局设置完成，允许用户自定义界面字体，如果你用于商业用途，请确保你获得该字体的授权。
-2.修复V2.0.3版本，核心模块导入错误问题。
+V2.0.5 (2025-7-23)
+
         """
         
         # 创建更新日志窗口
