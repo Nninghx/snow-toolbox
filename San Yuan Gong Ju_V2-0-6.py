@@ -33,7 +33,7 @@ class PathUtils:
 class ToolLauncher:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("工具启动器-V2.0.5")
+        self.root.title("工具启动器-V2.0.6")
         self.root.geometry("440x500")
         self.root.minsize(440, 500)
         
@@ -115,15 +115,15 @@ class ToolLauncher:
 
             },
             '计算器工具': {
-                '最小公倍数计算器': 'Zui Xiao Gong Bei Shu Ji Suan Qi.py',
+                '多功能分数计算器': 'Fen Shu Ji Suan Qi.py',
+                '多功能代数计算器': 'Dai Shu Ji Suan Qi.py',
+                '多功能计算器': 'San Jiao Han Shu Ji Suan Qi.py',
                 '平方根计算器': 'Ping Fang Gen Ji Suan Qi.py',
                 '重复组合计算器': 'Chong Fu Zu He Ji Suan Qi.py',
                 '立方根计算器': 'Li Fang Gen Ji Suan Qi.py',
                 '排列计算器': 'Pai Lie Ji Suan Qi.py',
-                '因数计算器': 'Yin Shu Ji Suan Qi.py',
                 '二次方程计算器': 'Er Ci Fang Cheng Ji Suan Qi.py',
                 '二进制计算器': 'Er Jin Zhi Ji Suan Qi.py',
-                '分数化简计算器': 'Fen Shu Hua Jian Ji Suan Qi.py',
                 '取模计算器': 'Qu Mo Ji Suan Qi.py',
                 '四舍五入计算器': 'Si She Wu Ru Ji Suan Qi.py',
                 'N次方根计算器': 'N Ci Fang Gen Ji Suan Qi.py',
