@@ -64,9 +64,7 @@
 主程序设置字体：主程序配置所需字体。
 生成临时字体配置文件 ziti.json：将字体设置写入临时文件。
 多个子程序（子程序1、子程序2、…、子程序N）读取 ziti.json：各子程序读取并应用相同的字体设置。
-![字体全局设置原理图] (![https://github.com/Nninghx/snow-toolbox/blob/master/Image/FontSettings.png]
-## 项目架构
-└── 三垣工具集  
+三垣工具集  
     ├── Core/                # 核心模块  
     │   ├── BangZhu.py       # 统一帮助系统  
     │   └── ziti.json        # 字体配置文件  
