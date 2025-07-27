@@ -82,18 +82,9 @@
 - Python 3.6+
 
 ### 依赖安装
+一次性安装所有依赖
 ```bash
-# 核心依赖
-pip install tqdm PyPDF2 pillow pydub
-
-# PDF工具专用
-pip install pdf2docx pdfrw
-
-# 图片工具专用
-pip install opencv-python numpy
-
-# 音频工具专用
-pip install pydub
+pip install tqdm PyPDF2 pillow pydub pdf2docx pdfrw reportlab opencv-python numpy tkinterdnd2 python-docx
 ```
 
 ### FFmpeg安装（音频工具必需）
