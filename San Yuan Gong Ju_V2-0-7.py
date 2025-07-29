@@ -33,7 +33,7 @@ class PathUtils:
 class ToolLauncher:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("工具启动器-V2.0.6")
+        self.root.title("工具启动器-V2.0.7")
         self.root.geometry("440x500")
         self.root.minsize(440, 500)
         
@@ -112,27 +112,16 @@ class ToolLauncher:
             },
             'B站专用工具': {
                 '封面与表情包图片批量压缩': 'Feng Mian Yu Biao Qing Bao Tu Pian Pi Liang Ya Suo.py',
-
             },
             '计算器工具': {
+                '数学和统计计算器': 'Shu Xue Tong Ji Ji Suan Qi.py',
                 '多功能分数计算器': 'Fen Shu Ji Suan Qi.py',
                 '多功能代数计算器': 'Dai Shu Ji Suan Qi.py',
-                '多功能计算器': 'San Jiao Han Shu Ji Suan Qi.py',
-                '平方根计算器': 'Ping Fang Gen Ji Suan Qi.py',
-                '重复组合计算器': 'Chong Fu Zu He Ji Suan Qi.py',
-                '立方根计算器': 'Li Fang Gen Ji Suan Qi.py',
-                '排列计算器': 'Pai Lie Ji Suan Qi.py',
-                '二次方程计算器': 'Er Ci Fang Cheng Ji Suan Qi.py',
+                '多功能三角函数计算器': 'San Jiao Han Shu Ji Suan Qi.py',
                 '二进制计算器': 'Er Jin Zhi Ji Suan Qi.py',
-                '取模计算器': 'Qu Mo Ji Suan Qi.py',
-                '四舍五入计算器': 'Si She Wu Ru Ji Suan Qi.py',
-                'N次方根计算器': 'N Ci Fang Gen Ji Suan Qi.py',
-
-
-
+                '多功能体积计算器': 'Ti Ji Ji Suan Qi.py',
             }
         }
-        
         # 设置窗口图标
         try:
             icon_path = PathUtils.get_icon_path()
@@ -357,8 +346,12 @@ class ToolLauncher:
         """显示更新日志"""
         changelog_text = """
 三垣工具启动器 更新日志
-V2.0.5 (2025-7-23)
-
+V2.0.7 (2025-7-30)
+1.新增多功能体积计算器(包含:立方体体积计算器，长方形水箱体积计算器，管体积计算器，
+胶囊体积计算器，正四棱锥体积计算器，圆台体积计算器，长方体体积计算器，
+圆锥体积计算器，半球体积计算器，圆环体积计算器，圆柱体积计算器，金字塔体积计算器，
+球体体积计算器，长方体体积计算器，直圆柱体积计算器
+历史版本查看README.md文档
         """
         
         # 创建更新日志窗口
