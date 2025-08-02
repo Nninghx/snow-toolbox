@@ -105,7 +105,7 @@ pip install tqdm PyPDF2 pillow pydub pdf2docx pdfrw reportlab opencv-python nump
 
 
 ## 许可协议
-**版本**: V2.0.3  
+**版本**: V2.1.0  
 **作者**: 宁幻雪  
 **联系方式**: [Bilibili空间](https://space.bilibili.com/556216088)  
 **开源协议**: Apache-2.0 License  
