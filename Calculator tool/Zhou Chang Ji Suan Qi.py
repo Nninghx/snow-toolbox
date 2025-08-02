@@ -84,20 +84,6 @@ class PerimeterCalculator:
         
         Button(self.triangle_frame, text="计算周长", command=self.calculate_triangle, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
         
-        # 风筝周长计算器
-        self.kite_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.kite_frame, text="风筝形")
-        
-        Label(self.kite_frame, text="长对角线:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
-        self.kite_diag1 = StringVar()
-        Entry(self.kite_frame, textvariable=self.kite_diag1, font=self.font).grid(row=0, column=1, padx=10, pady=5)
-        
-        Label(self.kite_frame, text="短对角线:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
-        self.kite_diag2 = StringVar()
-        Entry(self.kite_frame, textvariable=self.kite_diag2, font=self.font).grid(row=1, column=1, padx=10, pady=5)
-        
-        Button(self.kite_frame, text="计算周长", command=self.calculate_kite, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
-        
         # 斜边和周长计算器
         self.hypotenuse_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.hypotenuse_frame, text="斜边计算")
@@ -159,16 +145,6 @@ class PerimeterCalculator:
             side = float(self.triangle_side.get())
             perimeter = base + 2 * side
             self.result_var.set(f"等腰三角形周长: {perimeter:.2f}")
-        except ValueError:
-            messagebox.showerror("错误", "请输入有效的数字", font=self.font)
-    
-    def calculate_kite(self):
-        try:
-            diag1 = float(self.kite_diag1.get())
-            diag2 = float(self.kite_diag2.get())
-            # 风筝形周长近似计算 (实际需要边长，这里简化计算)
-            perimeter = 2 * math.sqrt(diag1**2 + diag2**2)
-            self.result_var.set(f"风筝形周长(近似): {perimeter:.2f}")
         except ValueError:
             messagebox.showerror("错误", "请输入有效的数字", font=self.font)
     

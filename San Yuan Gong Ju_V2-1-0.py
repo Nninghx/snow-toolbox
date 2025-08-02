@@ -20,7 +20,8 @@ class PathUtils:
             '文件工具': 'File tool',
             '其他工具': 'Other tool',
             'B站专用工具': 'Station B tool',
-            '计算器工具': 'Calculator tool'
+            '计算器工具': 'Calculator tool',
+            '小游戏': 'Mini-games',
         }
         sub_dir = category_map.get(category)
         return os.path.join(base_dir, sub_dir, file_name) if sub_dir else os.path.join(base_dir, file_name)
@@ -33,9 +34,9 @@ class PathUtils:
 class ToolLauncher:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("工具启动器-V2.0.7")
-        self.root.geometry("440x500")
-        self.root.minsize(440, 500)
+        self.root.title("工具启动器-V2.1.0")
+        self.root.geometry("400x500")  # 调整窗口大小以适应菜单栏
+        self.root.minsize(400, 500)
         
         # 默认字体设置
         self.current_font = ("微软雅黑", 10)
@@ -51,35 +52,32 @@ class ToolLauncher:
             '文件工具': True,
             '其他工具': True,
             'B站专用工具': True,
-            '计算器工具': True
+            '计算器工具': True,
+            '小游戏': True,
         }
         
-        # 创建顶部按钮框架
-        self.top_frame = ttk.Frame(self.root)
-        self.top_frame.pack(fill="x", padx=10, pady=5)
+        # 创建菜单栏
+        self.menubar = tk.Menu(self.root)
+        self.root.config(menu=self.menubar)
         
-        # 添加刷新按钮
-        refresh_button = tk.Button(self.top_frame, text="刷新", command=self.refresh_tools)
-        refresh_button.pack(side="left", padx=5)
-        refresh_button.configure(font=self.current_font)
+        # 文件菜单
+        file_menu = tk.Menu(self.menubar, tearoff=0)
+        file_menu.add_command(label="刷新", command=self.refresh_tools)
+        file_menu.add_separator()
+        file_menu.add_command(label="退出", command=self.root.quit)
+        self.menubar.add_cascade(label="文件", menu=file_menu)
         
-        # 添加字体设置按钮
-        font_button = tk.Button(self.top_frame, text="字体设置", command=self.show_font_settings)
-        font_button.pack(side="left", padx=5)
-        font_button.configure(font=self.current_font)
+        # 设置菜单
+        settings_menu = tk.Menu(self.menubar, tearoff=0)
+        settings_menu.add_command(label="字体设置", command=self.show_font_settings)
+        self.menubar.add_cascade(label="设置", menu=settings_menu)
         
-        # 添加帮助、关于和更新日志按钮
-        help_button = tk.Button(self.top_frame, text="帮助", command=self.show_help)
-        help_button.pack(side="right", padx=5)
-        help_button.configure(font=self.current_font)
-        
-        about_button = tk.Button(self.top_frame, text="关于", command=self.show_about)
-        about_button.pack(side="right", padx=5)
-        about_button.configure(font=self.current_font)
-        
-        changelog_button = tk.Button(self.top_frame, text="更新日志", command=self.show_changelog)
-        changelog_button.pack(side="right", padx=5)
-        changelog_button.configure(font=self.current_font)
+        # 帮助菜单
+        help_menu = tk.Menu(self.menubar, tearoff=0)
+        help_menu.add_command(label="介绍", command=self.show_help)
+        help_menu.add_command(label="关于", command=self.show_about)
+        help_menu.add_command(label="更新日志", command=self.show_changelog)
+        self.menubar.add_cascade(label="帮助", menu=help_menu)
         
         # 工具列表
         self.tools = {
@@ -120,6 +118,14 @@ class ToolLauncher:
                 '多功能三角函数计算器': 'San Jiao Han Shu Ji Suan Qi.py',
                 '二进制计算器': 'Er Jin Zhi Ji Suan Qi.py',
                 '多功能体积计算器': 'Ti Ji Ji Suan Qi.py',
+                '多功能面积计算器': 'Mian Ji Ji Suan Qi.py',
+                '多功能表面积计算器': 'Biao Mian Ji Ji Suan Qi.py',
+                '多功能周长计算器': 'Zhou Chang Ji Suan Qi.py',
+            },
+            '小游戏': {
+                '24点小游戏': '24dian_game.py',
+                '数独小游戏': 'sudoku_game.py',
+                '猜数字小游戏': 'guess_number_game.py',
             }
         }
         # 设置窗口图标
@@ -346,11 +352,11 @@ class ToolLauncher:
         """显示更新日志"""
         changelog_text = """
 三垣工具启动器 更新日志
-V2.0.7 (2025-7-30)
-1.新增多功能体积计算器(包含:立方体体积计算器，长方形水箱体积计算器，管体积计算器，
-胶囊体积计算器，正四棱锥体积计算器，圆台体积计算器，长方体体积计算器，
-圆锥体积计算器，半球体积计算器，圆环体积计算器，圆柱体积计算器，金字塔体积计算器，
-球体体积计算器，长方体体积计算器，直圆柱体积计算器
+V2.1.0 (2025-8-1)
+1.调整主程序的UI界面
+2.主程序新增游戏板块:24点小游戏，数独小游戏，猜数字小游戏
+3.项目名称从三垣工具集改为幻雪工具
+4.预添加项目添加图标
 历史版本查看README.md文档
         """
         
@@ -438,10 +444,17 @@ V2.0.7 (2025-7-30)
         
     def update_fonts(self):
         """更新所有控件的字体"""
-        # 更新顶部按钮字体
-        for widget in self.top_frame.winfo_children():
-            if isinstance(widget, tk.Button):
-                widget.configure(font=self.current_font)
+        # 更新菜单栏字体
+        for menu in [self.menubar]:
+            try:
+                menu.configure(font=self.current_font)
+            except:
+                pass
+            for item in menu.winfo_children():
+                try:
+                    item.configure(font=self.current_font)
+                except:
+                    pass
         
         # 更新工具按钮字体
         for button in self.tool_buttons:
