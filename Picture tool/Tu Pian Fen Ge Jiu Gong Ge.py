@@ -42,25 +42,11 @@ class ImageSplitterApp:
         # 分割按钮和帮助按钮
         tk.Button(root, text="开始分割", command=self.start_split, font=(self.font_family, 10)).grid(row=3, column=1, pady=10)
         tk.Button(root, text="帮助", command=self.show_help, font=(self.font_family, 10)).grid(row=3, column=0, pady=10, padx=5)
-        tk.Button(root, text="更新日志", command=self.show_changelog, font=(self.font_family, 10)).grid(row=3, column=2, pady=10, padx=5)
     
     def show_help(self):
         help_system = get_help_system()
         help_system.show_help("图片九宫格分割")
         
-    def show_changelog(self):
-        changelog = """图片九宫格分割工具 更新日志
-版本 Alpha1.0.0 (2025-5-18)
-- 1.初始发布版本
-- 2.实现基本图片分割功能
-版本 Alpha1.0.1 (2025-6-7)
-- 1.新增更新日志功能
-- 2.对帮助文档调用进行拆分，简化代码长度
-- 3.禁止生成 .pyc 文件
-
-"""
-        messagebox.showinfo("更新日志", changelog)
-    
     def browse_input(self):
         filepath = filedialog.askopenfilename(
             filetypes=[("图片文件", "*.jpg *.jpeg *.png *.bmp *.gif")]

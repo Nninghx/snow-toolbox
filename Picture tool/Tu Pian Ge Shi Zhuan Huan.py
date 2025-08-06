@@ -147,11 +147,6 @@ class ImageConverter:
         apply_font(help_button)
         help_button.pack(side='left', padx=5)
         
-        # 更新日志按钮
-        changelog_button = Button(button_frame, text="更新日志", command=self.show_changelog)
-        apply_font(changelog_button)
-        changelog_button.pack(side='left', padx=5)
-        
         # 转换按钮
         convert_button = Button(button_frame, text="转换", command=self.start_conversion)
         apply_font(convert_button)
@@ -250,22 +245,6 @@ class ImageConverter:
     def show_help(self):
         help_system = get_help_system()
         help_system.show_help("图片格式转换")
-        
-    def show_changelog(self):
-        """显示更新日志"""
-        changelog = """
-图片格式转换工具 更新日志
-版本 Alpha1.0.0 (2025-5-20)
-- 1.初始版本发布
-- 2.支持JPG/PNG/WEBP/BMP/GIF/TIFF格式转换
-- 3.支持单文件和批量转换模式
-版本 Alpha1.0.1 (2025-6-7)
-- 1.新增更新日志功能
-- 2.对帮助文档调用进行拆分，简化代码长度
-- 3.禁止生成 .pyc 文件
-
-"""
-        messagebox.showinfo("更新日志", changelog)
         
     def convert(self):
         """主转换逻辑"""

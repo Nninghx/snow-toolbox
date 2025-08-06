@@ -109,22 +109,17 @@ def create_gui():
                               "4. 结果将显示在下方输出框中")
         help_text.config(state='disabled')
     
-    def show_changelog():
-        """Show changelog information"""
-        changelog_window = tk.Toplevel(root)
-        changelog_window.title("更新日志")
-        changelog_text = tk.Text(changelog_window, height=10, width=50, wrap="word")
-        changelog_text.pack(padx=10, pady=10)
-        changelog_text.insert("1.0", "版本 Alpha1-0-0 更新内容：\n\n"
-                                  "1. 初始版本发布\n"
-                                  "2. 实现基本大小写转换功能\n"
-                                  "3. 添加图形用户界面")
-        changelog_text.config(state='disabled')
+    def copy_result():
+        """Copy result to clipboard"""
+        result = text_output.get("1.0", tk.END).strip()
+        if result:
+            root.clipboard_clear()
+            root.clipboard_append(result)
     
     ttk.Button(button_frame, text="转换", command=convert_text).pack(side='left')
     ttk.Button(button_frame, text="清空", command=lambda: text_input.delete("1.0", tk.END)).pack(side='left')
+    ttk.Button(button_frame, text="复制结果", command=copy_result).pack(side='left')
     ttk.Button(button_frame, text="帮助", command=show_help).pack(side='left')
-    ttk.Button(button_frame, text="更新日志", command=show_changelog).pack(side='left')
     ttk.Button(button_frame, text="退出", command=root.quit).pack(side='right')
     
     root.mainloop()

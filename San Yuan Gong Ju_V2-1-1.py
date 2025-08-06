@@ -34,7 +34,7 @@ class PathUtils:
 class ToolLauncher:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("工具启动器-V2.1.0")
+        self.root.title("工具启动器-V2.1.1")
         self.root.geometry("400x500")  # 调整窗口大小以适应菜单栏
         self.root.minsize(400, 500)
         
@@ -110,6 +110,7 @@ class ToolLauncher:
             },
             'B站专用工具': {
                 '封面与表情包图片批量压缩': 'Feng Mian Yu Biao Qing Bao Tu Pian Pi Liang Ya Suo.py',
+                '带货链接分批处理工具': 'Lian Jie Fen Pi Chu Li.py',
             },
             '计算器工具': {
                 '数学和统计计算器': 'Shu Xue Tong Ji Ji Suan Qi.py',
@@ -121,6 +122,7 @@ class ToolLauncher:
                 '多功能面积计算器': 'Mian Ji Ji Suan Qi.py',
                 '多功能表面积计算器': 'Biao Mian Ji Ji Suan Qi.py',
                 '多功能周长计算器': 'Zhou Chang Ji Suan Qi.py',
+                '圆周率计算器': 'Yuan Zhou Lv Ji Suan Qi.py',
             },
             '小游戏': {
                 '24点小游戏': '24dian_game.py',
@@ -352,11 +354,11 @@ class ToolLauncher:
         """显示更新日志"""
         changelog_text = """
 三垣工具启动器 更新日志
-V2.1.0 (2025-8-1)
-1.调整主程序的UI界面
-2.主程序新增游戏板块:24点小游戏，数独小游戏，猜数字小游戏
-3.项目名称从三垣工具集改为幻雪工具
-4.预添加项目添加图标
+V2.1.0 (2025-8-2)
+1.新增圆周率计算器
+2.英文大小写转换模块，删除更新日志模块，新增对结果复制功能
+3.PDF转图片工具，图片九宫格分割工具，图片格式转换工具，删除更新日志模块
+4.新增带货链接分批处理工具
 历史版本查看README.md文档
         """
         

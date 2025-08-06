@@ -13,13 +13,10 @@ from os.path import dirname, join, exists
 
 sys.path.insert(0, join(dirname(__file__), "..", "Core"))
 from BangZhu import get_help_system
-
 class ConfigManager:
     """配置管理类，存储应用程序的配置信息"""
-    
-    # 应用版本信息
-    VERSION = "Alpha 1.0.2"
-    TITLE = f"PDF转Word工具 {VERSION}"
+    # 应用名称
+    TITLE = "PDF转Word工具"
     
     @staticmethod
     def load_font_settings():
@@ -36,19 +33,6 @@ class ConfigManager:
     
     # 帮助文档由BangZhu模块统一管理
     
-    # 更新日志
-    CHANGELOG = """PDF转Word工具 更新日志
-
-版本 Alpha1.0.0 (2025-5-28)
-- 1.初始版本发布
-- 2.实现基本PDF转Word功能
-版本 Alpha1.0.1 （2025-5-29）
-- 1.添加更新日志和帮助
-- 2.修复:针对大型pdf文件转换完成后，无法正常打开的问题
-版本 Alpha1.0.2 (2025-6-7)
-- 1.对帮助文档调用进行拆分，简化代码长度
-- 2.禁止生成 .pyc 文件
-"""
 
 class ErrorHandler:
     """错误处理类，提供统一的错误处理机制"""
@@ -218,7 +202,6 @@ class UIComponents:
         action_frame.pack(padx=10, pady=5, fill="x")
         
         tk.Button(action_frame, text="帮助", command=self.app.show_help).pack(side="left", padx=5)
-        tk.Button(action_frame, text="更新日志", command=self.app.show_changelog).pack(side="left", padx=5)
         tk.Button(action_frame, text="转换为Word", command=self.app.convert_to_word).pack(side="right", padx=5)
     
     def create_status_bar(self):
@@ -254,7 +237,7 @@ class PDFtoWordApp:
             master: tkinter主窗口
         """
         self.master = master
-        self.master.title(ConfigManager.TITLE)
+        self.master.title("PDF转Word工具")
         
         # 初始化UI组件
         self.ui = UIComponents(master, self)
@@ -277,10 +260,6 @@ class PDFtoWordApp:
         """显示帮助信息"""
         help_system = get_help_system()
         help_system.show_help("PDF转Word")
-    
-    def show_changelog(self):
-        """显示更新日志"""
-        messagebox.showinfo("更新日志", ConfigManager.CHANGELOG)
     
     def convert_to_word(self):
         """将PDF转换为Word文档"""

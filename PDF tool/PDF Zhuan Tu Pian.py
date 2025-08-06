@@ -25,7 +25,7 @@ class PDFToImageApp:
     def __init__(self, root):
         """初始化应用程序"""
         self.root = root
-        self.root.title("PDF转图片工具Alpha1.0.1")
+        self.root.title("PDF转图片工具")
         self.root.geometry("900x700")
         self.root.minsize(800, 600)
         
@@ -192,9 +192,8 @@ class PDFToImageApp:
         self.progress = ttk.Progressbar(action_frame, orient=tk.HORIZONTAL, length=300, mode='determinate')
         self.progress.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
         
-        # 帮助和更新日志按钮
+        # 帮助按钮
         ttk.Button(action_frame, text="帮助", command=self._show_help).pack(side=tk.RIGHT, padx=5, pady=5)
-        ttk.Button(action_frame, text="更新日志", command=self._show_changelog).pack(side=tk.RIGHT, padx=5, pady=5)
         
         # 转换按钮
         self.convert_btn = ttk.Button(action_frame, text="开始转换", command=self._start_conversion)
@@ -458,22 +457,6 @@ class PDFToImageApp:
         """显示帮助信息"""
         help_system = get_help_system()
         help_system.show_help("PDF转图片")
-    
-    def _show_changelog(self):
-        """显示更新日志"""
-        changelog = """版本更新日志
-        
-版本 Alpha1.0.0 (2025-05-31)
-- 1.初始版本发布
-- 2.支持PDF转多种图片格式
-- 3.支持DPI和质量设置
-- 4.支持页面预览和选择
-版本 Alpha1.0.1 (2025-06-07)
-- 1.对帮助文档调用进行拆分，简化代码长度
-- 2.禁止生成 .pyc 文件
-
-"""
-        messagebox.showinfo("更新日志", changelog)
     
     def _on_drop(self, event):
         """处理文件拖放"""
