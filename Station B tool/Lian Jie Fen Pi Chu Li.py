@@ -81,6 +81,7 @@ class LinkBatchApp:
             wrap=tk.WORD
         )
         self.text_input.pack(fill="both", expand=True)
+        self.add_right_click_menu(self.text_input, paste=True)
         
         # 按钮区域
         self.button_frame = tk.Frame(root)
@@ -175,6 +176,17 @@ class LinkBatchApp:
             wrap=tk.WORD
         )
         self.text_output.pack(fill="both", expand=True)
+        self.add_right_click_menu(self.text_output, paste=False)
+
+    def add_right_click_menu(self, widget, paste=False):
+        menu = tk.Menu(widget, tearoff=0)
+        if paste:
+            menu.add_command(label="粘贴", command=lambda: widget.event_generate('<<Paste>>'))
+        else:
+            menu.add_command(label="复制", command=lambda: widget.event_generate('<<Copy>>'))
+        def show_menu(event):
+            menu.tk_popup(event.x_root, event.y_root)
+        widget.bind("<Button-3>", show_menu)
         
     def load_from_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")])
