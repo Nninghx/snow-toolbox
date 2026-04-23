@@ -74,7 +74,7 @@
 |2.1.1|2025-8-5|新功能（New Features）<br>功能迭代（Feature iteration）|1.新增圆周率计算器<br>2.英文大小写转换模块，删除更新日志模块，新增对结果复制功能<br>3.PDF转图片工具，图片九宫格分割工具，图片格式转换工具，删除更新日志模块<br>4.新增带货链接分批处理工具
 |2.1.2|2025-8-8|功能迭代（Feature iteration）|1.对带货链接分批处理工具，添加只提取链接部分的功能，提高工作效率<br>2.对目录树生成器工具，新增的导出思维导图功能<br>3.添加项目图标|
 |2.1.3|2025-9-24|文档更新（Documentation）<br>功能迭代（Feature iteration）|1.新增加项目字体安装包，方便用户安装字体，路径:Core\ZT<br>2.对带货链接分批处理工具，添加输入框支持“粘贴”，输出框支持“复制”|
-
+|2.2.1|2026-4-15|界面优化（UI/UX Improvements）<br>性能优化（Performance Improvements）<br>新功能（New Features）|1.主程序UI 控件优化，提升界面美观度<br>2.任务栏中的图标，改为项目图标<br>3.优化提高了工具的效率和响应性
 
 
 
@@ -99,30 +99,35 @@
 ## 环境安装
 由于本程序的项目环境多次增删，以下依赖安装可能出现遗漏情况，如有发现请反馈补充。
 ### 基础要求
-- Python 3.6+
+- Python 3.10+
 
 ### 依赖安装
 一次性安装所有依赖
 ```bash
 pip install tqdm PyPDF2 pillow pydub pdf2docx pdfrw reportlab opencv-python numpy tkinterdnd2 python-docx
 ```
-
+```bash
+pip install -r requirements.txt
+```
 ### FFmpeg安装（音频工具必需）
 **Windows用户**：
-1. 下载FFmpeg并解压
-2. 将`bin/`目录添加到系统PATH
+执行以下命令安装FFmpeg：
+```bash
+winget install ffmpeg
+```
 
 
 ## 许可协议
-**版本**: V2.1.2-32 
+**版本**: V2.1.4-32 
 **作者**: 宁幻雪  
 **联系方式**: [Bilibili空间](https://space.bilibili.com/556216088)  
 **开源协议**: Apache-2.0 License  
 **免责声明**  
-1.作者不对软件的功能、稳定性或兼容性提供任何形式的担保。
-2.作者不对任何因使用本软件而导致的直接或间接损失负责。
-3.作者保留对本软件进行修改、更新和维护的权利。
-
+1.作者不对软件的功能、稳定性或兼容性提供任何形式的担保。<br>
+2.作者不对任何因使用本软件而导致的直接或间接损失负责。<br>
+3.用户使用本软件时应自行承担风险，并确保遵守相关法律法规。<br>
+4.本软件仅供学习和研究使用，非法用途。<br>
+5.在使用本软件时，请务必遵守当地法律法规。<br>
 
 ```text
 Copyright [2025] [宁幻雪]
@@ -138,4 +143,9 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+```
+git status
+git add .
+git commit -m "V2.2.1版本更新"
+git push origin main
 ```
