@@ -127,6 +127,6 @@ limitations under the License.
 ```
 git status
 git add .
-git commit -m "V2.2.1版本更新"
+git commit -m "V2.2.2版本更新"
 git push origin main
 ```
