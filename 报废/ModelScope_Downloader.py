@@ -10,7 +10,6 @@ import os
 
 ICON_PATH = "Image/icon.ico"
 
-
 class ModelScopeDownloader:
     def __init__(self, log_callback=None):
         self.log_callback = log_callback
