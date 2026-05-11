@@ -160,7 +160,7 @@ class ToolLauncher:
             '计算器工具': {
                 '数学和统计计算器': 'Shu Xue Tong Ji Ji Suan Qi.py',
                 '多功能分数计算器': 'Fen Shu Ji Suan Qi.py',
-                '多功能代数计算器': 'Dai Shu Ji Suan Qi.py',
+                '多功能代数计算器': 'Dai Shu Ji Suan Qi V2-2-1.py',
                 '多功能三角函数计算器': 'San Jiao Han Shu Ji Suan Qi.py',
                 '二进制计算器': 'Er Jin Zhi Ji Suan Qi.py',
                 '多功能体积计算器': 'Ti Ji Ji Suan Qi.py',
