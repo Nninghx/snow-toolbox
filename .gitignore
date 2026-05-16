@@ -9,6 +9,10 @@ Core/LICENSE.py
 Core/DB-LICENSE.py
 screen_parser_standalone/OmniParser
 DB.py
+Station B tool/chromedriver.exe
+Station B tool/LICENSE.chromedriver
+Station B tool/THIRD_PARTY_NOTICES.chromedriver
+
 
 # Python
 __pycache__/
