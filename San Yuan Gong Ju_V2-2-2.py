@@ -76,7 +76,7 @@ class PathUtils:
 class ToolLauncher:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("工具启动器-V2.1.3-32")
+        self.root.title("工具启动器-V2.1.3")
         self.root.geometry("400x500")  # 调整窗口大小以适应菜单栏
         self.root.minsize(400, 500)
         
@@ -140,7 +140,7 @@ class ToolLauncher:
                 '图片合成': 'Tu_Pian_He_Cheng.py'
             },
             '音频工具': {
-                '音频提取': 'Yin Pin Ti Qu V2-2-1.py'
+                '音频提取': 'Yin Pin Ti Qu V3-0-0.py'
             },
             '文件工具': {
                 '目录树生成器': 'Mu Lu Shu Sheng Cheng Qi.py',

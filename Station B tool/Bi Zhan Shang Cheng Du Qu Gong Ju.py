@@ -22,7 +22,7 @@ class BilibiliMallReader:
         self.load_font_config()
         
         # 默认URL
-        self.default_url = "https://mall.bilibili.com/neul-next/index.html?page=magic-detail_detail&noTitleBar=1&itemsId=13645965"
+        self.default_url = "https://mall.bilibili.com/neul-next/index.html?page=magic-detail_detail&noTitleBar=1&itemsId=13652913"
         
         # 监控相关变量
         self.monitoring = False
