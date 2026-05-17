@@ -116,7 +116,7 @@ class AudioExtractorApp:
         self.extract_button.grid(row=2, column=1, pady=10)
 
         # 查看开源协议按钮
-        license_button = tk.Button(self.root, text="软件开源协议", command=self.show_license)
+        license_button = tk.Button(self.root, text="项目开源协议", command=self.show_license)
         license_button.grid(row=2, column=2, padx=10, pady=10)
 
         # 状态显示标签

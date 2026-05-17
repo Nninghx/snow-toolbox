@@ -3,32 +3,15 @@ import sys
 sys.dont_write_bytecode = True
 
 import os
-import json
+import subprocess
 from pathlib import Path
 from tkinter import *
 from tkinter import filedialog, messagebox
-import os
+from fontTools.ttLib import TTFont
 
 from os.path import dirname, join
 sys.path.insert(0, join(dirname(__file__), "..", "Core"))
-from BangZhu import get_help_system
 
-
-def load_font_family():
-    try:
-        # 获取当前文件的目录，然后找到Core/ziti.json
-        current_dir = Path(__file__).parent
-        font_path = current_dir.parent / "Core" / "ziti.json"
-        with open(font_path, 'r', encoding='utf-8') as f:
-            font_data = json.load(f)
-        return font_data.get('family', 'Arial')  # 默认使用Arial
-    except Exception as e:
-        print(f"加载字体配置出错: {e}")
-        return 'Arial'  # 出错时使用默认字体
-
-from os.path import dirname, join
-sys.path.insert(0, join(dirname(dirname(__file__)), "Tool module"))
-from BangZhu import get_help_system
 
 def generate_dir_tree(path='.', ignore=None, prefix=''):
     if ignore is None:
@@ -52,17 +35,27 @@ def generate_dir_tree(path='.', ignore=None, prefix=''):
     return result
 class DirTreeGUI:
     def __init__(self, root):
+        """初始化应用界面和配置"""
+        # 首先检查开源协议文档是否存在并验证完整性
+        if not self.check_license():
+            messagebox.showerror(
+                "错误", 
+                "缺少授权！无法使用！请先获取授权！\n"
+            )
+            root.destroy()
+            return
+        
         self.root = root
-        self.font_family = load_font_family()  # 加载字体配置
         self.root.title("目录树生成器")
         
-        # 设置窗口图标
-        try:
-            icon_path = os.path.join(os.path.dirname(__file__), "..", "Image", "icon.ico")
-            if os.path.exists(icon_path):
-                self.root.iconbitmap(icon_path)
-        except Exception as e:
-            print(f"加载图标失败: {e}")
+        # 定义项目根目录和核心模块目录
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        CORE_DIR = PROJECT_ROOT / "Core"
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        # 设置窗口图标、加载字体并构建UI
+        self.set_window_icon()
+        self.load_font()
         
         # 设置窗口大小并居中显示
         window_width = 800
@@ -72,16 +65,109 @@ class DirTreeGUI:
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
         self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
         # 定义字体设置
-        self.base_font = (self.font_family, 12)
         self.button_font = (self.font_family, 12)
         self.mono_font = ('Courier New', 10)  # 输出框保持等宽字体
+        
         self.create_widgets()
+
+    def check_license(self):
+        """检查开源协议文档是否存在并验证完整性"""
+        # 如果通过主程序启动（环境变量已设置），则跳过授权验证
+        if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
+            return True
+        
+        try:
+            # 验证授权
+            PROJECT_ROOT = Path(__file__).resolve().parent.parent
+            CORE_DIR = PROJECT_ROOT / "Core"
+            license_exe_path = CORE_DIR / "LICENSE.exe"
+            if license_exe_path.exists():
+                result = subprocess.run(
+                    [str(license_exe_path), '--quiet'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                return result.returncode == 0
+        except Exception as e:
+            print(f"许可证验证异常: {e}")
+            return False
+
+    def set_window_icon(self):
+        """设置应用程序窗口图标"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        icon_ico_path = IMAGE_DIR / "icon.ico"
+        icon_png_path = IMAGE_DIR / "icon.png"
+
+        # Windows系统设置应用ID
+        if os.name == 'nt':
+            try:
+                import ctypes
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.DirTreeGenerator")
+            except Exception:
+                pass
+
+        # 尝试设置ICO图标
+        if icon_ico_path.exists():
+            try:
+                self.root.iconbitmap(default=str(icon_ico_path))
+            except Exception:
+                try:
+                    self.root.iconbitmap(str(icon_ico_path))
+                except Exception:
+                    pass
+
+        # 尝试设置PNG图标
+        if hasattr(self.root, "iconphoto") and icon_png_path.exists():
+            try:
+                self.icon_image = PhotoImage(file=str(icon_png_path))
+                self.root.iconphoto(True, self.icon_image)
+            except Exception:
+                pass
+
+    def load_font(self):
+        """从配置文件加载字体设置"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
+        
+        if not font_path.exists():
+            messagebox.showerror("错误", f"找不到字体文件：{font_path}")
+            self.root.destroy()
+            return
+        
+        # 使用 fonttools 获取字体名称
+        tt = TTFont(str(font_path))
+        font_name = None
+        for record in tt['name'].names:
+            if record.nameID == 1:  # Font Family
+                font_name = record.toUnicode()
+                break
+        if not font_name:
+            raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
+        tt.close()
+        
+        # 使用 Windows API 注册字体
+        if os.name == 'nt':
+            import ctypes
+            GDI32 = ctypes.windll.gdi32
+            font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+            GDI32.AddFontResourceW(font_path_str)
+            print(f"✅ 成功加载自定义字体: {font_path}")
+        
+        self.font_family = font_name
+        self.current_font = (self.font_family, 12)
+        self.root.option_add("*Font", self.current_font)
     def create_widgets(self):
         # 目录选择框架
         dir_frame = Frame(self.root)
         dir_frame.pack(pady=10, padx=10, fill=X)
-        self.dir_entry = Entry(dir_frame, font=self.base_font)
+        self.dir_entry = Entry(dir_frame, font=self.current_font)
         self.dir_entry.pack(side=LEFT, expand=True, fill=X)
         browse_btn = Button(dir_frame, text="浏览", command=self.browse_directory, width=8, font=self.button_font)
         browse_btn.pack(side=LEFT, padx=5)
@@ -96,8 +182,8 @@ class DirTreeGUI:
         save_mindmap_btn.pack(side=LEFT, padx=5)
         clear_btn = Button(btn_frame, text="清空", command=self.clear_output, width=10, font=self.button_font)
         clear_btn.pack(side=LEFT, padx=5)
-        help_btn = Button(btn_frame, text="帮助", command=self.show_help, width=8, font=self.button_font)
-        help_btn.pack(side=LEFT, padx=5)
+        license_btn = Button(btn_frame, text="项目开源协议", command=self.show_license, width=10, font=self.button_font)
+        license_btn.pack(side=LEFT, padx=5)
         # 输出框架
         output_frame = Frame(self.root)
         output_frame.pack(pady=10, padx=10, fill=BOTH, expand=True)
@@ -156,7 +242,7 @@ class DirTreeGUI:
         try:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write("# 目录结构思维导图\n\n")
-                f.write("```markmap\n")
+                f.write("``markmap\n")
                 f.write("{\n")
                 f.write('  "text": "' + os.path.basename(directory) + '",\n')
                 f.write('  "children": [\n')
@@ -187,10 +273,53 @@ class DirTreeGUI:
     def clear_output(self):
         self.output_text.delete('1.0', END)
         self.dir_entry.delete(0, END)
-    def show_help(self):
-        help_system = get_help_system()
-        help_system.show_help("目录树生成器")
+
+    def show_license(self):
+        """显示开源协议文档"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        CORE_DIR = PROJECT_ROOT / "Core"
+        license_path = CORE_DIR / "LICENSE.txt"
         
+        if not license_path.exists():
+            messagebox.showerror("错误", f"找不到开源协议文件：{license_path}")
+            return
+        
+        try:
+            with open(license_path, 'r', encoding='utf-8') as f:
+                license_content = f.read()
+            
+            # 创建只读窗口显示协议内容
+            license_window = Toplevel(self.root)
+            license_window.title("Apache-2.0 License")
+            
+            # 设置窗口大小
+            window_width = 700
+            window_height = 500
+            screen_width = license_window.winfo_screenwidth()
+            screen_height = license_window.winfo_screenheight()
+            x = (screen_width - window_width) // 2
+            y = (screen_height - window_height) // 2
+            license_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+            
+            # 创建文本框和滚动条
+            text_frame = Frame(license_window)
+            text_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
+            
+            scrollbar = Scrollbar(text_frame)
+            scrollbar.pack(side=RIGHT, fill=Y)
+            
+            text_widget = Text(text_frame, wrap=WORD, yscrollcommand=scrollbar.set, 
+                             font=self.current_font, state=NORMAL)
+            text_widget.pack(side=LEFT, fill=BOTH, expand=True)
+            scrollbar.config(command=text_widget.yview)
+            
+            # 插入协议内容并设置为只读
+            text_widget.insert('1.0', license_content)
+            text_widget.config(state=DISABLED)
+            
+        except Exception as e:
+            messagebox.showerror("错误", f"读取开源协议时出错: {str(e)}")
+
 if __name__ == '__main__':
     root = Tk()
     app = DirTreeGUI(root)

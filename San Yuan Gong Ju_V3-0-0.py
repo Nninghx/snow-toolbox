@@ -126,7 +126,7 @@ class ToolLauncher:
                 '音频提取': 'Yin Pin Ti Qu V3-0-0.py'
             },
             '文件工具': {
-                '目录树生成器': 'Mu Lu Shu Sheng Cheng Qi.py',
+                '目录树生成器': 'Mu Lu Shu Sheng Cheng Qi V3-0-0.py',
             },
             '其他工具': {
                 '数字小写转大写': 'Shu Zi Xiao Xie Zhuan Da Xie.py',
@@ -196,7 +196,7 @@ class ToolLauncher:
                     ft.Row(
                         [
                             ft.ElevatedButton("刷新", on_click=self.on_refresh_click, icon=ft.Icons.REFRESH),
-                            ft.ElevatedButton("软件开源协议", on_click=self.on_license_click, icon=ft.Icons.DESCRIPTION),
+                            ft.ElevatedButton("项目开源协议", on_click=self.on_license_click, icon=ft.Icons.DESCRIPTION),
                         ], spacing=8
                     ),
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.CENTER
