@@ -127,6 +127,8 @@ class ToolLauncher:
             },
             '文件工具': {
                 '目录树生成器': 'Mu Lu Shu Sheng Cheng Qi V3-0-0.py',
+                '文件时间修改器': 'Wen Jian Shi Jian Xiu Gai Qi V3-0-0.py',
+                'ModelScope 模型下载器': 'ModelScope_Downloader.py',
             },
             '其他工具': {
                 '数字小写转大写': 'Shu Zi Xiao Xie Zhuan Da Xie.py',
