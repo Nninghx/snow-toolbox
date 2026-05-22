@@ -368,3 +368,5 @@ zipp==3.23.1
 zope.event==6.0
 zope.interface==8.0.1
 zstandard==0.25.0
+qrcode==7.4.2
+pyzbar==0.1.9

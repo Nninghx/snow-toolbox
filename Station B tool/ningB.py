@@ -441,7 +441,6 @@ class BilibiliMallReader:
             except ImportError:
                 self.chrome_driver_manager = None
                 self.add_log("提示: 可安装 webdriver-manager 自动管理驱动版本")
-                self.add_log("   运行: pip install webdriver-manager")
             
             # 保存Selenium模块引用
             self.selenium_module = {

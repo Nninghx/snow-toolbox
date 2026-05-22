@@ -156,7 +156,7 @@ class ToolLauncher:
             'B站专用工具': {
                 '封面与表情包图片批量压缩': 'Feng Mian Yu Biao Qing Bao Tu Pian Pi Liang Ya Suo.py',
                 '带货链接分批处理工具': 'Lian Jie Fen Pi Chu Li.py',
-                '辅助盯池工具': 'Bi Zhan Shang Cheng Du Qu Gong Ju.py',
+                '辅助盯池工具': 'Bi Zhan Shang Cheng Du Qu Gong Ju V3-0-0.py',
             },
             '计算器工具': {
                 '数学和统计计算器': 'Shu Xue Tong Ji Ji Suan Qi.py',
@@ -171,9 +171,9 @@ class ToolLauncher:
                 '圆周率计算器': 'Yuan Zhou Lv Ji Suan Qi.py',
             },
             '小游戏': {
-                '24点小游戏': '24dian_game.py',
-                '数独小游戏': 'sudoku_game.py',
-                '猜数字小游戏': 'guess_number_game.py',
+                '24点小游戏': '24dian_game V3-0-0.py',
+                '数独小游戏': 'sudoku_game V3-0-0.py',
+                '猜数字小游戏': 'guess_number_game V3-0-0.py',
             }
         }
         # 设置窗口和任务栏图标
