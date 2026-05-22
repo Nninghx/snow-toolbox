@@ -46,7 +46,7 @@ class DirTreeGUI:
             return
         
         self.root = root
-        self.root.title("目录树生成器")
+        self.root.title("文件目录树生成器")
         
         # 定义项目根目录和核心模块目录
         PROJECT_ROOT = Path(__file__).resolve().parent.parent

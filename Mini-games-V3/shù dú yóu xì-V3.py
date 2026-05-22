@@ -227,7 +227,7 @@ class SudokuUI:
         
     def setup_ui(self):
         """设置界面布局"""
-        self.root.title("数独小游戏")
+        self.root.title("数独游戏")
         self.root.geometry("500x600")
         
         # 主框架

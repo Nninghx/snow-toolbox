@@ -7,8 +7,6 @@ import subprocess
 import flet as ft
 from pathlib import Path
 from fontTools.ttLib import TTFont
-
-
 def get_font_name():
     """获取自定义字体名称并注册到系统"""
     base_dir = Path(__file__).resolve().parent
@@ -35,18 +33,12 @@ def get_font_name():
         GDI32 = ctypes.windll.gdi32
         font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
         GDI32.AddFontResourceW(font_path_str)
-        print(f"✅ 成功加载自定义字体: {font_path}")
-    
+        print(f"✅ 成功加载自定义字体: {font_path}")  
     return font_name
-
-
 # 加载自定义字体
 CUSTOM_FONT_NAME = get_font_name()
-
-
 class LicenseValidator:
     """授权验证类"""
-    
     @staticmethod
     def validate_license():
         """
@@ -95,12 +87,12 @@ class PathUtils:
         category_map = {
             'PDF工具': 'PDF tool',
             '图片工具': 'Picture tool',
-            '音频工具': 'Audio tool',
-            '文件工具': 'File tool',
+            '音频工具': 'Audio tool-V3',
+            '文件工具': 'File tool-V3',
             '其他工具': 'Other tool',
             'B站专用工具': 'Station B tool',
             '计算器工具': 'Calculator tool',
-            '小游戏': 'Mini-games',
+            '小游戏': 'Mini-games-V3',
         }
         sub_dir = category_map.get(category)
         return os.path.join(base_dir, sub_dir, file_name) if sub_dir else os.path.join(base_dir, file_name)
@@ -123,12 +115,12 @@ class ToolLauncher:
                 '图片合成': 'Tu_Pian_He_Cheng.py'
             },
             '音频工具': {
-                '音频提取': 'Yin Pin Ti Qu V3-0-0.py'
+                '音频提取': 'shì pín yīn pín tí qǔ-V3.py'
             },
             '文件工具': {
-                '目录树生成器': 'Mu Lu Shu Sheng Cheng Qi V3-0-0.py',
-                '文件时间修改器': 'Wen Jian Shi Jian Xiu Gai Qi V3-0-0.py',
-                'ModelScope 模型下载器': 'ModelScope_Downloader.py',
+                '目录树生成器': 'wén jiàn mù lù shù shēng chéng qì-V3.py',
+                '文件时间修改器': 'wén jiàn shí jiān xiū gǎi qì-V3.py',
+                'ModelScope 模型下载器': 'ModelScope mó xíng xià zǎi qì-V3.py',
             },
             '其他工具': {
                 '数字小写转大写': 'Shu Zi Xiao Xie Zhuan Da Xie.py',
@@ -155,9 +147,9 @@ class ToolLauncher:
                 '圆周率计算器': 'Yuan Zhou Lv Ji Suan Qi.py',
             },
             '小游戏': {
-                '24点小游戏': '24dian_game V3-0-0.py',
-                '数独小游戏': 'sudoku_game V3-0-0.py',
-                '猜数字小游戏': 'guess_number_game V3-0-0.py',
+                '24点小游戏': '24diǎn yóu xì-V3.py',
+                '数独小游戏': 'cāishùzì yóuxì-V3.py',
+                '猜数字小游戏': 'cāishùzì yóuxì-V3.py',
             }
         }
         self.tool_cache = {}

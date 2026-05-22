@@ -33,7 +33,7 @@ class AudioExtractorApp:
             return
         
         self.root = root
-        self.root.title("音频提取工具")
+        self.root.title("视频音频提取")
         self.root.geometry("520x150")
         self.root.resizable(False, False)
 

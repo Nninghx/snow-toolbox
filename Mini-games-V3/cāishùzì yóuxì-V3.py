@@ -217,7 +217,7 @@ class GuessNumberUI:
         
     def setup_ui(self):
         """设置界面布局"""
-        self.root.title("猜数字小游戏")
+        self.root.title("猜数字游戏")
         self.root.geometry("500x400")
         
         # 主框架
