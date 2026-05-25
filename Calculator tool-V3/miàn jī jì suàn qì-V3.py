@@ -1,41 +1,48 @@
 import json
 import os
 import math
+import subprocess
+from pathlib import Path
 from tkinter import Tk, Label, Entry, Button, StringVar, messagebox, ttk
+try:
+    from PIL import Image, ImageTk
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
-def load_font_config():
-    """动态读取字体配置文件"""
-    try:
-        with open(os.path.join(os.path.dirname(__file__), '../Core/ziti.json'), 'r', encoding='utf-8') as f:
-            font_config = json.load(f)
-            return font_config.get('family', 'Microsoft YaHei')
-    except Exception as e:
-        print(f"加载字体配置失败: {e}")
-        return 'Microsoft YaHei'
+try:
+    from fontTools.ttLib import TTFont
+    FONTTOOLS_AVAILABLE = True
+except ImportError:
+    FONTTOOLS_AVAILABLE = False
 
 class AreaCalculator:
     def __init__(self, master):
         self.master = master
+        
+        # 首先检查授权
+        if not self.check_license():
+            messagebox.showerror(
+                "错误", 
+                "缺少授权！无法使用！请先获取授权！"
+            )
+            master.destroy()
+            return
+        
         master.title("面积计算器")
         
         # 设置窗口图标
-        try:
-            icon_path = os.path.join(os.path.dirname(__file__), "..", "Image", "icon.ico")
-            if os.path.exists(icon_path):
-                master.iconbitmap(icon_path)
-        except Exception as e:
-            print(f"加载图标失败: {e}")
+        self.set_window_icon(master)
         
         # 加载字体配置
-        font_family = load_font_config()
-        self.font = (font_family, 12)
+        self.load_font()
         
         # 主框架
         self.main_frame = ttk.Frame(master)
         self.main_frame.pack(fill='both', expand=True, padx=10, pady=10)
         
         # 标题
-        Label(self.main_frame, text="面积计算器", font=(font_family, 16, 'bold')).pack(pady=10)
+        Label(self.main_frame, text="面积计算器", font=(self.current_font[0], 16, 'bold')).pack(pady=10)
         
         # 几何图形选择按钮框架
         self.shapes_frame = ttk.Frame(self.main_frame)
@@ -55,7 +62,7 @@ class AreaCalculator:
             row_frame.pack(fill='x')
             for shape in shapes[i:i+6]:
                 btn = Button(row_frame, text=shape, command=lambda s=shape: self.show_shape_ui(s), 
-                           font=self.font, width=12)
+                           width=12)
                 btn.pack(side='left', padx=5, pady=2)
         
         # 计算区域框架
@@ -66,9 +73,9 @@ class AreaCalculator:
         self.result_frame = ttk.Frame(self.main_frame)
         self.result_frame.pack(fill='x', pady=10)
         
-        Label(self.result_frame, text="结果:", font=self.font).pack(side='left', padx=5)
+        Label(self.result_frame, text="结果:").pack(side='left', padx=5)
         self.result_var = StringVar()
-        Label(self.result_frame, textvariable=self.result_var, font=self.font).pack(side='left', padx=5)
+        Label(self.result_frame, textvariable=self.result_var).pack(side='left', padx=5)
         
         # 初始化当前形状UI
         self.current_shape = None
@@ -76,35 +83,35 @@ class AreaCalculator:
     
     def setup_circle_ui(self, parent):
         """设置圆面积计算界面"""
-        Label(parent, text="半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="半径:").grid(row=0, column=0, padx=10, pady=5)
         self.radius_var = StringVar()
-        Entry(parent, textvariable=self.radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_circle, font=self.font).grid(row=1, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_circle).grid(row=1, column=0, columnspan=2, pady=10)
     
     def setup_rectangle_ui(self, parent):
         """设置长方形面积计算界面"""
-        Label(parent, text="长度:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="长度:").grid(row=0, column=0, padx=10, pady=5)
         self.length_var = StringVar()
-        Entry(parent, textvariable=self.length_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.length_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="宽度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="宽度:").grid(row=1, column=0, padx=10, pady=5)
         self.width_var = StringVar()
-        Entry(parent, textvariable=self.width_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.width_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_rectangle, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_rectangle).grid(row=2, column=0, columnspan=2, pady=10)
     
     def setup_ellipse_ui(self, parent):
         """设置椭圆面积面积面积计算界面"""
-        Label(parent, text="长半轴:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="长半轴:").grid(row=0, column=0, padx=10, pady=5)
         self.major_axis_var = StringVar()
-        Entry(parent, textvariable=self.major_axis_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.major_axis_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="短半轴:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="短半轴:").grid(row=1, column=0, padx=10, pady=5)
         self.minor_axis_var = StringVar()
-        Entry(parent, textvariable=self.minor_axis_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.minor_axis_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_ellipse, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_ellipse).grid(row=2, column=0, columnspan=2, pady=10)
     
     def calculate_circle(self):
         """计算圆面积"""
@@ -113,7 +120,7 @@ class AreaCalculator:
             area = math.pi * radius ** 2
             self.show_result(f"圆面积: {area:.2f} 平方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_rectangle(self):
         """计算长方形面积"""
@@ -123,7 +130,7 @@ class AreaCalculator:
             area = length * width
             self.show_result(f"长方形面积: {area:.2f} 平方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_ellipse(self):
         """计算椭圆面积面积面积"""
@@ -133,7 +140,7 @@ class AreaCalculator:
             area = math.pi * major_axis * minor_axis
             self.show_result(f"椭圆面积: {area:.2f} 平方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def show_result(self, text):
         """显示计算结果"""
@@ -141,109 +148,109 @@ class AreaCalculator:
     
     def setup_trapezoid_ui(self, parent):
         """设置梯形面积计算界面"""
-        Label(parent, text="上底:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="上底:").grid(row=0, column=0, padx=10, pady=5)
         self.top_base_var = StringVar()
-        Entry(parent, textvariable=self.top_base_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.top_base_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="下底:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="下底:").grid(row=1, column=0, padx=10, pady=5)
         self.bottom_base_var = StringVar()
-        Entry(parent, textvariable=self.bottom_base_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.bottom_base_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=2, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=2, column=0, padx=10, pady=5)
         self.trapezoid_height_var = StringVar()
-        Entry(parent, textvariable=self.trapezoid_height_var, font=self.font).grid(row=2, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.trapezoid_height_var).grid(row=2, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_trapezoid, font=self.font).grid(row=3, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_trapezoid).grid(row=3, column=0, columnspan=2, pady=10)
     def setup_parallelogram_ui(self, parent):
         """设置平行四边形面积计算界面"""
-        Label(parent, text="底边:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="底边:").grid(row=0, column=0, padx=10, pady=5)
         self.parallelogram_base_var = StringVar()
-        Entry(parent, textvariable=self.parallelogram_base_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.parallelogram_base_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=1, column=0, padx=10, pady=5)
         self.parallelogram_height_var = StringVar()
-        Entry(parent, textvariable=self.parallelogram_height_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.parallelogram_height_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_parallelogram, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_parallelogram).grid(row=2, column=0, columnspan=2, pady=10)
     
     def setup_rhombus_ui(self, parent):
         """设置菱形面积计算界面"""
-        Label(parent, text="对角线1:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="对角线1:").grid(row=0, column=0, padx=10, pady=5)
         self.diagonal1_var = StringVar()
-        Entry(parent, textvariable=self.diagonal1_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.diagonal1_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="对角线2:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="对角线2:").grid(row=1, column=0, padx=10, pady=5)
         self.diagonal2_var = StringVar()
-        Entry(parent, textvariable=self.diagonal2_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.diagonal2_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_rhombus, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_rhombus).grid(row=2, column=0, columnspan=2, pady=10)
     
     def setup_isosceles_triangle_ui(self, parent):
         """设置等腰三角形面积计算界面"""
-        Label(parent, text="底边:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="底边:").grid(row=0, column=0, padx=10, pady=5)
         self.triangle_base_var = StringVar()
-        Entry(parent, textvariable=self.triangle_base_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.triangle_base_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=1, column=0, padx=10, pady=5)
         self.triangle_height_var = StringVar()
-        Entry(parent, textvariable=self.triangle_height_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.triangle_height_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_isosceles_triangle, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_isosceles_triangle).grid(row=2, column=0, columnspan=2, pady=10)
     
     def setup_kite_ui(self, parent):
         """设置风筝面积计算界面"""
-        Label(parent, text="对角线1:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="对角线1:").grid(row=0, column=0, padx=10, pady=5)
         self.kite_diagonal1_var = StringVar()
-        Entry(parent, textvariable=self.kite_diagonal1_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.kite_diagonal1_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="对角线2:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="对角线2:").grid(row=1, column=0, padx=10, pady=5)
         self.kite_diagonal2_var = StringVar()
-        Entry(parent, textvariable=self.kite_diagonal2_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.kite_diagonal2_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_kite, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_kite).grid(row=2, column=0, columnspan=2, pady=10)
     
     def setup_frustum_area_ui(self, parent):
         """设置圆台面积计算界面"""
-        Label(parent, text="上底半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="上底半径:").grid(row=0, column=0, padx=10, pady=5)
         self.frustum_top_radius_var = StringVar()
-        Entry(parent, textvariable=self.frustum_top_radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.frustum_top_radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="下底半径:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="下底半径:").grid(row=1, column=0, padx=10, pady=5)
         self.frustum_bottom_radius_var = StringVar()
-        Entry(parent, textvariable=self.frustum_bottom_radius_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.frustum_bottom_radius_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=2, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=2, column=0, padx=10, pady=5)
         self.frustum_height_var = StringVar()
-        Entry(parent, textvariable=self.frustum_height_var, font=self.font).grid(row=2, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.frustum_height_var).grid(row=2, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_frustum_area, font=self.font).grid(row=3, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_frustum_area).grid(row=3, column=0, columnspan=2, pady=10)
     def setup_sphere_surface_ui(self, parent):
         """设置球体表面积计算界面"""
-        Label(parent, text="半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="半径:").grid(row=0, column=0, padx=10, pady=5)
         self.sphere_radius_var = StringVar()
-        Entry(parent, textvariable=self.sphere_radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.sphere_radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_sphere_surface, font=self.font).grid(row=1, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_sphere_surface).grid(row=1, column=0, columnspan=2, pady=10)
     
     def setup_cube_surface_ui(self, parent):
         """设置立方体表面积计算界面"""
-        Label(parent, text="边长:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="边长:").grid(row=0, column=0, padx=10, pady=5)
         self.cube_side_var = StringVar()
-        Entry(parent, textvariable=self.cube_side_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.cube_side_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_cube_surface, font=self.font).grid(row=1, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_cube_surface).grid(row=1, column=0, columnspan=2, pady=10)
     
     def setup_land_area_ui(self, parent):
         """设置土地面积计算界面"""
-        Label(parent, text="长度(米):", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="长度(米):").grid(row=0, column=0, padx=10, pady=5)
         self.land_length_var = StringVar()
-        Entry(parent, textvariable=self.land_length_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.land_length_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="宽度(米):", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="宽度(米):").grid(row=1, column=0, padx=10, pady=5)
         self.land_width_var = StringVar()
-        Entry(parent, textvariable=self.land_width_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.land_width_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_land_area, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_land_area).grid(row=2, column=0, columnspan=2, pady=10)
     
     def calculate_trapezoid(self):
         """计算梯形面积"""
@@ -254,7 +261,7 @@ class AreaCalculator:
             area = (top + bottom) * height / 2
             self.show_result(f"梯形面积: {area:.2f} 平方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_parallelogram(self):
         """计算平行四边形面积"""
@@ -264,7 +271,7 @@ class AreaCalculator:
             area = base * height
             self.show_result(f"平行四边形面积: {area:.2f} 平方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_rhombus(self):
         """计算菱形面积"""
@@ -274,7 +281,7 @@ class AreaCalculator:
             area = d1 * d2 / 2
             self.show_result(f"菱形面积: {area:.2f} 平方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_isosceles_triangle(self):
         """计算等腰三角形面积"""
@@ -284,7 +291,7 @@ class AreaCalculator:
             area = base * height / 2
             self.show_result(f"等腰三角形面积: {area:.2f} 平方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_kite(self):
         """计算风筝形面积"""
@@ -294,7 +301,7 @@ class AreaCalculator:
             area = d1 * d2 / 2
             self.show_result(f"风筝形面积: {area:.2f} 平方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_frustum_area(self):
         """计算圆台面积"""
@@ -308,7 +315,7 @@ class AreaCalculator:
             total_area = lateral_area + base_area
             self.show_result(f"圆台表面积: {total_area:.2f} 平方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_sphere_surface(self):
         """计算球体表面积"""
@@ -317,7 +324,7 @@ class AreaCalculator:
             area = 4 * math.pi * r**2
             self.show_result(f"球体表面积: {area:.2f} 平方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_cube_surface(self):
         """计算立方体表面积"""
@@ -326,7 +333,7 @@ class AreaCalculator:
             area = 6 * side**2
             self.show_result(f"立方体表面积: {area:.2f} 平方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_land_area(self):
         """计算土地面积"""
@@ -337,14 +344,14 @@ class AreaCalculator:
             area_mu = area_m2 / 666.67  # 1亩≈666.67平方米
             self.show_result(f"土地面积: {area_m2:.2f} 平方米 ({area_mu:.4f} 亩)")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     def setup_octagon_ui(self, parent):
         """设置正八边形面积计算界面"""
-        Label(parent, text="边长:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="边长:").grid(row=0, column=0, padx=10, pady=5)
         self.octagon_side_var = StringVar()
-        Entry(parent, textvariable=self.octagon_side_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.octagon_side_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_octagon, font=self.font).grid(row=1, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_octagon).grid(row=1, column=0, columnspan=2, pady=10)
     
     def calculate_octagon(self):
         """计算正八边形面积"""
@@ -353,27 +360,27 @@ class AreaCalculator:
             area = 2 * (1 + math.sqrt(2)) * side**2
             self.show_result(f"正八边形面积: {area:.2f} 平方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def setup_quadrilateral_ui(self, parent):
         """设置四边形面积计算界面"""
-        Label(parent, text="边a:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="边a:").grid(row=0, column=0, padx=10, pady=5)
         self.quad_side_a_var = StringVar()
-        Entry(parent, textvariable=self.quad_side_a_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.quad_side_a_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="边b:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="边b:").grid(row=1, column=0, padx=10, pady=5)
         self.quad_side_b_var = StringVar()
-        Entry(parent, textvariable=self.quad_side_b_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.quad_side_b_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Label(parent, text="边c:", font=self.font).grid(row=2, column=0, padx=10, pady=5)
+        Label(parent, text="边c:").grid(row=2, column=0, padx=10, pady=5)
         self.quad_side_c_var = StringVar()
-        Entry(parent, textvariable=self.quad_side_c_var, font=self.font).grid(row=2, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.quad_side_c_var).grid(row=2, column=1, padx=10, pady=5)
         
-        Label(parent, text="边d:", font=self.font).grid(row=3, column=0, padx=10, pady=5)
+        Label(parent, text="边d:").grid(row=3, column=0, padx=10, pady=5)
         self.quad_side_d_var = StringVar()
-        Entry(parent, textvariable=self.quad_side_d_var, font=self.font).grid(row=3, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.quad_side_d_var).grid(row=3, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_quadrilateral, font=self.font).grid(row=4, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_quadrilateral).grid(row=4, column=0, columnspan=2, pady=10)
     
     def calculate_quadrilateral(self):
         """计算四边形面积(基于边长)"""
@@ -386,7 +393,7 @@ class AreaCalculator:
             area = math.sqrt((s - a) * (s - b) * (s - c) * (s - d))
             self.show_result(f"四边形面积: {area:.2f} 平方单位")
         except ValueError as e:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_octagon(self):
         """计算正八边形面积"""
@@ -395,42 +402,42 @@ class AreaCalculator:
             area = 2 * (1 + math.sqrt(2)) * side**2
             self.show_result(f"正八边形面积: {area:.2f} 平方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     def setup_regular_polygon_ui(self, parent):
         """设置正多边形面积计算界面"""
-        Label(parent, text="边数:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="边数:").grid(row=0, column=0, padx=10, pady=5)
         self.polygon_sides_var = StringVar()
-        Entry(parent, textvariable=self.polygon_sides_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.polygon_sides_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="边长:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="边长:").grid(row=1, column=0, padx=10, pady=5)
         self.polygon_side_length_var = StringVar()
-        Entry(parent, textvariable=self.polygon_side_length_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.polygon_side_length_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_regular_polygon, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_regular_polygon).grid(row=2, column=0, columnspan=2, pady=10)
     
     def setup_annulus_ui(self, parent):
         """设置圆环面积计算界面"""
-        Label(parent, text="外半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="外半径:").grid(row=0, column=0, padx=10, pady=5)
         self.annulus_outer_var = StringVar()
-        Entry(parent, textvariable=self.annulus_outer_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.annulus_outer_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="内半径:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="内半径:").grid(row=1, column=0, padx=10, pady=5)
         self.annulus_inner_var = StringVar()
-        Entry(parent, textvariable=self.annulus_inner_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.annulus_inner_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_annulus, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_annulus).grid(row=2, column=0, columnspan=2, pady=10)
     
     def setup_cylinder_ui(self, parent):
         """设置圆柱体表面积计算界面"""
-        Label(parent, text="半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="半径:").grid(row=0, column=0, padx=10, pady=5)
         self.cylinder_radius_var = StringVar()
-        Entry(parent, textvariable=self.cylinder_radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.cylinder_radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=1, column=0, padx=10, pady=5)
         self.cylinder_height_var = StringVar()
-        Entry(parent, textvariable=self.cylinder_height_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.cylinder_height_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算表面积", command=self.calculate_cylinder, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算表面积", command=self.calculate_cylinder).grid(row=2, column=0, columnspan=2, pady=10)
     
     def calculate_regular_polygon(self):
         """计算正多边形面积"""
@@ -442,7 +449,7 @@ class AreaCalculator:
             area = (n * s**2) / (4 * math.tan(math.pi / n))
             self.show_result(f"正{n}边形面积: {area:.2f} 平方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值")
     
     def calculate_annulus(self):
         """计算圆环面积"""
@@ -454,31 +461,31 @@ class AreaCalculator:
             area = math.pi * (R**2 - r**2)
             self.show_result(f"圆环面积: {area:.2f} 平方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值")
         self.cylinder_height_var = StringVar()
-        Entry(parent, textvariable=self.cylinder_height_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.cylinder_height_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算表面积", command=self.calculate_cylinder, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算表面积", command=self.calculate_cylinder).grid(row=2, column=0, columnspan=2, pady=10)
     
     def setup_triangular_prism_ui(self, parent):
         """设置三角棱柱表面积计算界面"""
-        Label(parent, text="底面边长a:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="底面边长a:").grid(row=0, column=0, padx=10, pady=5)
         self.prism_side_a_var = StringVar()
-        Entry(parent, textvariable=self.prism_side_a_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.prism_side_a_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="底面边长b:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="底面边长b:").grid(row=1, column=0, padx=10, pady=5)
         self.prism_side_b_var = StringVar()
-        Entry(parent, textvariable=self.prism_side_b_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.prism_side_b_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Label(parent, text="底面边长c:", font=self.font).grid(row=2, column=0, padx=10, pady=5)
+        Label(parent, text="底面边长c:").grid(row=2, column=0, padx=10, pady=5)
         self.prism_side_c_var = StringVar()
-        Entry(parent, textvariable=self.prism_side_c_var, font=self.font).grid(row=2, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.prism_side_c_var).grid(row=2, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=3, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=3, column=0, padx=10, pady=5)
         self.prism_height_var = StringVar()
-        Entry(parent, textvariable=self.prism_height_var, font=self.font).grid(row=3, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.prism_height_var).grid(row=3, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算表面积", command=self.calculate_triangular_prism, font=self.font).grid(row=4, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算表面积", command=self.calculate_triangular_prism).grid(row=4, column=0, columnspan=2, pady=10)
     
     def calculate_cylinder(self):
         """计算圆柱体表面积"""
@@ -490,7 +497,7 @@ class AreaCalculator:
             total_area = 2 * base_area + lateral_area
             self.show_result(f"圆柱体表面积: {total_area:.2f} 平方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值")
     
     def calculate_triangular_prism(self):
         """计算三角棱柱表面积"""
@@ -510,56 +517,56 @@ class AreaCalculator:
             total_area = 2 * base_area + lateral_area
             self.show_result(f"三角棱柱表面积: {total_area:.2f} 平方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值")
     def setup_cone_lateral_ui(self, parent):
         """设置圆锥侧面积计算界面"""
-        Label(parent, text="底面半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="底面半径:").grid(row=0, column=0, padx=10, pady=5)
         self.cone_lateral_radius_var = StringVar()
-        Entry(parent, textvariable=self.cone_lateral_radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.cone_lateral_radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=1, column=0, padx=10, pady=5)
         self.cone_lateral_height_var = StringVar()
-        Entry(parent, textvariable=self.cone_lateral_height_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.cone_lateral_height_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算侧面积", command=self.calculate_cone_lateral, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算侧面积", command=self.calculate_cone_lateral).grid(row=2, column=0, columnspan=2, pady=10)
     def setup_cone_base_ui(self, parent):
         """设置圆锥底面积计算界面"""
-        Label(parent, text="底面半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="底面半径:").grid(row=0, column=0, padx=10, pady=5)
         self.cone_base_radius_var = StringVar()
-        Entry(parent, textvariable=self.cone_base_radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.cone_base_radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算底面积", command=self.calculate_cone_base, font=self.font).grid(row=1, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算底面积", command=self.calculate_cone_base).grid(row=1, column=0, columnspan=2, pady=10)
     def setup_pyramid_surface_ui(self, parent):
         """设置金字塔表面积计算界面"""
-        Label(parent, text="长度:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="长度:").grid(row=0, column=0, padx=10, pady=5)
         self.pyramid_length_var = StringVar()
-        Entry(parent, textvariable=self.pyramid_length_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.pyramid_length_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="宽度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="宽度:").grid(row=1, column=0, padx=10, pady=5)
         self.pyramid_width_var = StringVar()
-        Entry(parent, textvariable=self.pyramid_width_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.pyramid_width_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=2, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=2, column=0, padx=10, pady=5)
         self.pyramid_height_var = StringVar()
-        Entry(parent, textvariable=self.pyramid_height_var, font=self.font).grid(row=2, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.pyramid_height_var).grid(row=2, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算表面积", command=self.calculate_pyramid_surface, font=self.font).grid(row=3, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算表面积", command=self.calculate_pyramid_surface).grid(row=3, column=0, columnspan=2, pady=10)
     
     def setup_pyramid_lateral_ui(self, parent):
         """设置金字塔侧面积计算界面"""
-        Label(parent, text="长度:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="长度:").grid(row=0, column=0, padx=10, pady=5)
         self.pyramid_length_var = StringVar()
-        Entry(parent, textvariable=self.pyramid_length_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.pyramid_length_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="宽度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="宽度:").grid(row=1, column=0, padx=10, pady=5)
         self.pyramid_width_var = StringVar()
-        Entry(parent, textvariable=self.pyramid_width_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.pyramid_width_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=2, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=2, column=0, padx=10, pady=5)
         self.pyramid_height_var = StringVar()
-        Entry(parent, textvariable=self.pyramid_height_var, font=self.font).grid(row=2, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.pyramid_height_var).grid(row=2, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算侧面积", command=self.calculate_pyramid_lateral, font=self.font).grid(row=3, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算侧面积", command=self.calculate_pyramid_lateral).grid(row=3, column=0, columnspan=2, pady=10)
     
     def calculate_cone_lateral(self):
         """计算圆锥侧面积"""
@@ -570,7 +577,7 @@ class AreaCalculator:
             area = math.pi * cone_radius * slant_height
             self.show_result(f"圆锥侧面积: {area:.2f} 平方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值")
     
     def calculate_cone_base(self):
         """计算圆锥底面积"""
@@ -579,7 +586,7 @@ class AreaCalculator:
             area = math.pi * r**2
             self.show_result(f"圆锥底面积: {area:.2f} 平方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值")
     
     def calculate_pyramid_surface(self):
         """计算金字塔表面积"""
@@ -596,7 +603,7 @@ class AreaCalculator:
             
             self.show_result(f"金字塔表面积: {total_area:.2f} 平方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值")
     
     def calculate_pyramid_lateral(self):
         """计算金字塔侧面积"""
@@ -612,26 +619,26 @@ class AreaCalculator:
             
             self.show_result(f"金字塔侧面积: {area:.2f} 平方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值")
     def setup_square_ui(self, parent):
         """设置正方形面积计算界面"""
-        Label(parent, text="边长:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="边长:").grid(row=0, column=0, padx=10, pady=5)
         self.square_side_var = StringVar()
-        Entry(parent, textvariable=self.square_side_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.square_side_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_square, font=self.font).grid(row=1, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_square).grid(row=1, column=0, columnspan=2, pady=10)
     
     def setup_triangle_ui(self, parent):
         """设置三角形面积计算界面"""
-        Label(parent, text="底边:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="底边:").grid(row=0, column=0, padx=10, pady=5)
         self.triangle_base_var = StringVar()
-        Entry(parent, textvariable=self.triangle_base_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.triangle_base_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=1, column=0, padx=10, pady=5)
         self.triangle_height_var = StringVar()
-        Entry(parent, textvariable=self.triangle_height_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.triangle_height_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算面积", command=self.calculate_triangle, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算面积", command=self.calculate_triangle).grid(row=2, column=0, columnspan=2, pady=10)
     
     def calculate_square(self):
         """计算正方形面积"""
@@ -640,7 +647,7 @@ class AreaCalculator:
             area = side ** 2
             self.show_result(f"正方形面积: {area:.2f} 平方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值")
     
     def calculate_triangle(self):
         """计算三角形面积"""
@@ -650,7 +657,7 @@ class AreaCalculator:
             area = base * height / 2
             self.show_result(f"三角形面积: {area:.2f} 平方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", str(e) if str(e) else "请输入有效的数值")
     
     def show_shape_ui(self, shape_name):
         """显示选中的形状计算界面"""
@@ -709,6 +716,98 @@ class AreaCalculator:
             self.setup_triangle_ui(self.calc_frame)
         
         self.current_shape = shape_name
+    
+    def check_license(self):
+        """检查开源协议文档是否存在并验证完整性"""
+        # 如果通过主程序启动（环境变量已设置），则跳过授权验证
+        if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
+            return True
+        
+        try:
+            # 验证授权
+            PROJECT_ROOT = Path(__file__).resolve().parent.parent
+            CORE_DIR = PROJECT_ROOT / "Core"
+            license_exe_path = CORE_DIR / "LICENSE.exe"
+            if license_exe_path.exists():
+                result = subprocess.run(
+                    [str(license_exe_path), '--quiet'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                return result.returncode == 0
+        except Exception as e:
+            print(f"许可证验证异常: {e}")
+            return False
+
+    def set_window_icon(self, master):
+        """设置应用程序窗口图标"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        icon_ico_path = IMAGE_DIR / "icon.ico"
+        icon_png_path = IMAGE_DIR / "icon.png"
+
+        # Windows系统设置应用ID
+        if os.name == 'nt':
+            try:
+                import ctypes
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.area_calculator")
+            except Exception:
+                pass
+
+        # 尝试设置ICO图标
+        if icon_ico_path.exists():
+            try:
+                master.iconbitmap(default=str(icon_ico_path))
+            except Exception:
+                try:
+                    master.iconbitmap(str(icon_ico_path))
+                except Exception:
+                    pass
+
+        # 尝试设置PNG图标
+        if hasattr(master, "iconphoto") and icon_png_path.exists():
+            try:
+                self.icon_image = tk.PhotoImage(file=str(icon_png_path))
+                master.iconphoto(True, self.icon_image)
+            except Exception:
+                pass
+
+    def load_font(self):
+        """从配置文件加载字体设置"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
+        
+        if not font_path.exists():
+            messagebox.showerror("错误", f"找不到字体文件：{font_path}")
+            self.master.destroy()
+            return
+        
+        # 使用 fonttools 获取字体名称
+        tt = TTFont(str(font_path))
+        font_name = None
+        for record in tt['name'].names:
+            if record.nameID == 1:  # Font Family
+                font_name = record.toUnicode()
+                break
+        if not font_name:
+            raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
+        tt.close()
+        
+        # 使用 Windows API 注册字体
+        if os.name == 'nt':
+            import ctypes
+            GDI32 = ctypes.windll.gdi32
+            font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+            GDI32.AddFontResourceW(font_path_str)
+            print(f"成功加载自定义字体: {font_path}")
+        
+        from tkinter import font as tkfont
+        self.current_font = (font_name, 12)
+        self.master.option_add("*Font", self.current_font)
 
 if __name__ == "__main__":
     root = Tk()

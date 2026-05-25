@@ -81,7 +81,7 @@ class FontManager:
                 GDI32 = ctypes.windll.gdi32
                 font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
                 GDI32.AddFontResourceW(font_path_str)
-                print(f"✅ 成功加载自定义字体: {font_path}")
+                print(f"[OK] 成功加载自定义字体: {font_path}")
             
             FontManager._font_family = font_name
             
@@ -189,4 +189,4 @@ if __name__ == '__main__':
     print(f"便捷函数 - 字体族: {load_font()}")
     print(f"便捷函数 - 字体: {get_font(14)}")
     
-    print("\n✅ 所有测试通过!")
+    print("\n[OK] 所有测试通过!")

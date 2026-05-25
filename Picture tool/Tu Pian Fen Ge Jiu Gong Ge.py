@@ -6,46 +6,143 @@ from PIL import Image
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+import subprocess
+from pathlib import Path
+from fontTools.ttLib import TTFont
 
-from os.path import dirname, join
-import json
-sys.path.insert(0, join(dirname(__file__), "..", "Core"))
-from BangZhu import get_help_system
 
 class ImageSplitterApp:
     def __init__(self, root):
+        """初始化应用界面和配置"""
+        # 首先检查开源协议文档是否存在并验证完整性
+        if not self.check_license():
+            messagebox.showerror(
+                "错误", 
+                "缺少授权！无法使用！请先获取授权！\n"
+            )
+            root.destroy()
+            return
+        
         self.root = root
         self.root.title("图片九宫格分割工具")
         
-        # 读取字体设置
-        font_path = join(dirname(__file__), "..", "Core", "ziti.json")
-        with open(font_path, "r", encoding="utf-8") as f:
-            font_settings = json.load(f)
-        self.font_family = font_settings["family"]
+        # 设置窗口图标、加载字体并构建UI
+        self.set_window_icon()
+        self.load_font()
+        self.build_ui()
+
+    def set_window_icon(self):
+        """设置应用程序窗口图标"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
         
+        icon_ico_path = IMAGE_DIR / "icon.ico"
+        icon_png_path = IMAGE_DIR / "icon.png"
+
+        # Windows系统设置应用ID
+        if os.name == 'nt':
+            try:
+                import ctypes
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.ImageSplitterApp")
+            except Exception:
+                pass
+
+        # 尝试设置ICO图标
+        if icon_ico_path.exists():
+            try:
+                self.root.iconbitmap(default=str(icon_ico_path))
+            except Exception:
+                try:
+                    self.root.iconbitmap(str(icon_ico_path))
+                except Exception:
+                    pass
+
+        # 尝试设置PNG图标
+        if hasattr(self.root, "iconphoto") and icon_png_path.exists():
+            try:
+                self.icon_image = tk.PhotoImage(file=str(icon_png_path))
+                self.root.iconphoto(True, self.icon_image)
+            except Exception:
+                pass
+
+    def check_license(self):
+        """检查开源协议文档是否存在并验证完整性"""
+        # 如果通过主程序启动（环境变量已设置），则跳过授权验证
+        if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
+            return True
+        
+        try:
+            # 验证授权
+            PROJECT_ROOT = Path(__file__).resolve().parent.parent
+            CORE_DIR = PROJECT_ROOT / "Core"
+            license_exe_path = CORE_DIR / "LICENSE.exe"
+            if license_exe_path.exists():
+                result = subprocess.run(
+                    [str(license_exe_path), '--quiet'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                return result.returncode == 0
+        except Exception as e:
+            print(f"许可证验证异常: {e}")
+            return False
+
+    def load_font(self):
+        """从配置文件加载字体设置"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
+        
+        if not font_path.exists():
+            messagebox.showerror("错误", f"找不到字体文件：{font_path}")
+            self.root.destroy()
+            return
+        
+        # 使用 fonttools 获取字体名称
+        tt = TTFont(str(font_path))
+        font_name = None
+        for record in tt['name'].names:
+            if record.nameID == 1:  # Font Family
+                font_name = record.toUnicode()
+                break
+        if not font_name:
+            raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
+        tt.close()
+        
+        # 使用 Windows API 注册字体
+        if os.name == 'nt':
+            import ctypes
+            GDI32 = ctypes.windll.gdi32
+            font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+            GDI32.AddFontResourceW(font_path_str)
+            print(f"成功加载自定义字体: {font_path}")
+        
+        from tkinter import font as tkfont
+        self.current_font = (font_name, 10)
+        self.root.option_add("*Font", self.current_font)
+
+    def build_ui(self):
+        """构建用户界面"""
         # 输入图片
-        tk.Label(root, text="输入图片:", font=(self.font_family, 10)).grid(row=0, column=0, padx=5, pady=5)
-        self.input_entry = tk.Entry(root, width=40, font=(self.font_family, 10))
+        tk.Label(self.root, text="输入图片:", font=(self.current_font[0], 10)).grid(row=0, column=0, padx=5, pady=5)
+        self.input_entry = tk.Entry(self.root, width=40, font=(self.current_font[0], 10))
         self.input_entry.grid(row=0, column=1, padx=5, pady=5)
-        tk.Button(root, text="浏览...", command=self.browse_input).grid(row=0, column=2, padx=5, pady=5)
+        tk.Button(self.root, text="浏览...", command=self.browse_input, font=(self.current_font[0], 10)).grid(row=0, column=2, padx=5, pady=5)
         
         # 输出目录
-        tk.Label(root, text="输出目录:", font=(self.font_family, 10)).grid(row=1, column=0, padx=5, pady=5)
-        self.output_entry = tk.Entry(root, width=40, font=(self.font_family, 10))
+        tk.Label(self.root, text="输出目录:", font=(self.current_font[0], 10)).grid(row=1, column=0, padx=5, pady=5)
+        self.output_entry = tk.Entry(self.root, width=40, font=(self.current_font[0], 10))
         self.output_entry.grid(row=1, column=1, padx=5, pady=5)
-        tk.Button(root, text="浏览...", command=self.browse_output).grid(row=1, column=2, padx=5, pady=5)
+        tk.Button(self.root, text="浏览...", command=self.browse_output, font=(self.current_font[0], 10)).grid(row=1, column=2, padx=5, pady=5)
         
         # 进度条
-        self.progress = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
+        self.progress = ttk.Progressbar(self.root, orient="horizontal", length=300, mode="determinate")
         self.progress.grid(row=2, column=0, columnspan=3, padx=5, pady=10)
         
-        # 分割按钮和帮助按钮
-        tk.Button(root, text="开始分割", command=self.start_split, font=(self.font_family, 10)).grid(row=3, column=1, pady=10)
-        tk.Button(root, text="帮助", command=self.show_help, font=(self.font_family, 10)).grid(row=3, column=0, pady=10, padx=5)
-    
-    def show_help(self):
-        help_system = get_help_system()
-        help_system.show_help("图片九宫格分割")
+        # 分割按钮
+        tk.Button(self.root, text="开始分割", command=self.start_split, font=(self.current_font[0], 10)).grid(row=3, column=0, columnspan=3, pady=10)
         
     def browse_input(self):
         filepath = filedialog.askopenfilename(
@@ -115,12 +212,8 @@ class ImageSplitterApp:
             messagebox.showerror("错误", f"处理图片时出错: {e}")
             self.progress["value"] = 0
 
+
 if __name__ == "__main__":
     root = tk.Tk()
-    # 设置窗口图标
-    try:
-        root.iconbitmap('Image/icon.ico')
-    except Exception as e:
-        print(f"图标加载失败: {str(e)}")
     app = ImageSplitterApp(root)
     root.mainloop()

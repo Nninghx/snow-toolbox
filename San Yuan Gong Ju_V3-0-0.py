@@ -33,7 +33,7 @@ def get_font_name():
         GDI32 = ctypes.windll.gdi32
         font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
         GDI32.AddFontResourceW(font_path_str)
-        print(f"✅ 成功加载自定义字体: {font_path}")  
+        print(f"成功加载自定义字体: {font_path}")
     return font_name
 # 加载自定义字体
 CUSTOM_FONT_NAME = get_font_name()
@@ -91,7 +91,7 @@ class PathUtils:
             '文件工具': 'File tool-V3',
             '其他工具': 'Other tool',
             'B站专用工具': 'Station B tool',
-            '计算器工具': 'Calculator tool',
+            '计算器工具': 'Calculator tool-V3',
             '小游戏': 'Mini-games-V3',
         }
         sub_dir = category_map.get(category)
@@ -135,16 +135,16 @@ class ToolLauncher:
                 '辅助盯池工具': 'ningB.py',
             },
             '计算器工具': {
-                '数学和统计计算器': 'Shu Xue Tong Ji Ji Suan Qi.py',
-                '多功能分数计算器': 'Fen Shu Ji Suan Qi.py',
-                '多功能代数计算器': 'Dai Shu Ji Suan Qi V2-2-1.py',
-                '多功能三角函数计算器': 'San Jiao Han Shu Ji Suan Qi.py',
-                '二进制计算器': 'Er Jin Zhi Ji Suan Qi.py',
-                '多功能体积计算器': 'Ti Ji Ji Suan Qi.py',
-                '多功能面积计算器': 'Mian Ji Ji Suan Qi.py',
-                '多功能表面积计算器': 'Biao Mian Ji Ji Suan Qi V2-2-1.py',
-                '多功能周长计算器': 'Zhou Chang Ji Suan Qi.py',
-                '圆周率计算器': 'Yuan Zhou Lv Ji Suan Qi.py',
+                '数学和统计计算器': 'shù xué hé tǒng jì jì suàn qì-V3.py',
+                '分数计算器': 'fēn shù jì suàn qì-V3.py',
+                '代数计算器': 'dài shù jì suàn qì-V3.py',
+                '三角函数计算器': 'sān jiǎo hán shù jì suàn qì-V3.py',
+                '二进制计算器': 'èr jìn zhì jì suàn qì-V3.py',
+                '体积计算器': 'tǐ jī jì suàn qì-V3.py',
+                '面积计算器': 'miàn jī jì suàn qì-V3.py',
+                '表面积计算器': 'biǎo miàn jī  jì suàn qì-V3.py',
+                '周长计算器': 'zhōu cháng jì suàn qì-V3.py',
+                '圆周率计算器': 'yuán zhōu lǜ jì suàn qì-V3.py',
             },
             '小游戏': {
                 '24点小游戏': '24diǎn yóu xì-V3.py',
@@ -366,31 +366,57 @@ class ToolLauncher:
     def run_tool(self, category, file_name):
         try:
             tool_base_name = os.path.splitext(file_name)[0]
+            tool_path = PathUtils.get_tool_path(category, file_name)
+            if not os.path.exists(tool_path):
+                raise FileNotFoundError(f"找不到工具文件：{file_name}")
+
+            env = os.environ.copy()
+            env['MAIN_APP_AUTHORIZED'] = '1'
+
             if getattr(sys, 'frozen', False):
-                # 打包后：使用 Python 解释器启动子程序
-                py_path = PathUtils.get_tool_path(category, file_name)
-                if os.path.exists(py_path):
-                    python_exec = self.get_python_executable()
-                    # 设置环境变量，标记已通过主程序授权验证
-                    env = os.environ.copy()
-                    env['MAIN_APP_AUTHORIZED'] = '1'
-                    subprocess.Popen([python_exec, py_path], env=env)
-                    self.show_status(f"已启动：{tool_base_name}")
-                    return
-                raise FileNotFoundError(f"找不到工具文件：{tool_base_name}")
+                # 打包后：启动自身新实例来运行子工具（新实例拥有所有打包的模块）
+                subprocess.Popen(
+                    [sys.executable, '--run-tool', category, file_name],
+                    env=env,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
             else:
-                tool_path = self.get_tool_path(category, file_name)
-                if not os.path.exists(tool_path):
-                    raise FileNotFoundError(f"找不到工具文件：{file_name}")
-                # 设置环境变量，标记已通过主程序授权验证
-                env = os.environ.copy()
-                env['MAIN_APP_AUTHORIZED'] = '1'
+                # 开发模式：直接用 Python 解释器运行
                 subprocess.Popen([sys.executable, tool_path], env=env)
-                self.show_status(f"已启动：{tool_base_name}")
+
+            self.show_status(f"已启动：{tool_base_name}")
         except Exception as e:
             self.show_status(f"启动失败：{e}", success=False)
 
 if __name__ == "__main__":
+    # 处理 --run-tool 参数：由主程序自身新实例运行子工具
+    if len(sys.argv) >= 4 and sys.argv[1] == '--run-tool':
+        category = sys.argv[2]
+        file_name = sys.argv[3]
+        tool_path = PathUtils.get_tool_path(category, file_name)
+        if os.path.exists(tool_path):
+            import runpy
+            # 设置环境变量以绕过子工具自身的授权验证
+            os.environ['MAIN_APP_AUTHORIZED'] = '1'
+            try:
+                runpy.run_path(tool_path, run_name='__main__')
+            except Exception as e:
+                # 尝试显示错误提示
+                try:
+                    import tkinter as tk
+                    from tkinter import messagebox
+                    root = tk.Tk()
+                    root.withdraw()
+                    messagebox.showerror("启动失败", f"工具启动失败：{e}")
+                    root.destroy()
+                except:
+                    print(f"工具启动失败：{e}")
+        else:
+            print(f"找不到工具文件：{tool_path}")
+        sys.exit(0)
+
     # 在启动前进行授权验证
     is_valid, message = LicenseValidator.validate_license()
     

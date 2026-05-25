@@ -9,8 +9,6 @@ import os
 import json
 
 from os.path import dirname, join
-sys.path.insert(0, join(dirname(__file__), "..", "Core"))
-from BangZhu import get_help_system
 
 class IconConverterApp:
     def __init__(self, master):

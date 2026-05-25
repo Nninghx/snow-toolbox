@@ -1,41 +1,48 @@
 import json
 import os
 import math
+import subprocess
+from pathlib import Path
 from tkinter import Tk, Label, Entry, Button, StringVar, messagebox, ttk
+try:
+    from PIL import Image, ImageTk
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
-def load_font_config():
-    """动态读取字体配置文件"""
-    try:
-        with open(os.path.join(os.path.dirname(__file__), '../Core/ziti.json'), 'r', encoding='utf-8') as f:
-            font_config = json.load(f)
-            return font_config.get('family', 'Microsoft YaHei')
-    except Exception as e:
-        print(f"加载字体配置失败: {e}")
-        return 'Microsoft YaHei'
+try:
+    from fontTools.ttLib import TTFont
+    FONTTOOLS_AVAILABLE = True
+except ImportError:
+    FONTTOOLS_AVAILABLE = False
 
 class VolumeCalculator:
     def __init__(self, master):
         self.master = master
+        
+        # 首先检查授权
+        if not self.check_license():
+            messagebox.showerror(
+                "错误", 
+                "缺少授权！无法使用！请先获取授权！"
+            )
+            master.destroy()
+            return
+        
         master.title("体积计算器")
         
         # 设置窗口图标
-        try:
-            icon_path = os.path.join(os.path.dirname(__file__), "..", "Image", "icon.ico")
-            if os.path.exists(icon_path):
-                master.iconbitmap(icon_path)
-        except Exception as e:
-            print(f"加载图标失败: {e}")
+        self.set_window_icon(master)
         
         # 加载字体配置
-        font_family = load_font_config()
-        self.font = (font_family, 12)
+        self.load_font()
         
         # 主框架
         self.main_frame = ttk.Frame(master)
         self.main_frame.pack(fill='both', expand=True, padx=10, pady=10)
         
         # 标题
-        Label(self.main_frame, text="体积计算器", font=(font_family, 16, 'bold')).pack(pady=10)
+        Label(self.main_frame, text="体积计算器", font=(self.current_font[0], 16, 'bold')).pack(pady=10)
         
         # 几何图形选择按钮框架
         self.shapes_frame = ttk.Frame(self.main_frame)
@@ -54,7 +61,7 @@ class VolumeCalculator:
             row_frame.pack(fill='x')
             for shape in shapes[i:i+6]:
                 btn = Button(row_frame, text=shape, command=lambda s=shape: self.show_shape_ui(s), 
-                           font=self.font, width=12)
+                           width=12)
                 btn.pack(side='left', padx=5, pady=2)
         
         # 计算区域框架
@@ -65,9 +72,9 @@ class VolumeCalculator:
         self.result_frame = ttk.Frame(self.main_frame)
         self.result_frame.pack(fill='x', pady=10)
         
-        Label(self.result_frame, text="结果:", font=self.font).pack(side='left', padx=5)
+        Label(self.result_frame, text="结果:").pack(side='left', padx=5)
         self.result_var = StringVar()
-        Label(self.result_frame, textvariable=self.result_var, font=self.font).pack(side='left', padx=5)
+        Label(self.result_frame, textvariable=self.result_var).pack(side='left', padx=5)
         
         # 初始化当前形状UI
         self.current_shape = None
@@ -75,72 +82,72 @@ class VolumeCalculator:
     
     def setup_cuboid_ui(self, parent):
         """设置长方体体积计算界面"""
-        Label(parent, text="长度:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="长度:").grid(row=0, column=0, padx=10, pady=5)
         self.length_var = StringVar()
-        Entry(parent, textvariable=self.length_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.length_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="宽度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="宽度:").grid(row=1, column=0, padx=10, pady=5)
         self.width_var = StringVar()
-        Entry(parent, textvariable=self.width_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.width_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=2, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=2, column=0, padx=10, pady=5)
         self.height_var = StringVar()
-        Entry(parent, textvariable=self.height_var, font=self.font).grid(row=2, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.height_var).grid(row=2, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算体积", command=self.calculate_cuboid, font=self.font).grid(row=3, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算体积", command=self.calculate_cuboid).grid(row=3, column=0, columnspan=2, pady=10)
     
     def setup_cylinder_ui(self, parent):
         """设置圆柱体体积计算界面"""
-        Label(parent, text="底面半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="底面半径:").grid(row=0, column=0, padx=10, pady=5)
         self.radius_var = StringVar()
-        Entry(parent, textvariable=self.radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=1, column=0, padx=10, pady=5)
         self.cylinder_height_var = StringVar()
-        Entry(parent, textvariable=self.cylinder_height_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.cylinder_height_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算体积", command=self.calculate_cylinder, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算体积", command=self.calculate_cylinder).grid(row=2, column=0, columnspan=2, pady=10)
     
     def setup_sphere_ui(self, parent):
         """设置球体体积计算界面"""
-        Label(parent, text="半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="半径:").grid(row=0, column=0, padx=10, pady=5)
         self.sphere_radius_var = StringVar()
-        Entry(parent, textvariable=self.sphere_radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.sphere_radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算体积", command=self.calculate_sphere, font=self.font).grid(row=1, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算体积", command=self.calculate_sphere).grid(row=1, column=0, columnspan=2, pady=10)
     
     def setup_pyramid_ui(self, parent):
         """设置金字塔体积计算界面"""
         if self.current_shape == "正四棱锥":
-            Label(parent, text="底边长度:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+            Label(parent, text="底边长度:").grid(row=0, column=0, padx=10, pady=5)
             self.base_side_var = StringVar()
-            Entry(parent, textvariable=self.base_side_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+            Entry(parent, textvariable=self.base_side_var).grid(row=0, column=1, padx=10, pady=5)
         else:
-            Label(parent, text="底面积:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+            Label(parent, text="底面积:").grid(row=0, column=0, padx=10, pady=5)
             self.base_area_var = StringVar()
-            Entry(parent, textvariable=self.base_area_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+            Entry(parent, textvariable=self.base_area_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=1, column=0, padx=10, pady=5)
         self.square_pyramid_height_var = StringVar()
-        Entry(parent, textvariable=self.square_pyramid_height_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.square_pyramid_height_var).grid(row=1, column=1, padx=10, pady=5)
         self.pyramid_height_var = self.square_pyramid_height_var  # 保持兼容性
         
         if self.current_shape == "正四棱锥":
-            Button(parent, text="计算体积", command=self.calculate_square_pyramid, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+            Button(parent, text="计算体积", command=self.calculate_square_pyramid).grid(row=2, column=0, columnspan=2, pady=10)
         else:
-            Button(parent, text="计算体积", command=self.calculate_pyramid, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+            Button(parent, text="计算体积", command=self.calculate_pyramid).grid(row=2, column=0, columnspan=2, pady=10)
     
     def setup_right_cylinder_ui(self, parent):
         """设置直圆柱体积计算界面"""
-        Label(parent, text="底面半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="底面半径:").grid(row=0, column=0, padx=10, pady=5)
         self.right_radius_var = StringVar()
-        Entry(parent, textvariable=self.right_radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.right_radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=1, column=0, padx=10, pady=5)
         self.right_height_var = StringVar()
-        Entry(parent, textvariable=self.right_height_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.right_height_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算体积", command=self.calculate_right_cylinder, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算体积", command=self.calculate_right_cylinder).grid(row=2, column=0, columnspan=2, pady=10)
     
     def calculate_cuboid(self):
         """计算长方体体积"""
@@ -151,7 +158,7 @@ class VolumeCalculator:
             volume = length * width * height
             self.show_result(f"长方体体积: {volume:.2f} 立方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_cylinder(self):
         """计算圆柱体体积"""
@@ -161,7 +168,7 @@ class VolumeCalculator:
             volume = math.pi * radius ** 2 * height
             self.show_result(f"圆柱体体积: {volume:.2f} 立方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_sphere(self):
         """计算球体体积"""
@@ -170,7 +177,7 @@ class VolumeCalculator:
             volume = (4/3) * math.pi * radius ** 3
             self.show_result(f"球体体积: {volume:.2f} 立方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_pyramid(self):
         """计算金字塔体积"""
@@ -180,7 +187,7 @@ class VolumeCalculator:
             volume = (1/3) * base_area * height
             self.show_result(f"金字塔体积: {volume:.2f} 立方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_right_cylinder(self):
         """计算直圆柱体积"""
@@ -190,7 +197,7 @@ class VolumeCalculator:
             volume = math.pi * radius ** 2 * height
             self.show_result(f"直圆柱体积: {volume:.2f} 立方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def show_result(self, text):
         """显示计算结果"""
@@ -198,106 +205,106 @@ class VolumeCalculator:
         
     def setup_cube_ui(self, parent):
         """设置立方体体积计算界面"""
-        Label(parent, text="边长:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="边长:").grid(row=0, column=0, padx=10, pady=5)
         self.cube_side_var = StringVar()
-        Entry(parent, textvariable=self.cube_side_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
-        Button(parent, text="计算体积", command=self.calculate_cube, font=self.font).grid(row=1, column=0, columnspan=2, pady=10)
+        Entry(parent, textvariable=self.cube_side_var).grid(row=0, column=1, padx=10, pady=5)
+        Button(parent, text="计算体积", command=self.calculate_cube).grid(row=1, column=0, columnspan=2, pady=10)
     
     def setup_tank_ui(self, parent):
         """设置长方形水箱体积计算界面"""
-        Label(parent, text="长度:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="长度:").grid(row=0, column=0, padx=10, pady=5)
         self.tank_length_var = StringVar()
-        Entry(parent, textvariable=self.tank_length_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.tank_length_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="宽度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="宽度:").grid(row=1, column=0, padx=10, pady=5)
         self.tank_width_var = StringVar()
-        Entry(parent, textvariable=self.tank_width_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.tank_width_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=2, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=2, column=0, padx=10, pady=5)
         self.tank_height_var = StringVar()
-        Entry(parent, textvariable=self.tank_height_var, font=self.font).grid(row=2, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.tank_height_var).grid(row=2, column=1, padx=10, pady=5)
         
-        Label(parent, text="液体高度:", font=self.font).grid(row=3, column=0, padx=10, pady=5)
+        Label(parent, text="液体高度:").grid(row=3, column=0, padx=10, pady=5)
         self.liquid_height_var = StringVar()
-        Entry(parent, textvariable=self.liquid_height_var, font=self.font).grid(row=3, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.liquid_height_var).grid(row=3, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算体积", command=self.calculate_tank, font=self.font).grid(row=4, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算体积", command=self.calculate_tank).grid(row=4, column=0, columnspan=2, pady=10)
     
     def setup_tube_ui(self, parent):
         """设置管体积计算界面"""
-        Label(parent, text="外径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="外径:").grid(row=0, column=0, padx=10, pady=5)
         self.outer_diameter_var = StringVar()
-        Entry(parent, textvariable=self.outer_diameter_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.outer_diameter_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="内径:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="内径:").grid(row=1, column=0, padx=10, pady=5)
         self.inner_diameter_var = StringVar()
-        Entry(parent, textvariable=self.inner_diameter_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.inner_diameter_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Label(parent, text="长度:", font=self.font).grid(row=2, column=0, padx=10, pady=5)
+        Label(parent, text="长度:").grid(row=2, column=0, padx=10, pady=5)
         self.tube_length_var = StringVar()
-        Entry(parent, textvariable=self.tube_length_var, font=self.font).grid(row=2, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.tube_length_var).grid(row=2, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算体积", command=self.calculate_tube, font=self.font).grid(row=3, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算体积", command=self.calculate_tube).grid(row=3, column=0, columnspan=2, pady=10)
         
     def setup_capsule_ui(self, parent):
         """设置胶囊体积计算界面"""
-        Label(parent, text="半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="半径:").grid(row=0, column=0, padx=10, pady=5)
         self.capsule_radius_var = StringVar()
-        Entry(parent, textvariable=self.capsule_radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.capsule_radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=1, column=0, padx=10, pady=5)
         self.capsule_height_var = StringVar()
-        Entry(parent, textvariable=self.capsule_height_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.capsule_height_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算体积", command=self.calculate_capsule, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算体积", command=self.calculate_capsule).grid(row=2, column=0, columnspan=2, pady=10)
     
     def setup_frustum_ui(self, parent):
         """设置圆台体积计算界面"""
-        Label(parent, text="上底半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="上底半径:").grid(row=0, column=0, padx=10, pady=5)
         self.top_radius_var = StringVar()
-        Entry(parent, textvariable=self.top_radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.top_radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="下底半径:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="下底半径:").grid(row=1, column=0, padx=10, pady=5)
         self.bottom_radius_var = StringVar()
-        Entry(parent, textvariable=self.bottom_radius_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.bottom_radius_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=2, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=2, column=0, padx=10, pady=5)
         self.frustum_height_var = StringVar()
-        Entry(parent, textvariable=self.frustum_height_var, font=self.font).grid(row=2, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.frustum_height_var).grid(row=2, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算体积", command=self.calculate_frustum, font=self.font).grid(row=3, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算体积", command=self.calculate_frustum).grid(row=3, column=0, columnspan=2, pady=10)
     
     def setup_cone_ui(self, parent):
         """设置圆锥体积计算界面"""
-        Label(parent, text="底面半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="底面半径:").grid(row=0, column=0, padx=10, pady=5)
         self.cone_radius_var = StringVar()
-        Entry(parent, textvariable=self.cone_radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.cone_radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="高度:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="高度:").grid(row=1, column=0, padx=10, pady=5)
         self.cone_height_var = StringVar()
-        Entry(parent, textvariable=self.cone_height_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.cone_height_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算体积", command=self.calculate_cone, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算体积", command=self.calculate_cone).grid(row=2, column=0, columnspan=2, pady=10)
     
     def setup_hemisphere_ui(self, parent):
         """设置半球体积计算界面"""
-        Label(parent, text="半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="半径:").grid(row=0, column=0, padx=10, pady=5)
         self.hemisphere_radius_var = StringVar()
-        Entry(parent, textvariable=self.hemisphere_radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.hemisphere_radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算体积", command=self.calculate_hemisphere, font=self.font).grid(row=1, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算体积", command=self.calculate_hemisphere).grid(row=1, column=0, columnspan=2, pady=10)
     
     def setup_torus_ui(self, parent):
         """设置圆环体积计算界面"""
-        Label(parent, text="大半径:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(parent, text="大半径:").grid(row=0, column=0, padx=10, pady=5)
         self.major_radius_var = StringVar()
-        Entry(parent, textvariable=self.major_radius_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.major_radius_var).grid(row=0, column=1, padx=10, pady=5)
         
-        Label(parent, text="小半径:", font=self.font).grid(row=1, column=0, padx=10, pady=5)
+        Label(parent, text="小半径:").grid(row=1, column=0, padx=10, pady=5)
         self.minor_radius_var = StringVar()
-        Entry(parent, textvariable=self.minor_radius_var, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(parent, textvariable=self.minor_radius_var).grid(row=1, column=1, padx=10, pady=5)
         
-        Button(parent, text="计算体积", command=self.calculate_torus, font=self.font).grid(row=2, column=0, columnspan=2, pady=10)
+        Button(parent, text="计算体积", command=self.calculate_torus).grid(row=2, column=0, columnspan=2, pady=10)
     
     def calculate_cube(self):
         """计算立方体体积"""
@@ -306,7 +313,7 @@ class VolumeCalculator:
             volume = side ** 3
             self.show_result(f"立方体体积: {volume:.2f} 立方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_tank(self):
         """计算长方形水箱体积"""
@@ -322,7 +329,7 @@ class VolumeCalculator:
             volume = length * width * liquid_height
             self.show_result(f"水箱液体体积: {volume:.2f} 立方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e), font=self.font)
+            messagebox.showerror("错误", str(e))
     
     def calculate_tube(self):
         """计算管体积"""
@@ -339,7 +346,7 @@ class VolumeCalculator:
             volume = math.pi * (outer_radius**2 - inner_radius**2) * length
             self.show_result(f"管体积: {volume:.2f} 立方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e), font=self.font)
+            messagebox.showerror("错误", str(e))
     
     def calculate_capsule(self):
         """计算胶囊体积"""
@@ -357,7 +364,7 @@ class VolumeCalculator:
             volume = cylinder_volume + sphere_volume
             self.show_result(f"胶囊体积: {volume:.2f} 立方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e), font=self.font)
+            messagebox.showerror("错误", str(e))
     
     def calculate_square_pyramid(self):
         """计算正四棱锥体积"""
@@ -367,7 +374,7 @@ class VolumeCalculator:
             volume = (1/3) * base_side**2 * height
             self.show_result(f"正四棱锥体积: {volume:.2f} 立方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_frustum(self):
         """计算圆台体积"""
@@ -382,7 +389,7 @@ class VolumeCalculator:
             volume = (1/3) * math.pi * height * (top_radius**2 + bottom_radius**2 + top_radius*bottom_radius)
             self.show_result(f"圆台体积: {volume:.2f} 立方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e), font=self.font)
+            messagebox.showerror("错误", str(e))
     
     def calculate_cone(self):
         """计算圆锥体积"""
@@ -392,7 +399,7 @@ class VolumeCalculator:
             volume = (1/3) * math.pi * radius**2 * height
             self.show_result(f"圆锥体积: {volume:.2f} 立方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_hemisphere(self):
         """计算半球体积"""
@@ -401,7 +408,7 @@ class VolumeCalculator:
             volume = (2/3) * math.pi * radius**3
             self.show_result(f"半球体积: {volume:.2f} 立方单位")
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数值", font=self.font)
+            messagebox.showerror("错误", "请输入有效的数值")
     
     def calculate_torus(self):
         """计算圆环体积"""
@@ -415,7 +422,7 @@ class VolumeCalculator:
             volume = 2 * math.pi**2 * major_radius * minor_radius**2
             self.show_result(f"圆环体积: {volume:.2f} 立方单位")
         except ValueError as e:
-            messagebox.showerror("错误", str(e), font=self.font)
+            messagebox.showerror("错误", str(e))
     
     def show_result(self, text):
         """显示计算结果"""
@@ -458,6 +465,98 @@ class VolumeCalculator:
             self.setup_torus_ui(self.calc_frame)
         
         self.current_shape = shape_name
+    
+    def check_license(self):
+        """检查开源协议文档是否存在并验证完整性"""
+        # 如果通过主程序启动（环境变量已设置），则跳过授权验证
+        if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
+            return True
+        
+        try:
+            # 验证授权
+            PROJECT_ROOT = Path(__file__).resolve().parent.parent
+            CORE_DIR = PROJECT_ROOT / "Core"
+            license_exe_path = CORE_DIR / "LICENSE.exe"
+            if license_exe_path.exists():
+                result = subprocess.run(
+                    [str(license_exe_path), '--quiet'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                return result.returncode == 0
+        except Exception as e:
+            print(f"许可证验证异常: {e}")
+            return False
+
+    def set_window_icon(self, master):
+        """设置应用程序窗口图标"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        icon_ico_path = IMAGE_DIR / "icon.ico"
+        icon_png_path = IMAGE_DIR / "icon.png"
+
+        # Windows系统设置应用ID
+        if os.name == 'nt':
+            try:
+                import ctypes
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.volume_calculator")
+            except Exception:
+                pass
+
+        # 尝试设置ICO图标
+        if icon_ico_path.exists():
+            try:
+                master.iconbitmap(default=str(icon_ico_path))
+            except Exception:
+                try:
+                    master.iconbitmap(str(icon_ico_path))
+                except Exception:
+                    pass
+
+        # 尝试设置PNG图标
+        if hasattr(master, "iconphoto") and icon_png_path.exists():
+            try:
+                self.icon_image = tk.PhotoImage(file=str(icon_png_path))
+                master.iconphoto(True, self.icon_image)
+            except Exception:
+                pass
+
+    def load_font(self):
+        """从配置文件加载字体设置"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
+        
+        if not font_path.exists():
+            messagebox.showerror("错误", f"找不到字体文件：{font_path}")
+            self.master.destroy()
+            return
+        
+        # 使用 fonttools 获取字体名称
+        tt = TTFont(str(font_path))
+        font_name = None
+        for record in tt['name'].names:
+            if record.nameID == 1:  # Font Family
+                font_name = record.toUnicode()
+                break
+        if not font_name:
+            raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
+        tt.close()
+        
+        # 使用 Windows API 注册字体
+        if os.name == 'nt':
+            import ctypes
+            GDI32 = ctypes.windll.gdi32
+            font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+            GDI32.AddFontResourceW(font_path_str)
+            print(f"成功加载自定义字体: {font_path}")
+        
+        from tkinter import font as tkfont
+        self.current_font = (font_name, 12)
+        self.master.option_add("*Font", self.current_font)
 
 if __name__ == "__main__":
     root = Tk()

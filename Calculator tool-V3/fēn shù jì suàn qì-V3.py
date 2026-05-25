@@ -1,17 +1,20 @@
-import json
-import os
+﻿import os
 import math
+import subprocess
+from pathlib import Path
 from tkinter import Tk, Label, Entry, Button, StringVar, messagebox, ttk, OptionMenu
+try:
+    from PIL import Image, ImageTk
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
-def load_font_config():
-    """动态读取字体配置文件"""
-    try:
-        with open(os.path.join(os.path.dirname(__file__), '../Core/ziti.json'), 'r', encoding='utf-8') as f:
-            font_config = json.load(f)
-            return font_config.get('family', 'Microsoft YaHei')
-    except Exception as e:
-        print(f"加载字体配置失败: {e}")
-        return 'Microsoft YaHei'
+try:
+    from fontTools.ttLib import TTFont
+    FONTTOOLS_AVAILABLE = True
+except ImportError:
+    FONTTOOLS_AVAILABLE = False
+
 
 def percentage_to_fraction(percentage):
     """将百分比转换为分数"""
@@ -88,19 +91,23 @@ def decimal_to_fraction(decimal_num):
 class FractionCalculator:
     def __init__(self, master):
         self.master = master
-        master.title("多功能分数计算器")
+        
+        # 首先检查授权
+        if not self.check_license():
+            messagebox.showerror(
+                "错误", 
+                "缺少授权！无法使用！请先获取授权！"
+            )
+            master.destroy()
+            return
+        
+        master.title("分数计算器")
         
         # 设置窗口图标
-        try:
-            icon_path = os.path.join(os.path.dirname(__file__), "..", "Image", "icon.ico")
-            if os.path.exists(icon_path):
-                master.iconbitmap(icon_path)
-        except Exception as e:
-            print(f"加载图标失败: {e}")
+        self.set_window_icon(master)
         
         # 加载字体配置
-        font_family = load_font_config()
-        self.font = (font_family, 12)
+        self.load_font()
         
         # 创建Notebook选项卡
         self.notebook = ttk.Notebook(master)
@@ -111,55 +118,55 @@ class FractionCalculator:
         self.notebook.add(self.simplify_frame, text="分数化简")
         
         # 分子输入
-        Label(self.simplify_frame, text="分子:", font=self.font).grid(row=0, column=0, padx=10, pady=5)
+        Label(self.simplify_frame, text="分子:").grid(row=0, column=0, padx=10, pady=5)
         self.numerator_var = StringVar()
-        Entry(self.simplify_frame, textvariable=self.numerator_var, font=self.font).grid(row=0, column=1, padx=10, pady=5)
+        Entry(self.simplify_frame, textvariable=self.numerator_var).grid(row=0, column=1, padx=10, pady=5)
         
         # 分数线
-        Label(self.simplify_frame, text="——", font=self.font).grid(row=1, column=0, columnspan=2)
+        Label(self.simplify_frame, text="——").grid(row=1, column=0, columnspan=2)
         
         # 分母输入
-        Label(self.simplify_frame, text="分母:", font=self.font).grid(row=2, column=0, padx=10, pady=5)
+        Label(self.simplify_frame, text="分母:").grid(row=2, column=0, padx=10, pady=5)
         self.denominator_var = StringVar()
-        Entry(self.simplify_frame, textvariable=self.denominator_var, font=self.font).grid(row=2, column=1, padx=10, pady=5)
+        Entry(self.simplify_frame, textvariable=self.denominator_var).grid(row=2, column=1, padx=10, pady=5)
         
-        Button(self.simplify_frame, text="化简", command=self.simplify_fraction, font=self.font).grid(row=3, column=0, columnspan=2, pady=10)
+        Button(self.simplify_frame, text="化简", command=self.simplify_fraction).grid(row=3, column=0, columnspan=2, pady=10)
         
         # 小数转分数选项卡
         self.decimal_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.decimal_frame, text="小数转分数")
         
-        Label(self.decimal_frame, text="输入小数:", font=self.font).grid(row=0, column=0, padx=10, pady=10)
+        Label(self.decimal_frame, text="输入小数:").grid(row=0, column=0, padx=10, pady=10)
         self.decimal_var = StringVar()
-        Entry(self.decimal_frame, textvariable=self.decimal_var, font=self.font).grid(row=0, column=1, padx=10, pady=10)
-        Button(self.decimal_frame, text="转换", command=self.convert_decimal, font=self.font).grid(row=1, column=0, columnspan=2, pady=10)
+        Entry(self.decimal_frame, textvariable=self.decimal_var).grid(row=0, column=1, padx=10, pady=10)
+        Button(self.decimal_frame, text="转换", command=self.convert_decimal).grid(row=1, column=0, columnspan=2, pady=10)
         
         # 百分比转分数选项卡
         self.percentage_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.percentage_frame, text="百分比转分数")
         
-        Label(self.percentage_frame, text="输入百分比:", font=self.font).grid(row=0, column=0, padx=10, pady=10)
+        Label(self.percentage_frame, text="输入百分比:").grid(row=0, column=0, padx=10, pady=10)
         self.percentage_var = StringVar()
-        Entry(self.percentage_frame, textvariable=self.percentage_var, font=self.font).grid(row=0, column=1, padx=10, pady=10)
-        Button(self.percentage_frame, text="转换", command=self.convert_percentage, font=self.font).grid(row=1, column=0, columnspan=2, pady=10)
+        Entry(self.percentage_frame, textvariable=self.percentage_var).grid(row=0, column=1, padx=10, pady=10)
+        Button(self.percentage_frame, text="转换", command=self.convert_percentage).grid(row=1, column=0, columnspan=2, pady=10)
         
         # 分数计算选项卡
         self.calculate_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.calculate_frame, text="分数计算")
         
         # 第一个分数 - 上下布局
-        Label(self.calculate_frame, text="分数1:", font=self.font).grid(row=0, column=0, padx=10, pady=5, rowspan=2)
+        Label(self.calculate_frame, text="分数1:").grid(row=0, column=0, padx=10, pady=5, rowspan=2)
         
         # 分子
         self.frac1_num = StringVar()
-        Entry(self.calculate_frame, textvariable=self.frac1_num, width=5, font=self.font).grid(row=0, column=1, padx=10)
+        Entry(self.calculate_frame, textvariable=self.frac1_num, width=5).grid(row=0, column=1, padx=10)
         
         # 分数线
-        Label(self.calculate_frame, text="——", font=self.font).grid(row=1, column=1)
+        Label(self.calculate_frame, text="——").grid(row=1, column=1)
         
         # 分母
         self.frac1_den = StringVar()
-        Entry(self.calculate_frame, textvariable=self.frac1_den, width=5, font=self.font).grid(row=1, column=1, padx=10, pady=5)
+        Entry(self.calculate_frame, textvariable=self.frac1_den, width=5).grid(row=1, column=1, padx=10, pady=5)
         
         # 运算符
         self.operator = StringVar()
@@ -167,46 +174,138 @@ class FractionCalculator:
         OptionMenu(self.calculate_frame, self.operator, "+", "-", "×", "÷").grid(row=0, column=2, rowspan=2, padx=10)
         
         # 第二个分数 - 上下布局
-        Label(self.calculate_frame, text="分数2:", font=self.font).grid(row=0, column=3, padx=10, pady=5, rowspan=2)
+        Label(self.calculate_frame, text="分数2:").grid(row=0, column=3, padx=10, pady=5, rowspan=2)
         
         # 分子
         self.frac2_num = StringVar()
-        Entry(self.calculate_frame, textvariable=self.frac2_num, width=5, font=self.font).grid(row=0, column=4, padx=10)
+        Entry(self.calculate_frame, textvariable=self.frac2_num, width=5).grid(row=0, column=4, padx=10)
         
         # 分数线
-        Label(self.calculate_frame, text="——", font=self.font).grid(row=1, column=4)
+        Label(self.calculate_frame, text="——").grid(row=1, column=4)
         
         # 分母
         self.frac2_den = StringVar()
-        Entry(self.calculate_frame, textvariable=self.frac2_den, width=5, font=self.font).grid(row=1, column=4, padx=10, pady=5)
+        Entry(self.calculate_frame, textvariable=self.frac2_den, width=5).grid(row=1, column=4, padx=10, pady=5)
         
         # 计算按钮
-        Button(self.calculate_frame, text="计算", command=self.calculate_fractions, font=self.font).grid(row=2, column=0, columnspan=5, pady=10)
+        Button(self.calculate_frame, text="计算", command=self.calculate_fractions).grid(row=2, column=0, columnspan=5, pady=10)
         
         # 结果展示框架
         self.result_frame = ttk.Frame(master)
         self.result_frame.grid(row=1, column=0, columnspan=2, pady=10)
         
         # 结果标签
-        Label(self.result_frame, text="结果:", font=self.font).grid(row=0, column=0, rowspan=2, padx=5)
+        Label(self.result_frame, text="结果:").grid(row=0, column=0, rowspan=2, padx=5)
         
         # 分子显示
         self.result_num_var = StringVar()
-        self.result_num_label = Label(self.result_frame, textvariable=self.result_num_var, font=self.font)
+        self.result_num_label = Label(self.result_frame, textvariable=self.result_num_var)
         self.result_num_label.grid(row=0, column=1, padx=5)
         
         # 分数线
-        self.result_line_label = Label(self.result_frame, text="——", font=self.font)
+        self.result_line_label = Label(self.result_frame, text="——")
         self.result_line_label.grid(row=1, column=1)
         
         # 分母显示
         self.result_den_var = StringVar()
-        self.result_den_label = Label(self.result_frame, textvariable=self.result_den_var, font=self.font)
+        self.result_den_label = Label(self.result_frame, textvariable=self.result_den_var)
         self.result_den_label.grid(row=1, column=1, pady=5)
         
         # 初始隐藏分数线和分母
         self.result_line_label.grid_remove()
         self.result_den_label.grid_remove()
+    
+    def check_license(self):
+        """检查开源协议文档是否存在并验证完整性"""
+        # 如果通过主程序启动（环境变量已设置），则跳过授权验证
+        if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
+            return True
+        
+        try:
+            # 验证授权
+            PROJECT_ROOT = Path(__file__).resolve().parent.parent
+            CORE_DIR = PROJECT_ROOT / "Core"
+            license_exe_path = CORE_DIR / "LICENSE.exe"
+            if license_exe_path.exists():
+                result = subprocess.run(
+                    [str(license_exe_path), '--quiet'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                return result.returncode == 0
+        except Exception as e:
+            print(f"许可证验证异常: {e}")
+            return False
+
+    def set_window_icon(self, master):
+        """设置应用程序窗口图标"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        icon_ico_path = IMAGE_DIR / "icon.ico"
+        icon_png_path = IMAGE_DIR / "icon.png"
+
+        # Windows系统设置应用ID
+        if os.name == 'nt':
+            try:
+                import ctypes
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.fraction_calculator")
+            except Exception:
+                pass
+
+        # 尝试设置ICO图标
+        if icon_ico_path.exists():
+            try:
+                master.iconbitmap(default=str(icon_ico_path))
+            except Exception:
+                try:
+                    master.iconbitmap(str(icon_ico_path))
+                except Exception:
+                    pass
+
+        # 尝试设置PNG图标
+        if hasattr(master, "iconphoto") and icon_png_path.exists():
+            try:
+                self.icon_image = tk.PhotoImage(file=str(icon_png_path))
+                master.iconphoto(True, self.icon_image)
+            except Exception:
+                pass
+
+    def load_font(self):
+        """从配置文件加载字体设置"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
+        
+        if not font_path.exists():
+            messagebox.showerror("错误", f"找不到字体文件：{font_path}")
+            self.master.destroy()
+            return
+        
+        # 使用 fonttools 获取字体名称
+        tt = TTFont(str(font_path))
+        font_name = None
+        for record in tt['name'].names:
+            if record.nameID == 1:  # Font Family
+                font_name = record.toUnicode()
+                break
+        if not font_name:
+            raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
+        tt.close()
+        
+        # 使用 Windows API 注册字体
+        if os.name == 'nt':
+            import ctypes
+            GDI32 = ctypes.windll.gdi32
+            font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+            GDI32.AddFontResourceW(font_path_str)
+            print(f"成功加载自定义字体: {font_path}")
+        
+        from tkinter import font as tkfont
+        self.current_font = (font_name, 12)
+        self.master.option_add("*Font", self.current_font)
     
     def convert_decimal(self):
         try:
@@ -214,7 +313,7 @@ class FractionCalculator:
             numerator, denominator = decimal_to_fraction(decimal_num)
             self.display_result(numerator, denominator)
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的小数", font=self.font)
+            messagebox.showerror("错误", "请输入有效的小数")
     
     def convert_percentage(self):
         try:
@@ -222,7 +321,7 @@ class FractionCalculator:
             numerator, denominator = percentage_to_fraction(percentage)
             self.display_result(numerator, denominator)
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的百分比(如50或50%)", font=self.font)
+            messagebox.showerror("错误", "请输入有效的百分比(如50或50%)")
     
     def simplify_fraction(self):
         try:
@@ -245,7 +344,7 @@ class FractionCalculator:
             
             self.display_result(numerator, denominator)
         except ValueError as e:
-            messagebox.showerror("错误", str(e), font=self.font)
+            messagebox.showerror("错误", str(e))
     
     def calculate_fractions(self):
         try:
@@ -291,7 +390,7 @@ class FractionCalculator:
             
             self.display_result(numerator, denominator)
         except ValueError as e:
-            messagebox.showerror("错误", str(e), font=self.font)
+            messagebox.showerror("错误", str(e))
     
     def display_result(self, numerator, denominator):
         if denominator == 1:

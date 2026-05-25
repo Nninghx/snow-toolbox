@@ -158,7 +158,7 @@ class DirTreeGUI:
             GDI32 = ctypes.windll.gdi32
             font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
             GDI32.AddFontResourceW(font_path_str)
-            print(f"✅ 成功加载自定义字体: {font_path}")
+            print(f"成功加载自定义字体: {font_path}")
         
         self.font_family = font_name
         self.current_font = (self.font_family, 12)

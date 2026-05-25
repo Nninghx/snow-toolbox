@@ -2,26 +2,36 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import os
+import sys
+import subprocess
 import threading
 import math
 import json
+from pathlib import Path
+from fontTools.ttLib import TTFont
+
 
 class ImageCombinerApp:
 
     def __init__(self, master):
         self.master = master
+        
+        # 首先检查开源协议文档是否存在并验证完整性
+        if not self.check_license():
+            messagebox.showerror(
+                "错误", 
+                "缺少授权！无法使用！请先获取授权！\n"
+            )
+            master.destroy()
+            return
+        
         master.title("图片合成工具")
         master.geometry("400x500")
         
-        # 读取字体设置
-        try:
-            with open("Core/ziti.json", "r", encoding="utf-8") as f:
-                font_settings = json.load(f)
-                self.font_family = font_settings.get("family", "微软雅黑")
-        except Exception as e:
-            print(f"无法加载字体设置: {str(e)}")
-            self.font_family = "微软雅黑"
-
+        # 设置窗口图标、加载字体并构建UI
+        self.set_window_icon()
+        self.load_font()
+        
         # 初始化变量
         self.image_paths = []
         self.layout_mode = tk.StringVar(value="uniform")
@@ -31,15 +41,104 @@ class ImageCombinerApp:
         # 创建GUI组件
         self.create_widgets()
     
+    def set_window_icon(self):
+        """设置应用程序窗口图标"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        icon_ico_path = IMAGE_DIR / "icon.ico"
+        icon_png_path = IMAGE_DIR / "icon.png"
+
+        # Windows系统设置应用ID
+        if os.name == 'nt':
+            try:
+                import ctypes
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.ImageCombinerApp")
+            except Exception:
+                pass
+
+        # 尝试设置ICO图标
+        if icon_ico_path.exists():
+            try:
+                self.master.iconbitmap(default=str(icon_ico_path))
+            except Exception:
+                try:
+                    self.master.iconbitmap(str(icon_ico_path))
+                except Exception:
+                    pass
+
+        # 尝试设置PNG图标
+        if hasattr(self.master, "iconphoto") and icon_png_path.exists():
+            try:
+                self.icon_image = tk.PhotoImage(file=str(icon_png_path))
+                self.master.iconphoto(True, self.icon_image)
+            except Exception:
+                pass
+
+    def check_license(self):
+        """检查开源协议文档是否存在并验证完整性"""
+        # 如果通过主程序启动（环境变量已设置），则跳过授权验证
+        if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
+            return True
+        
+        try:
+            # 验证授权
+            PROJECT_ROOT = Path(__file__).resolve().parent.parent
+            CORE_DIR = PROJECT_ROOT / "Core"
+            license_exe_path = CORE_DIR / "LICENSE.exe"
+            if license_exe_path.exists():
+                result = subprocess.run(
+                    [str(license_exe_path), '--quiet'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                return result.returncode == 0
+        except Exception as e:
+            print(f"许可证验证异常: {e}")
+            return False
+
+    def load_font(self):
+        """从配置文件加载字体设置"""
+        # 定义项目根目录和图片目录
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
+        
+        if not font_path.exists():
+            messagebox.showerror("错误", f"找不到字体文件：{font_path}")
+            self.master.destroy()
+            return
+        
+        # 使用 fonttools 获取字体名称
+        tt = TTFont(str(font_path))
+        font_name = None
+        for record in tt['name'].names:
+            if record.nameID == 1:  # Font Family
+                font_name = record.toUnicode()
+                break
+        if not font_name:
+            raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
+        tt.close()
+        
+        # 使用 Windows API 注册字体
+        if os.name == 'nt':
+            import ctypes
+            GDI32 = ctypes.windll.gdi32
+            font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+            GDI32.AddFontResourceW(font_path_str)
+            print(f"成功加载自定义字体: {font_path}")
+        
+        from tkinter import font as tkfont
+        self.current_font = (font_name, 10)
+        self.master.option_add("*Font", self.current_font)
+
     def create_widgets(self):
         """创建界面组件"""
         # 主容器 - 使用grid布局
         main_frame = tk.Frame(self.master, padx=10, pady=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # 设置默认字体
-        default_font = (self.font_family, 10)
-        self.master.option_add("*Font", default_font)
         
         # 顶部控制区域
         control_frame = tk.LabelFrame(main_frame, text="控制面板", padx=10, pady=10)
@@ -118,14 +217,6 @@ class ImageCombinerApp:
         # 操作按钮
         action_frame = tk.Frame(control_frame)
         action_frame.grid(row=2, column=0, sticky="e", pady=5)
-        
-        self.btn_help = tk.Button(
-            action_frame,
-            text="使用帮助",
-            command=self.show_help,
-            width=10
-        )
-        self.btn_help.grid(row=0, column=0, padx=5)
         
         self.btn_preview = tk.Button(
             action_frame,
@@ -510,32 +601,26 @@ class ImageCombinerApp:
             messagebox.showwarning("警告", f"图片压缩失败: {str(e)}")
             return image
             
-    def show_help(self):
-        """显示使用帮助文档"""
-        help_text = """图片合成工具Alpha1.0.0使用说明
-
-1. 选择图片: 点击"选择图片"按钮选择要合成的图片
-2. 设置布局选项:
-   - 布局模式: 均匀分布/水平排列/垂直排列
-   - 随机分布: 勾选后图片会随机排列
-   - 批量模式: 勾选后可批量处理多组图片
-3. 预览效果: 设置好选项后点击"预览"查看效果
-4. 保存结果: 满意后点击"保存结果"选择保存位置
-
-提示:
-- 作者:叁垣伍瑞肆凶廿捌宿宿
-- 联系方式:https://space.bilibili.com/556216088
-- 版权:Apache-2.0 License
-"""
-        messagebox.showinfo("使用帮助", help_text)
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    # 设置窗口图标
+    print("=" * 60)
+    print("图片合成工具")
+    print("=" * 60)
+    print()
+    
     try:
-        root.iconbitmap('Image/icon.ico')
+        root = tk.Tk()
+        app = ImageCombinerApp(root)
+        print("✅ Tkinter 应用启动成功")
+        root.mainloop()
+        
+        print("\n" + "=" * 60)
+        print("示例运行完成！")
+        print("=" * 60)
+        
     except Exception as e:
-        print(f"图标加载失败: {str(e)}")
-    app = ImageCombinerApp(root)
-    root.mainloop()
+        print(f"\n❌ 示例运行失败：{e}")
+        import traceback
+        traceback.print_exc()
+        print("=" * 60)
 #pyinstaller --onefile --noconsole --version-file=version_info.txt --name "图片合成工具" Tu_Pian_He_Cheng_Alpha.py

@@ -6,15 +6,14 @@ import os
 import sys
 import threading
 import json
+import subprocess
 from queue import Queue
 from datetime import datetime
+from pathlib import Path
 from PIL import Image
+from fontTools.ttLib import TTFont
 from tkinter import Tk, filedialog, messagebox, StringVar, OptionMenu, IntVar, font
 from tkinter.ttk import Frame, Button, Label, Entry, Checkbutton, Radiobutton, Progressbar, Separator, Style
-
-from os.path import dirname, join, abspath
-sys.path.insert(0, join(dirname(__file__), "..", "Core"))
-from BangZhu import get_help_system
 
 class ImageConverter:
     SUPPORTED_FORMATS = [
@@ -23,30 +22,119 @@ class ImageConverter:
     ]
     
     def __init__(self):
+        # 首先检查开源协议文档是否存在并验证完整性
+        if not self.check_license():
+            messagebox.showerror(
+                "错误", 
+                "缺少授权！无法使用！请先获取授权！\n"
+            )
+            return
+        
         self.root = Tk()
         self.root.title("图片格式转换工具")
         
-        # 设置窗口图标
-        try:
-            self.root.iconbitmap('Image/icon.ico')
-        except Exception as e:
-            print(f"图标加载失败: {str(e)}")
-            
-        # 读取字体配置
-        try:
-            font_path = abspath(join(dirname(__file__), "..", "Core", "ziti.json"))
-            with open(font_path, 'r', encoding='utf-8') as f:
-                font_config = json.load(f)
-                self.custom_font = font.Font(family=font_config['family'])
-        except Exception as e:
-            print(f"加载字体配置失败: {str(e)}")
-            self.custom_font = None
+        # 设置窗口图标、加载字体
+        self.set_window_icon()
+        self.load_font()
             
         self.task_queue = Queue()
         self.running = False
         self.status_var = StringVar()
         
         self.setup_ui()
+        
+    def set_window_icon(self):
+        """设置应用程序窗口图标"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        icon_ico_path = IMAGE_DIR / "icon.ico"
+        icon_png_path = IMAGE_DIR / "icon.png"
+
+        # Windows系统设置应用ID
+        if os.name == 'nt':
+            try:
+                import ctypes
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.ImageConverter")
+            except Exception:
+                pass
+
+        # 尝试设置ICO图标
+        if icon_ico_path.exists():
+            try:
+                self.root.iconbitmap(default=str(icon_ico_path))
+            except Exception:
+                try:
+                    self.root.iconbitmap(str(icon_ico_path))
+                except Exception:
+                    pass
+
+        # 尝试设置PNG图标
+        if hasattr(self.root, "iconphoto") and icon_png_path.exists():
+            try:
+                import tkinter as tk
+                self.icon_image = tk.PhotoImage(file=str(icon_png_path))
+                self.root.iconphoto(True, self.icon_image)
+            except Exception:
+                pass
+
+    def check_license(self):
+        """检查开源协议文档是否存在并验证完整性"""
+        # 如果通过主程序启动（环境变量已设置），则跳过授权验证
+        if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
+            return True
+        
+        try:
+            # 验证授权
+            PROJECT_ROOT = Path(__file__).resolve().parent.parent
+            CORE_DIR = PROJECT_ROOT / "Core"
+            license_exe_path = CORE_DIR / "LICENSE.exe"
+            if license_exe_path.exists():
+                result = subprocess.run(
+                    [str(license_exe_path), '--quiet'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                return result.returncode == 0
+        except Exception as e:
+            print(f"许可证验证异常: {e}")
+            return False
+
+    def load_font(self):
+        """从配置文件加载字体设置"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
+        
+        if not font_path.exists():
+            messagebox.showerror("错误", f"找不到字体文件：{font_path}")
+            self.root.destroy()
+            return
+        
+        # 使用 fonttools 获取字体名称
+        tt = TTFont(str(font_path))
+        font_name = None
+        for record in tt['name'].names:
+            if record.nameID == 1:  # Font Family
+                font_name = record.toUnicode()
+                break
+        if not font_name:
+            raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
+        tt.close()
+        
+        # 使用 Windows API 注册字体
+        if os.name == 'nt':
+            import ctypes
+            GDI32 = ctypes.windll.gdi32
+            font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+            GDI32.AddFontResourceW(font_path_str)
+            print(f"成功加载自定义字体: {font_path}")
+        
+        from tkinter import font as tkfont
+        self.current_font = (font_name, 10)
+        self.root.option_add("*Font", self.current_font)
         
     def setup_ui(self):
         # 主框架
@@ -55,19 +143,6 @@ class ImageConverter:
         
         # 创建全局Style对象
         self.style = Style()
-        
-        # 应用字体设置
-        def apply_font(widget):
-            if self.custom_font:
-                # 区分tkinter和ttk控件
-                if isinstance(widget, (Button, Label, Entry, Radiobutton, Checkbutton)):
-                    # ttk控件需要使用style
-                    style_name = f"CustomStyle.{widget.winfo_class()}"
-                    self.style.configure(style_name, font=self.custom_font)
-                    widget.configure(style=style_name)
-                else:
-                    # 普通tkinter控件
-                    widget.config(font=self.custom_font)
         
         # 模式选择
         Label(main_frame, text="转换模式:").grid(row=0, column=0, sticky='w')
@@ -78,44 +153,34 @@ class ImageConverter:
         single_frame = Frame(main_frame)
         single_frame.grid(row=1, column=0, columnspan=3, sticky='ew')
         label = Label(single_frame, text="单文件:")
-        apply_font(label)
         label.grid(row=0, column=0, sticky='w')
         self.input_entry = Entry(single_frame, width=40)
-        apply_font(self.input_entry)
         self.input_entry.grid(row=0, column=1)
         button = Button(single_frame, text="浏览...", command=self.select_input)
-        apply_font(button)
         button.grid(row=0, column=2)
         
         # 批量模式组件
         batch_frame = Frame(main_frame)
         batch_frame.grid(row=2, column=0, columnspan=3, sticky='ew')
         label = Label(batch_frame, text="批量目录:")
-        apply_font(label)
         label.grid(row=0, column=0, sticky='w')
         self.batch_entry = Entry(batch_frame, width=40)
-        apply_font(self.batch_entry)
         self.batch_entry.grid(row=0, column=1)
         button = Button(batch_frame, text="浏览...", command=self.select_batch)
-        apply_font(button)
         button.grid(row=0, column=2)
         
         # 输出格式选择
         label = Label(main_frame, text="输出格式:")
-        apply_font(label)
         label.grid(row=3, column=0, sticky='w')
         self.format_var = StringVar(value='png')
         option_menu = OptionMenu(main_frame, self.format_var, *self.SUPPORTED_FORMATS)
-        apply_font(option_menu)
         option_menu.grid(row=3, column=1, sticky='w')
         
         # 质量设置
         label = Label(main_frame, text="输出质量 (1-100):")
-        apply_font(label)
         label.grid(row=4, column=0, sticky='w')
         self.quality_var = IntVar(value=100)
         quality_entry = Entry(main_frame, textvariable=self.quality_var, width=5)
-        apply_font(quality_entry)
         quality_entry.grid(row=4, column=1, sticky='w')
         
         # 分隔线
@@ -123,13 +188,10 @@ class ImageConverter:
         
         # 输出目录选择
         label = Label(main_frame, text="输出目录:")
-        apply_font(label)
         label.grid(row=6, column=0, sticky='w')
         self.output_entry = Entry(main_frame, width=40)
-        apply_font(self.output_entry)
         self.output_entry.grid(row=6, column=1)
         button = Button(main_frame, text="浏览...", command=self.select_output)
-        apply_font(button)
         button.grid(row=6, column=2)
         
         # 进度条
@@ -140,29 +202,20 @@ class ImageConverter:
         button_frame = Frame(main_frame)
         button_frame.grid(row=7, column=0, columnspan=3, pady=10, sticky='ew')
         
-        # 帮助按钮
-        help_button = Button(button_frame, text="帮助", command=self.show_help)
-        apply_font(help_button)
-        help_button.pack(side='left', padx=5)
-        
         # 转换按钮
         convert_button = Button(button_frame, text="转换", command=self.start_conversion)
-        apply_font(convert_button)
         convert_button.pack(side='right', padx=5)
         
         # 状态标签
         self.status_var = StringVar(value="就绪")
         status_label = Label(main_frame, textvariable=self.status_var)
-        apply_font(status_label)
         status_label.grid(row=8, column=0, columnspan=3, sticky='w')
         
         # 模式切换
         self.mode_var.trace('w', self.toggle_mode)
         single_radio = Radiobutton(main_frame, text="单文件模式", variable=self.mode_var, value='single')
-        apply_font(single_radio)
         single_radio.grid(row=0, column=1, sticky='w')
         batch_radio = Radiobutton(main_frame, text="批量模式", variable=self.mode_var, value='batch')
-        apply_font(batch_radio)
         batch_radio.grid(row=0, column=2, sticky='w')
         
     def toggle_mode(self, *args):
@@ -239,10 +292,6 @@ class ImageConverter:
         """更新进度条"""
         self.progress['value'] = value
         self.root.update_idletasks()
-        
-    def show_help(self):
-        help_system = get_help_system()
-        help_system.show_help("图片格式转换")
         
     def convert(self):
         """主转换逻辑"""

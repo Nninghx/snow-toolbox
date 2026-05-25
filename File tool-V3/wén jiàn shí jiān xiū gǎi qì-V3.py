@@ -202,7 +202,7 @@ class TimeModifierApp:
             GDI32 = ctypes.windll.gdi32
             font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
             GDI32.AddFontResourceW(font_path_str)
-            print(f"✅ 成功加载自定义字体: {font_path}")
+            print(f"成功加载自定义字体: {font_path}")
         
         from tkinter import font as tkfont
         self.current_font = (font_name, 10)
@@ -378,7 +378,7 @@ def main():
         app = TimeModifierApp(root)
         root.mainloop()
     except Exception as e:
-        print(f"\n❌ 应用启动失败：{e}")
+        print(f"\n[ERROR] 应用启动失败：{e}")
         import traceback
         traceback.print_exc()
 if __name__ == "__main__":
