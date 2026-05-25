@@ -603,24 +603,7 @@ class ImageCombinerApp:
             
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("图片合成工具")
-    print("=" * 60)
-    print()
-    
-    try:
-        root = tk.Tk()
-        app = ImageCombinerApp(root)
-        print("✅ Tkinter 应用启动成功")
-        root.mainloop()
-        
-        print("\n" + "=" * 60)
-        print("示例运行完成！")
-        print("=" * 60)
-        
-    except Exception as e:
-        print(f"\n❌ 示例运行失败：{e}")
-        import traceback
-        traceback.print_exc()
-        print("=" * 60)
+    root = tk.Tk()
+    app = ImageCombinerApp(root)
+    root.mainloop()
 #pyinstaller --onefile --noconsole --version-file=version_info.txt --name "图片合成工具" Tu_Pian_He_Cheng_Alpha.py

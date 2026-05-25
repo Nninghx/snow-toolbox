@@ -86,12 +86,13 @@ class PathUtils:
         base_dir = PathUtils.get_base_dir()
         category_map = {
             'PDF工具': 'PDF tool',
-            '图片工具': 'Picture tool',
+            '图片工具': 'Picture tool-V3',
             '音频工具': 'Audio tool-V3',
             '文件工具': 'File tool-V3',
             '其他工具': 'Other tool',
             'B站专用工具': 'Station B tool',
             '计算器工具': 'Calculator tool-V3',
+            '模型下载': 'Download tool',
             '小游戏': 'Mini-games-V3',
         }
         sub_dir = category_map.get(category)
@@ -109,10 +110,10 @@ class ToolLauncher:
                 '图片转PDF': 'Tu Pian Zhuan PDF.py'
             },
             '图片工具': {
-                '九宫格分割': 'Tu Pian Fen Ge Jiu Gong Ge.py',
-                '格式转换': 'Tu Pian Ge Shi Zhuan Huan.py',
-                'ICO转换': 'Tu Pian Zhuan ico.py',
-                '图片合成': 'Tu_Pian_He_Cheng.py'
+                '九宫格分割': 'tú piàn jiǔ gōng gé fēn gē-V3.py',
+                '格式转换': 'tú piàn gé shì zhuǎn huàn-V3.py',
+                'ICO转换': 'tú piàn zhuǎn tú biāo.py',
+                '图片合成': 'tú piàn hé chéng-V3.py'
             },
             '音频工具': {
                 '音频提取': 'shì pín yīn pín tí qǔ-V3.py'
@@ -120,7 +121,7 @@ class ToolLauncher:
             '文件工具': {
                 '目录树生成器': 'wén jiàn mù lù shù shēng chéng qì-V3.py',
                 '文件时间修改器': 'wén jiàn shí jiān xiū gǎi qì-V3.py',
-                'ModelScope 模型下载器': 'ModelScope mó xíng xià zǎi qì-V3.py',
+                
             },
             '其他工具': {
                 '数字小写转大写': 'Shu Zi Xiao Xie Zhuan Da Xie.py',
@@ -151,6 +152,11 @@ class ToolLauncher:
                 '数独小游戏': 'cāishùzì yóuxì-V3.py',
                 '猜数字小游戏': 'cāishùzì yóuxì-V3.py',
             }
+            ,
+            '模型下载': {
+                'huggingface模型下载器': 'hf_model_clone.py',
+                'ModelScope 模型下载器': 'ModelScope mó xíng xià zǎi qì-V3.py',
+            },
         }
         self.tool_cache = {}
         self.page = None
@@ -283,11 +289,6 @@ class ToolLauncher:
             # 使用系统默认程序打开文件（只读模式）
             if sys.platform == 'win32':
                 os.startfile(license_path)
-            elif sys.platform == 'darwin':
-                subprocess.Popen(['open', license_path])
-            else:
-                subprocess.Popen(['xdg-open', license_path])
-            
             self.show_status("已打开软件开源协议")
         except Exception as e:
             self.show_status(f"打开协议失败：{e}", success=False)

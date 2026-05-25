@@ -31,7 +31,7 @@ class ImageConverter:
             return
         
         self.root = Tk()
-        self.root.title("图片格式转换工具")
+        self.root.title("图片格式转换")
         
         # 设置窗口图标、加载字体
         self.set_window_icon()

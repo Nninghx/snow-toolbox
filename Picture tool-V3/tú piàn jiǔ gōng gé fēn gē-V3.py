@@ -24,7 +24,7 @@ class ImageSplitterApp:
             return
         
         self.root = root
-        self.root.title("图片九宫格分割工具")
+        self.root.title("图片九宫格分割")
         
         # 设置窗口图标、加载字体并构建UI
         self.set_window_icon()
