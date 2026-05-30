@@ -1,0 +1,127 @@
+B站会员购页面提取结果
+提取时间: 2026-05-28 23:38:13
+============================================================
+
+【跑马灯文字】
+来源: https://mall.bilibili.com/neul-next/index.html?activeType=1&page=magic-detail_detail&noTitleBar=1&itemsId=13654484
+----------------------------------------
+[1] 超神必得Wonderful Works 原创 Melterna Girl - Meta子 比例手办
+
+【商品详情】
+来源: https://mall.bilibili.com/neul-next/index.html?activeType=1&page=magic-detail_detail&noTitleBar=1&itemsId=13654484
+----------------------------------------
+[1] 超神款：Wonderful Works 原创 Melterna Girl - Meta子 比例手办
+    规格: Meta子
+    尺寸: 高约230mm
+    材质: PVC，ABS
+    官方价: 25900日元
+    参考价格: 1075元
+    图片: https://i0.hdslb.com/bfs/mall/mall/2d/59/2d5927a962396cabda087d8c181ff984.png@800w.webp
+
+[2] 欧皇款：GSAS NIKKE：胜利女神 神罚 Second Affection 比例手办
+    规格: 神罚 Second Affection
+    尺寸: 高约250mm
+    材质: PVC，ABS
+    官方价: 1099元
+    参考价格: 1039元
+    图片: https://i0.hdslb.com/bfs/mall/mall/e7/ee/e7ee9e91822043d7542a11681d929646.png@800w.webp
+
+[3] 欧皇款：GSC 英雄传说 界之轨迹 莉夏·毛 比例手办
+    规格: 莉夏·毛
+    尺寸: 高约235mm
+    材质: PVC，ABS
+    官方价: 24800日元
+    参考价格: 1035元
+    图片: https://i0.hdslb.com/bfs/mall/mall/c0/45/c045c3093bf88e41fa737da38a705fcd.png@800w.webp
+
+[4] 欧皇款：GSC VOCALOID 初音未来 with SOLWA 比例手办 再版
+    规格: 初音未来 with SOLWA
+    尺寸: 高约240mm
+    材质: 塑料，PVC，ABS
+    官方价: 23800日元
+    参考价格: 965元
+    图片: https://i0.hdslb.com/bfs/mall/mall/1c/30/1c303730d7c712cd07f132446ce16efc.png@800w.webp
+
+[5] 欧皇款：光菱 碧蓝航线 埃格妮丝 Nightpool 比例手办
+    规格: 埃格妮丝 Nightpool
+    尺寸: 高约285mm
+    材质: PVC，ABS
+    官方价: 899元
+    参考价格: 849元
+    图片: https://i0.hdslb.com/bfs/mall/mall/19/d9/19d98751079db1a8520197e1d5aaeb03.png@800w.webp
+
+[6] 欧皇款：F:NEX 缘之空 春日野穹 体操服ver. 1/7手办
+    规格: 春日野穹 体操服ver.
+    尺寸: 全高：200mm
+    材质: PVC，ABS
+    官方价: 120美元
+    参考价格: 780元
+    图片: https://i0.hdslb.com/bfs/mall/mall/8f/c0/8fc04056bf0182c57163f4310a7e2f09.png@800w.webp
+
+[7] 欧皇款：Max Factory figma 命运-冠位指定 摩根 Berserker 可动手办
+    规格: 摩根
+    尺寸: 高约155mm
+    材质: PVC，ABS
+    官方价: 13800日元
+    参考价格: 649元
+    图片: https://i0.hdslb.com/bfs/mall/mall/9a/d2/9ad22a68638e5ca7fc975e13b7fe7798.png@800w.webp
+
+[8] 欧皇款：MIC-DIG DIGSTA系列 黑礁 莱薇 手办
+    规格: 莱薇
+    尺寸: 高约175mm
+    材质: PVC，ABS，金属
+    官方价: 14,300日元 （含税）
+    参考价格: 580元
+    图片: https://i0.hdslb.com/bfs/mall/mall/41/8b/418bf98e19f1cf4f232586296d472088.jpg@800w.webp
+
+[9] 欧皇款：FuRyu TENITOL TALL 迷宫饭 玛露希尔&法琳 古典女仆Ver. 手办
+    规格: 玛露希尔
+    尺寸: 高约280~300mm
+    材质: PVC，ABS
+    官方价: 488元
+    参考价格: 449元
+    图片: https://i0.hdslb.com/bfs/mall/mall/4d/ea/4dea164cb7ab02f7c3791f584cc9ad2e.png@800w.webp
+
+[10] 欧皇款：GSC POP UP PARADE 蔚蓝档案 才羽桃&才羽绿 女仆 手办
+    规格: 桃
+    尺寸: 高约170mm
+    材质: PVC，ABS
+    官方价: 7200日元
+    参考价格: 335元
+    图片: https://i0.hdslb.com/bfs/mall/mall/41/a5/41a5a847be3c151fb610be4394279ad4.png@800w.webp
+
+[11] 普通款：FEELALL 夏日恋曲 明信片透卡套装
+    规格: 优里款
+    尺寸: 长148mm×宽100mm
+    官方价: 12元
+    参考价格: 12元
+    图片: https://i0.hdslb.com/bfs/mall/mall/f7/f1/f7f1cbb84298beb1fc8084977493b2b9.png@800w.webp
+
+[12] 普通款：FEELALL 夏日恋曲 明信片透卡套装
+    规格: 诺伊款
+    尺寸: 长148mm×宽100mm
+    官方价: 12元
+    参考价格: 12元
+    图片: https://i0.hdslb.com/bfs/mall/mall/01/a6/01a6aa824f3c1692ae2a967b50025594.png@800w.webp
+
+[13] 普通款：FEELALL 夏日恋曲 明信片透卡套装
+    规格: 千夏款
+    尺寸: 长148mm×宽100mm
+    官方价: 12元
+    参考价格: 12元
+    图片: https://i0.hdslb.com/bfs/mall/mall/4c/ac/4cac56b5707c2195d16cfa28ce3b29ab.png@800w.webp
+
+[14] 普通款：FEELALL 夏日恋曲 明信片透卡套装
+    规格: 亚季款
+    尺寸: 长148mm×宽100mm
+    官方价: 12元
+    参考价格: 12元
+    图片: https://i0.hdslb.com/bfs/mall/mall/19/7c/197c6e71b442aa04bb18108f0666979b.png@800w.webp
+
+[15] 普通款：FEELALL 夏日恋曲 明信片透卡套装
+    规格: 由飞款
+    尺寸: 长148mm×宽100mm
+    官方价: 12元
+    参考价格: 12元
+    图片: https://i0.hdslb.com/bfs/mall/mall/e9/64/e964cff55ee2634496888759440fc121.png@800w.webp
+

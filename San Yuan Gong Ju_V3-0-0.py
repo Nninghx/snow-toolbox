@@ -92,7 +92,7 @@ class PathUtils:
             '其他工具': 'Other tool',
             'B站专用工具': 'Station B tool',
             '计算器工具': 'Calculator tool-V3',
-            '模型下载': 'Download tool',
+            '下载工具': 'Download tool-V3',
             '小游戏': 'Mini-games-V3',
         }
         sub_dir = category_map.get(category)
@@ -112,8 +112,9 @@ class ToolLauncher:
             '图片工具': {
                 '九宫格分割': 'tú piàn jiǔ gōng gé fēn gē-V3.py',
                 '格式转换': 'tú piàn gé shì zhuǎn huàn-V3.py',
-                'ICO转换': 'tú piàn zhuǎn tú biāo.py',
-                '图片合成': 'tú piàn hé chéng-V3.py'
+                'ICO转换': 'tú piàn zhuǎn tú biāo-V3.py',
+                '图片合成': 'tú piàn hé chéng-V3.py',
+                '图片下载': 'tú piàn xià zǎi-V3.py',
             },
             '音频工具': {
                 '音频提取': 'shì pín yīn pín tí qǔ-V3.py'
@@ -121,12 +122,12 @@ class ToolLauncher:
             '文件工具': {
                 '目录树生成器': 'wén jiàn mù lù shù shēng chéng qì-V3.py',
                 '文件时间修改器': 'wén jiàn shí jiān xiū gǎi qì-V3.py',
-                
+                '空文件夹清理': 'kōng wén jiàn jiā qīng lǐ-V3.py',
             },
             '其他工具': {
                 '数字小写转大写': 'Shu Zi Xiao Xie Zhuan Da Xie.py',
                 '长度单位换算': 'Chang Du Dan Wei Huan Suan.py',
-                '空文件夹清理': 'Kong Wen Jian Jia Qing Li.py',
+                
                 '英文大小写转换': 'Ying Wen Da Xiao Xie Zhuan Huan.py',
                 '字符频率分析器': 'Zi Fu Pin Lv Fen Xi Qi.py',
             },
@@ -153,9 +154,10 @@ class ToolLauncher:
                 '猜数字小游戏': 'cāishùzì yóuxì-V3.py',
             }
             ,
-            '模型下载': {
-                'huggingface模型下载器': 'hf_model_clone.py',
+            '下载工具': {
+                'huggingface模型下载器': 'Hugging Face mó xíng xià zǎi qì-V3.py',
                 'ModelScope 模型下载器': 'ModelScope mó xíng xià zǎi qì-V3.py',
+                '图片下载': 'tú piàn xià zǎi-V3.py',
             },
         }
         self.tool_cache = {}

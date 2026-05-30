@@ -221,10 +221,6 @@ class SudokuUI:
         self.current_font = (font_name, 10)
         self.root.option_add("*Font", self.current_font)
         
-    def _load_font_config(self):
-        """从Core/ziti.json加载字体配置（已废弃，使用load_font替代）"""
-        pass
-        
     def setup_ui(self):
         """设置界面布局"""
         self.root.title("数独游戏")
