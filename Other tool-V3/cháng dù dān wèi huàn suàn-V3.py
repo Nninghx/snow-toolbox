@@ -1,5 +1,10 @@
+import os
+import sys
+import subprocess
+from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, messagebox
+from fontTools.ttLib import TTFont
 
 # 单位字典定义为全局常量
 # 单位分类字典
@@ -62,7 +67,7 @@ UNITS = {
 }
 
 def length_converter(value, from_unit, to_unit):
-    """长度单位换算函数"""
+    """长度单位换算"""
     try:
         result = value * UNITS[from_unit] / UNITS[to_unit]
         return round(result, 6)
@@ -150,44 +155,126 @@ def convert_and_display():
     except Exception as e:
         label_result.config(text=f"错误: 转换过程中出现问题 - {str(e)}")
 
+def set_window_icon(root):
+    """设置应用程序窗口图标"""
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    IMAGE_DIR = PROJECT_ROOT / "Image"
+    
+    icon_ico_path = IMAGE_DIR / "icon.ico"
+    icon_png_path = IMAGE_DIR / "icon.png"
+
+    # Windows系统设置应用ID
+    if os.name == 'nt':
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.LengthUnitConverter")
+        except Exception:
+            pass
+
+    # 尝试设置ICO图标
+    if icon_ico_path.exists():
+        try:
+            root.iconbitmap(default=str(icon_ico_path))
+        except Exception:
+            try:
+                root.iconbitmap(str(icon_ico_path))
+            except Exception:
+                pass
+
+    # 尝试设置PNG图标
+    if hasattr(root, "iconphoto") and icon_png_path.exists():
+        try:
+            icon_image = tk.PhotoImage(file=str(icon_png_path))
+            root.iconphoto(True, icon_image)
+            # 保存引用防止垃圾回收
+            root._icon_image = icon_image
+        except Exception:
+            pass
+
+def check_license():
+    """检查开源协议文档是否存在并验证完整性"""
+    # 如果通过主程序启动（环境变量已设置），则跳过授权验证
+    if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
+        return True
+    
+    try:
+        # 验证授权
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        CORE_DIR = PROJECT_ROOT / "Core"
+        license_exe_path = CORE_DIR / "LICENSE.exe"
+        if license_exe_path.exists():
+            result = subprocess.run(
+                [str(license_exe_path), '--quiet'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            return result.returncode == 0
+    except Exception as e:
+        print(f"许可证验证异常: {e}")
+        return False
+
+def load_font():
+    """从配置文件加载字体设置"""
+    # 定义项目根目录和图片目录
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    IMAGE_DIR = PROJECT_ROOT / "Image"
+    
+    font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
+    
+    if not font_path.exists():
+        messagebox.showerror("错误", f"找不到字体文件：{font_path}")
+        return None
+    
+    # 使用 fonttools 获取字体名称
+    tt = TTFont(str(font_path))
+    font_name = None
+    for record in tt['name'].names:
+        if record.nameID == 1:  # Font Family
+            font_name = record.toUnicode()
+            break
+    if not font_name:
+        raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
+    tt.close()
+    
+    # 使用 Windows API 注册字体
+    if os.name == 'nt':
+        import ctypes
+        GDI32 = ctypes.windll.gdi32
+        font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+        GDI32.AddFontResourceW(font_path_str)
+        print(f"成功加载自定义字体: {font_path}")
+    
+    from tkinter import font as tkfont
+    current_font = (font_name, 10)
+    return current_font
+
 # 创建主窗口
 root = tk.Tk()
+
+# 首先检查开源协议文档是否存在并验证完整性
+if not check_license():
+    messagebox.showerror(
+        "错误", 
+        "缺少授权！无法使用！请先获取授权！\n"
+    )
+    root.destroy()
+    sys.exit(1)
+
 root.title("长度单位换算")
 root.minsize(400, 400)  # 增大窗口尺寸以容纳历史记录
-# 设置窗口图标
-try:
-    root.iconbitmap('Image/icon.ico')
-except Exception as e:
-    print(f"图标加载失败: {str(e)}")
 
-# 设置字体
+# 设置窗口图标
+set_window_icon(root)
+
+# 加载并注册字体
 try:
-    import json
-    import os
-    from tkinter import font
-    
-    # 检查字体文件是否存在
-    font_path = 'Core/ziti.json'
-    if not os.path.exists(font_path):
-        raise FileNotFoundError(f"字体配置文件 {font_path} 不存在")
-    
-    # 读取字体配置(使用UTF-8编码)
-    with open(font_path, encoding='utf-8') as f:
-        font_config = json.load(f)
-    
-    font_name = font_config.get('family', 'System')
-    
-    # 验证字体是否可用
-    available_fonts = list(font.families())
-    if font_name not in available_fonts:
-        raise ValueError(f"字体 '{font_name}' 未安装在系统中")
-    
-    # 设置字体
-    custom_font = (font_name, 10)
-    root.option_add('*Font', custom_font)
-    print(f"成功设置字体: {font_name}")
+    custom_font = load_font()
+    if custom_font:
+        root.option_add('*Font', custom_font)
+        print(f"成功设置字体: {custom_font[0]}")
 except Exception as e:
-    error_msg = f"字体设置失败: {str(e)}\n可用字体: {', '.join(font.families()[:5])}..."
+    error_msg = f"字体设置失败: {str(e)}"
     print(error_msg)
     messagebox.showwarning("字体设置", error_msg)
 
@@ -244,9 +331,6 @@ button_frame.pack(fill=tk.X, pady=10)
 convert_btn = ttk.Button(button_frame, text="转换", command=convert_and_display)
 convert_btn.pack(side=tk.LEFT, padx=5, ipadx=20, ipady=5)
 
-help_btn = ttk.Button(button_frame, text="帮助", command=lambda: show_help())
-help_btn.pack(side=tk.LEFT, padx=5, ipadx=20, ipady=5)
-
 # 结果显示区域
 result_frame = ttk.LabelFrame(main_frame, text="转换结果", padding=(10, 5))
 result_frame.pack(fill=tk.BOTH, expand=True, pady=5)
@@ -293,29 +377,6 @@ def update_history(value, from_unit, to_unit, result):
     history_text.insert(tk.END, entry + "\n")
     history_text.config(state=tk.DISABLED)
     history_text.see(tk.END)
-
-def show_help():
-    """显示帮助信息"""
-    help_text = """
-    长度单位换算工具使用说明
-    
-    1. 在数值框中输入要转换的数值
-    2. 从下拉列表中选择源单位和目标单位
-    3. 设置结果的小数位数
-    4. 点击"转换"按钮获取结果
-    
-    注意：
-    - 单位名称后括号内的是单位符号
-    - 分隔线表示单位分类
-    - 历史记录会自动保存
-
-    提示:
-- 作者:叁垣伍瑞肆凶廿捌宿宿
-- 联系方式:https://space.bilibili.com/556216088
-- 版权:Apache-2.0 License
-
-    """
-    messagebox.showinfo("帮助", help_text)
 
 def clear_history():
     """清除历史记录"""

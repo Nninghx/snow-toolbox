@@ -1,18 +1,122 @@
+import os
+import sys
+import subprocess
+from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, messagebox
+from fontTools.ttLib import TTFont
 import re
 
-class RMBConverter:
-    def __init__(self):
-        # 读取字体配置
+
+def set_window_icon(root):
+    """设置应用程序窗口图标"""
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    IMAGE_DIR = PROJECT_ROOT / "Image"
+    
+    icon_ico_path = IMAGE_DIR / "icon.ico"
+    icon_png_path = IMAGE_DIR / "icon.png"
+
+    # Windows系统设置应用ID
+    if os.name == 'nt':
         try:
-            import json
-            with open('Core/ziti.json', 'r', encoding='utf-8') as f:
-                font_config = json.load(f)
-            self.font_family = font_config['family']
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.RMBConverter")
+        except Exception:
+            pass
+
+    # 尝试设置ICO图标
+    if icon_ico_path.exists():
+        try:
+            root.iconbitmap(default=str(icon_ico_path))
+        except Exception:
+            try:
+                root.iconbitmap(str(icon_ico_path))
+            except Exception:
+                pass
+
+    # 尝试设置PNG图标
+    if hasattr(root, "iconphoto") and icon_png_path.exists():
+        try:
+            icon_image = tk.PhotoImage(file=str(icon_png_path))
+            root.iconphoto(True, icon_image)
+            # 保存引用防止垃圾回收
+            root._icon_image = icon_image
+        except Exception:
+            pass
+
+
+def check_license():
+    """检查开源协议文档是否存在并验证完整性"""
+    # 如果通过主程序启动（环境变量已设置），则跳过授权验证
+    if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
+        return True
+    
+    try:
+        # 验证授权
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        CORE_DIR = PROJECT_ROOT / "Core"
+        license_exe_path = CORE_DIR / "LICENSE.exe"
+        if license_exe_path.exists():
+            result = subprocess.run(
+                [str(license_exe_path), '--quiet'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            return result.returncode == 0
+    except Exception as e:
+        print(f"许可证验证异常: {e}")
+        return False
+
+
+def load_font():
+    """从配置文件加载字体设置"""
+    # 定义项目根目录和图片目录
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    IMAGE_DIR = PROJECT_ROOT / "Image"
+    
+    font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
+    
+    if not font_path.exists():
+        messagebox.showerror("错误", f"找不到字体文件：{font_path}")
+        return None
+    
+    # 使用 fonttools 获取字体名称
+    tt = TTFont(str(font_path))
+    font_name = None
+    for record in tt['name'].names:
+        if record.nameID == 1:  # Font Family
+            font_name = record.toUnicode()
+            break
+    if not font_name:
+        raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
+    tt.close()
+    
+    # 使用 Windows API 注册字体
+    if os.name == 'nt':
+        import ctypes
+        GDI32 = ctypes.windll.gdi32
+        font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+        GDI32.AddFontResourceW(font_path_str)
+        print(f"成功加载自定义字体: {font_path}")
+    
+    from tkinter import font as tkfont
+    current_font = (font_name, 10)
+    return current_font
+
+
+class RMBConverter:
+    def __init__(self, root):
+        self.root = root
+        
+        # 加载字体
+        try:
+            self.current_font = load_font()
+            if not self.current_font:
+                self.current_font = ("", 10)
         except Exception as e:
-            print(f"字体配置读取失败，使用默认字体: {str(e)}")
-            self.font_family = ''  # 空字符串表示使用系统默认字体
+            print(f"字体加载失败: {e}")
+            self.current_font = ("", 10)
 
         # 数字到中文大写的映射
         self.num_map = {
@@ -32,20 +136,13 @@ class RMBConverter:
         self.setup_gui()
 
     def setup_gui(self):
-        # 创建主窗口
-        self.root = tk.Tk()
         self.root.title('数字小写转大写')
         self.root.geometry('900x600')
-        # 设置窗口图标
-        try:
-            self.root.iconbitmap('Image/icon.ico')
-        except Exception as e:
-            print(f"图标加载失败: {str(e)}")
         
         # 创建样式
         style = ttk.Style()
-        title_font = (self.font_family, 16, 'bold') if self.font_family else ('', 16, 'bold')
-        default_font = (self.font_family, 12) if self.font_family else ('', 12)
+        title_font = (self.current_font[0], 16, 'bold')
+        default_font = self.current_font
         style.configure('Title.TLabel', font=title_font)
         style.configure('TLabel', font=default_font)
         style.configure('TEntry', font=default_font)
@@ -54,7 +151,7 @@ class RMBConverter:
         # 创建标题
         title_frame = ttk.Frame(self.root, padding="10")
         title_frame.pack(fill=tk.X)
-        ttk.Label(title_frame, text="数字小写转大写Alpha1.0.0", style='Title.TLabel').pack()
+        ttk.Label(title_frame, text="数字小写转大写", style='Title.TLabel').pack()
         
         # 创建说明文字
         desc_frame = ttk.Frame(self.root, padding="10")
@@ -78,14 +175,13 @@ class RMBConverter:
         
         ttk.Button(btn_frame, text="清除", command=self.clear_input).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="复制结果", command=self.copy_result).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="帮助", command=self.show_help).pack(side=tk.LEFT, padx=5)
         
         # 创建结果显示区域
         result_frame = ttk.Frame(self.root, padding="10")
         result_frame.pack(fill=tk.BOTH, expand=True)
         
         ttk.Label(result_frame, text="转换结果：").pack(anchor=tk.W)
-        result_font = (self.font_family, 14) if self.font_family else ('', 14)
+        result_font = (self.current_font[0], 14)
         self.result_text = tk.Text(result_frame, font=result_font, wrap=tk.WORD, height=12)
         self.result_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
@@ -255,26 +351,36 @@ class RMBConverter:
             self.root.clipboard_append(result)
             messagebox.showinfo('提示', '结果已复制到剪贴板')
 
-    def show_help(self):
-        """显示帮助信息"""
-        help_text = """数字小写转大写工具使用说明：
-        
-1. 在输入框中输入数字金额（支持小数）
-2. 系统会自动实时转换并显示结果
-3. 点击"清除"按钮清空输入和结果
-4. 点击"复制结果"按钮将转换结果复制到剪贴板
-5. 支持范围：整数部分最多21位，小数部分最多7位
-提示:
-- 作者:叁垣伍瑞肆凶廿捌宿宿
-- 联系方式:https://space.bilibili.com/556216088
-- 版权:Apache-2.0 License
-"""
-        messagebox.showinfo("帮助", help_text)
-
     def run(self):
         """运行程序"""
         self.root.mainloop()
 
 if __name__ == '__main__':
-    app = RMBConverter()
-    app.run()
+    # 创建主窗口
+    root = tk.Tk()
+
+    # 首先检查开源协议文档是否存在并验证完整性
+    if not check_license():
+        messagebox.showerror(
+            "错误", 
+            "缺少授权！无法使用！请先获取授权！\n"
+        )
+        root.destroy()
+        sys.exit(1)
+
+    # 设置窗口图标
+    set_window_icon(root)
+
+    # 加载并注册字体
+    try:
+        custom_font = load_font()
+        if custom_font:
+            root.option_add('*Font', custom_font)
+            print(f"成功设置字体: {custom_font[0]}")
+    except Exception as e:
+        error_msg = f"字体设置失败: {str(e)}"
+        print(error_msg)
+        messagebox.showwarning("字体设置", error_msg)
+
+    app = RMBConverter(root)
+    root.mainloop()

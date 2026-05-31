@@ -2,24 +2,16 @@ import os
 import sys
 import subprocess
 import ctypes
-import json
-from tkinter import Tk, Label, Button, StringVar, messagebox, ttk
+from pathlib import Path
+import tkinter as tk
+from tkinter import messagebox, ttk
+from fontTools.ttLib import TTFont
+
 try:
     from PIL import Image, ImageTk
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
-
-
-def load_font_config():
-    """动态读取字体配置文件"""
-    try:
-        with open(os.path.join(os.path.dirname(__file__), '../Core/ziti.json'), 'r', encoding='utf-8') as f:
-            font_config = json.load(f)
-            return font_config.get('family', 'Microsoft YaHei')
-    except Exception as e:
-        print(f"加载字体配置失败: {e}")
-        return 'Microsoft YaHei'
 
 
 def is_admin():
@@ -130,18 +122,113 @@ def disable_memory_compression():
             return False, str(e)
 
 
+def set_window_icon(root):
+    """设置应用程序窗口图标"""
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    IMAGE_DIR = PROJECT_ROOT / "Image"
+    
+    icon_ico_path = IMAGE_DIR / "icon.ico"
+    icon_png_path = IMAGE_DIR / "icon.png"
+
+    # Windows系统设置应用ID
+    if os.name == 'nt':
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.MemoryCompressionTool")
+        except Exception:
+            pass
+
+    # 尝试设置ICO图标
+    if icon_ico_path.exists():
+        try:
+            root.iconbitmap(default=str(icon_ico_path))
+        except Exception:
+            try:
+                root.iconbitmap(str(icon_ico_path))
+            except Exception:
+                pass
+
+    # 尝试设置PNG图标
+    if hasattr(root, "iconphoto") and icon_png_path.exists():
+        try:
+            icon_image = tk.PhotoImage(file=str(icon_png_path))
+            root.iconphoto(True, icon_image)
+            # 保存引用防止垃圾回收
+            root._icon_image = icon_image
+        except Exception:
+            pass
+
+
+def check_license():
+    """检查开源协议文档是否存在并验证完整性"""
+    # 如果通过主程序启动（环境变量已设置），则跳过授权验证
+    if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
+        return True
+    
+    try:
+        # 验证授权
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        CORE_DIR = PROJECT_ROOT / "Core"
+        license_exe_path = CORE_DIR / "LICENSE.exe"
+        if license_exe_path.exists():
+            result = subprocess.run(
+                [str(license_exe_path), '--quiet'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            return result.returncode == 0
+    except Exception as e:
+        print(f"许可证验证异常: {e}")
+        return False
+
+
+def load_font():
+    """从配置文件加载字体设置"""
+    # 定义项目根目录和图片目录
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    IMAGE_DIR = PROJECT_ROOT / "Image"
+    
+    font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
+    
+    if not font_path.exists():
+        messagebox.showerror("错误", f"找不到字体文件：{font_path}")
+        return None
+    
+    # 使用 fonttools 获取字体名称
+    tt = TTFont(str(font_path))
+    font_name = None
+    for record in tt['name'].names:
+        if record.nameID == 1:  # Font Family
+            font_name = record.toUnicode()
+            break
+    if not font_name:
+        raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
+    tt.close()
+    
+    # 使用 Windows API 注册字体
+    if os.name == 'nt':
+        import ctypes
+        GDI32 = ctypes.windll.gdi32
+        font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+        GDI32.AddFontResourceW(font_path_str)
+        print(f"成功加载自定义字体: {font_path}")
+    
+    from tkinter import font as tkfont
+    current_font = (font_name, 10)
+    return current_font
+
+
 class MemoryCompressionTool:
-    def __init__(self, master):
+    def __init__(self, master, current_font=None):
         self.master = master
         master.title("内存压缩管理工具")
 
-        # 设置窗口图标
-        self.set_window_icon(master)
-
-        # 加载字体配置
-        font_family = load_font_config()
-        self.font = (font_family, 12)
-        self.title_font = (font_family, 14, "bold")
+        # 设置默认字体，如果未提供则使用系统默认
+        if current_font is None:
+            self.current_font = ("Microsoft YaHei", 10)
+        else:
+            self.current_font = current_font
 
         # 检查管理员权限
         self.is_admin = is_admin()
@@ -151,32 +238,32 @@ class MemoryCompressionTool:
         main_frame.grid(row=0, column=0, sticky="nsew")
 
         # 标题
-        title_label = Label(main_frame, text="Windows 内存压缩管理", font=self.title_font)
+        title_label = tk.Label(main_frame, text="Windows 内存压缩管理", font=(self.current_font[0], 14, "bold"))
         title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
 
         # 说明
-        desc_label = Label(
+        desc_label = tk.Label(
             main_frame,
             text="内存压缩可以将很少使用的内存页面压缩，\n释放物理 RAM 来改善性能。",
-            font=self.font,
+            font=self.current_font,
             justify="center"
         )
         desc_label.grid(row=1, column=0, columnspan=2, pady=(0, 20))
 
         # 状态显示
-        status_label = Label(main_frame, text="当前状态:", font=self.font)
+        status_label = tk.Label(main_frame, text="当前状态:", font=self.current_font)
         status_label.grid(row=2, column=0, sticky="w", pady=10)
 
-        self.status_var = StringVar()
-        self.status_value_label = Label(main_frame, textvariable=self.status_var, font=self.font, foreground="blue")
+        self.status_var = tk.StringVar()
+        self.status_value_label = tk.Label(main_frame, textvariable=self.status_var, font=self.current_font, foreground="blue")
         self.status_value_label.grid(row=2, column=1, sticky="w", pady=10)
 
         # 管理员权限提示
         if not self.is_admin:
-            admin_label = Label(
+            admin_label = tk.Label(
                 main_frame,
                 text="提示: 部分操作可能需要管理员权限",
-                font=(font_family, 10),
+                font=(self.current_font[0], 10),
                 foreground="orange"
             )
             admin_label.grid(row=3, column=0, columnspan=2, pady=(0, 10))
@@ -186,11 +273,11 @@ class MemoryCompressionTool:
         button_frame.grid(row=4, column=0, columnspan=2, pady=20)
 
         # 启用按钮
-        self.enable_btn = Button(
+        self.enable_btn = tk.Button(
             button_frame,
             text="启用内存压缩",
             command=self.enable_compression,
-            font=self.font,
+            font=(self.current_font[0], 12),
             width=15,
             bg="#4CAF50",
             fg="white",
@@ -199,11 +286,11 @@ class MemoryCompressionTool:
         self.enable_btn.grid(row=0, column=0, padx=10)
 
         # 禁用按钮
-        self.disable_btn = Button(
+        self.disable_btn = tk.Button(
             button_frame,
             text="禁用内存压缩",
             command=self.disable_compression,
-            font=self.font,
+            font=(self.current_font[0], 12),
             width=15,
             bg="#f44336",
             fg="white",
@@ -212,11 +299,11 @@ class MemoryCompressionTool:
         self.disable_btn.grid(row=0, column=1, padx=10)
 
         # 刷新按钮
-        self.refresh_btn = Button(
+        self.refresh_btn = tk.Button(
             button_frame,
             text="刷新状态",
             command=self.refresh_status,
-            font=self.font,
+            font=(self.current_font[0], 12),
             width=15
         )
         self.refresh_btn.grid(row=0, column=2, padx=10)
@@ -226,7 +313,7 @@ class MemoryCompressionTool:
         info_frame.grid(row=5, column=0, columnspan=2, pady=10, sticky="nsew")
 
         self.info_text = ""
-        self.info_label = Label(info_frame, text=self.info_text, font=(font_family, 10), justify="left")
+        self.info_label = tk.Label(info_frame, text=self.info_text, font=(self.current_font[0], 10), justify="left")
         self.info_label.grid(row=0, column=0, sticky="w")
 
         # 初始刷新状态
@@ -234,43 +321,6 @@ class MemoryCompressionTool:
 
         # 配置窗口大小
         master.resizable(False, False)
-
-    def set_window_icon(self, master):
-        """设置窗口图标"""
-        icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Image", "icon.ico"))
-        if not os.path.exists(icon_path):
-            return
-
-        try:
-            if os.name == 'nt':
-                try:
-                    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox.memory_compression")
-                except Exception as e:
-                    print(f"设置 AppUserModelID 失败: {e}")
-
-                try:
-                    master.iconbitmap(default=icon_path)
-                except Exception as e:
-                    print(f"Windows iconbitmap 设置失败: {e}")
-
-            if PIL_AVAILABLE:
-                try:
-                    icon = Image.open(icon_path)
-                    icon_photo = ImageTk.PhotoImage(icon)
-                    master.iconphoto(True, icon_photo)
-                    master._icon_photo = icon_photo
-                except Exception as e:
-                    print(f"PIL iconphoto 设置失败: {e}")
-            else:
-                try:
-                    from tkinter import PhotoImage
-                    icon_photo = PhotoImage(file=icon_path)
-                    master.iconphoto(True, icon_photo)
-                    master._icon_photo = icon_photo
-                except Exception as e:
-                    print(f"tk.PhotoImage iconphoto 设置失败: {e}")
-        except Exception as e:
-            print(f"加载图标失败: {e}")
 
     def refresh_status(self):
         """刷新内存压缩状态"""
@@ -352,6 +402,31 @@ class MemoryCompressionTool:
 
 
 if __name__ == "__main__":
-    root = Tk()
-    app = MemoryCompressionTool(root)
+    # 创建主窗口
+    root = tk.Tk()
+
+    # 首先检查开源协议文档是否存在并验证完整性
+    if not check_license():
+        messagebox.showerror(
+            "错误", 
+            "缺少授权！无法使用！请先获取授权！\n"
+        )
+        root.destroy()
+        sys.exit(1)
+
+    # 设置窗口图标
+    set_window_icon(root)
+
+    # 加载并注册字体
+    try:
+        custom_font = load_font()
+        if custom_font:
+            root.option_add('*Font', custom_font)
+            print(f"成功设置字体: {custom_font[0]}")
+    except Exception as e:
+        error_msg = f"字体设置失败: {str(e)}"
+        print(error_msg)
+        messagebox.showwarning("字体设置", error_msg)
+
+    app = MemoryCompressionTool(root, current_font=custom_font if 'custom_font' in locals() and custom_font else None)
     root.mainloop()

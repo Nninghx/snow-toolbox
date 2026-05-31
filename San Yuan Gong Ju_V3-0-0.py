@@ -89,7 +89,7 @@ class PathUtils:
             '图片工具': 'Picture tool-V3',
             '音频工具': 'Audio tool-V3',
             '文件工具': 'File tool-V3',
-            '其他工具': 'Other tool',
+            '其他工具': 'Other tool-V3',
             'B站专用工具': 'Station B tool',
             '计算器工具': 'Calculator tool-V3',
             '下载工具': 'Download tool-V3',
@@ -114,7 +114,6 @@ class ToolLauncher:
                 '格式转换': 'tú piàn gé shì zhuǎn huàn-V3.py',
                 'ICO转换': 'tú piàn zhuǎn tú biāo-V3.py',
                 '图片合成': 'tú piàn hé chéng-V3.py',
-                '图片下载': 'tú piàn xià zǎi-V3.py',
             },
             '音频工具': {
                 '音频提取': 'shì pín yīn pín tí qǔ-V3.py'
@@ -125,11 +124,11 @@ class ToolLauncher:
                 '空文件夹清理': 'kōng wén jiàn jiā qīng lǐ-V3.py',
             },
             '其他工具': {
-                '数字小写转大写': 'Shu Zi Xiao Xie Zhuan Da Xie.py',
-                '长度单位换算': 'Chang Du Dan Wei Huan Suan.py',
-                
-                '英文大小写转换': 'Ying Wen Da Xiao Xie Zhuan Huan.py',
-                '字符频率分析器': 'Zi Fu Pin Lv Fen Xi Qi.py',
+                '数字小写转大写': 'shù zì xiǎo xiě zhuǎn dà xiě-V3.py',
+                '长度单位换算': 'cháng dù dān wèi huàn suàn-V3.py',
+                '英文大小写转换': 'yīng wén dà xiǎo xiě zhuǎn huàn-V3.py',
+                '字符频率分析器': 'zìfú pín lǜ fēn xī-V3.py',
+                '内存压缩管理工具': 'nèi cún yā suō guǎn lǐ-V3.py',
             },
             'B站专用工具': {
                 '封面与表情包图片批量压缩': 'Feng Mian Yu Biao Qing Bao Tu Pian Pi Liang Ya Suo.py',
