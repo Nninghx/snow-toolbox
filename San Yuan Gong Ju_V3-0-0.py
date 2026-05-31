@@ -85,7 +85,7 @@ class PathUtils:
         """根据分类获取工具路径"""
         base_dir = PathUtils.get_base_dir()
         category_map = {
-            'PDF工具': 'PDF tool',
+            'PDF工具': 'PDF tool-V3',
             '图片工具': 'Picture tool-V3',
             '音频工具': 'Audio tool-V3',
             '文件工具': 'File tool-V3',
@@ -102,12 +102,12 @@ class ToolLauncher:
     def __init__(self):
         self.tools = {
             'PDF工具': {
-                'PDF拆分': 'PDF Chai Fen.py',
-                'PDF合并': 'PDF He Bing.py',
-                'PDF转Word': 'PDF_to_Word.py',
-                'PDF加水印': 'PDF Jia Shui Yin.py',
-                'PDF转图片': 'PDF Zhuan Tu Pian.py',
-                '图片转PDF': 'Tu Pian Zhuan PDF.py'
+                'PDF拆分': 'PDF chāi fēn-V3.py',
+                'PDF合并': 'PDF hé bìng-V3.py',
+                'PDF转Word': 'PDF zhuǎn Word-V3.py',
+                'PDF加水印': 'PDF jiā shuǐ yìn-V3.py',
+                'PDF转图片': 'PDF zhuǎn tú piàn-V3.py',
+                '图片转PDF': 'tú piàn zhuǎn PDF-V3.py'
             },
             '图片工具': {
                 '九宫格分割': 'tú piàn jiǔ gōng gé fēn gē-V3.py',

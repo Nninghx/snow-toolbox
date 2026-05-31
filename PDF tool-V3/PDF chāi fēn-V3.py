@@ -7,42 +7,56 @@ import json
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk, font
 from PyPDF2 import PdfReader, PdfWriter
-import sys
-import os.path
+from pathlib import Path
+from fontTools.ttLib import TTFont
 
-from os.path import dirname, join
-sys.path.insert(0, join(dirname(__file__), "..", "Core"))
-from BangZhu import get_help_system
 
 class PDFSplitterApp:
     def __init__(self, root):
         self.root = root
-        # 首先读取并应用字体设置
-        self.font_family = self.load_font_setting()
-        self._setup_default_fonts()
         
-        self.root.title("PDF拆分工具")
+        # 首先检查授权
+        if not self.check_license():
+            messagebox.showerror(
+                "错误", 
+                "缺少授权！无法使用！请先获取授权！\n"
+            )
+            root.destroy()
+            return
+        
+        # 设置窗口图标
+        self.set_window_icon()
+        
+        # 加载字体
+        self.load_font()
+        
+        self.root.title("PDF拆分")
         self.root.geometry("400x300")
         self.input_file = None
         self.output_dir = None
+        
         # 主布局
         self.root.grid_rowconfigure(1, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
+        
         # 文件选择区域
         self.file_frame = tk.LabelFrame(root, text="PDF文件")
         self.file_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=5)
         self.file_label = tk.Label(self.file_frame, text="未选择文件")
         self.file_label.pack(side=tk.LEFT, padx=5, pady=5)
         tk.Button(self.file_frame, text="选择文件", command=self.select_file).pack(side=tk.RIGHT, padx=5)
+        
         # 输出目录区域
         self.output_frame = tk.LabelFrame(root, text="输出目录")
         self.output_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=5)
         self.output_label = tk.Label(self.output_frame, text="未选择目录")
         self.output_label.pack(side=tk.LEFT, padx=5, pady=5)
         tk.Button(self.output_frame, text="选择目录", command=self.select_output_dir).pack(side=tk.RIGHT, padx=5)
+        
         # 拆分选项区域
         self.option_frame = tk.LabelFrame(root, text="拆分选项")
         self.option_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=5)
+        
         # 拆分模式选择
         self.mode_var = tk.StringVar(value="page_count")
         tk.Radiobutton(
@@ -57,6 +71,7 @@ class PDFSplitterApp:
             variable=self.mode_var, 
             value="page_range"
         ).grid(row=1, column=0, sticky="w", padx=5)
+        
         # 按页数拆分选项
         self.page_count_frame = tk.Frame(self.option_frame)
         self.page_count_frame.grid(row=0, column=1, sticky="w")
@@ -64,69 +79,114 @@ class PDFSplitterApp:
         self.page_entry = tk.Entry(self.page_count_frame, width=10)
         self.page_entry.pack(side=tk.LEFT)
         self.page_entry.insert(0, "1")
+        
         # 按范围拆分选项
         self.page_range_frame = tk.Frame(self.option_frame)
         self.page_range_frame.grid(row=1, column=1, sticky="w")
         tk.Label(self.page_range_frame, text="页码范围(如1-3,5,7-9):").pack(side=tk.LEFT)
         self.range_entry = tk.Entry(self.page_range_frame, width=20)
         self.range_entry.pack(side=tk.LEFT)
+        
         # 操作按钮区域
         self.action_frame = tk.Frame(root)
         self.action_frame.grid(row=3, column=0, sticky="ew", padx=10, pady=5)
-        tk.Button(self.action_frame, text="帮助", command=self.show_help).pack(side=tk.LEFT, padx=5)
         tk.Button(self.action_frame, text="拆分PDF", command=self.split_pdf).pack(side=tk.RIGHT, padx=5)
-        # 在所有UI控件初始化完成后应用字体设置
+        
+        # 应用字体到所有控件
         self.apply_font()
-    def load_font_setting(self):
-        """从ziti.json加载字体设置"""
-        try:
-            font_path = os.path.join(os.path.dirname(__file__), "..", "Core", "ziti.json")
-            print(f"尝试从 {font_path} 加载字体配置")
-            
-            with open(font_path, "r", encoding="utf-8") as f:
-                font_data = json.load(f)
-                font_name = font_data.get("family", "Microsoft YaHei")
-                print(f"读取到的字体名称: {font_name}")
-                
-                # 打印系统可用字体
-                print("\n系统可用字体:")
-                for f in tk.font.families():
-                    print(f)
-                    
-                return font_name
-        except Exception as e:
-            print(f"加载字体配置出错: {str(e)}")
-            return "Microsoft YaHei"  # 异常时使用默认字体
 
-    def _setup_default_fonts(self):
-        """在控件创建前设置默认字体"""
+    def set_window_icon(self):
+        """设置应用程序窗口图标"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        icon_ico_path = IMAGE_DIR / "icon.ico"
+        icon_png_path = IMAGE_DIR / "icon.png"
+
+        # Windows系统设置应用ID
+        if os.name == 'nt':
+            try:
+                import ctypes
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.PDFSplitter")
+            except Exception:
+                pass
+
+        # 尝试设置ICO图标
+        if icon_ico_path.exists():
+            try:
+                self.root.iconbitmap(default=str(icon_ico_path))
+            except Exception:
+                try:
+                    self.root.iconbitmap(str(icon_ico_path))
+                except Exception:
+                    pass
+
+        # 尝试设置PNG图标
+        if hasattr(self.root, "iconphoto") and icon_png_path.exists():
+            try:
+                self.icon_image = tk.PhotoImage(file=str(icon_png_path))
+                self.root.iconphoto(True, self.icon_image)
+            except Exception:
+                pass
+
+    def check_license(self):
+        """检查开源协议文档是否存在并验证完整性"""
+        # 如果通过主程序启动（环境变量已设置），则跳过授权验证
+        if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
+            return True
+        
         try:
-            # 检查字体是否存在
-            test_font = tk.font.Font(family=self.font_family, size=10)
-            if test_font.actual()["family"] != self.font_family:
-                raise tk.TclError("字体不存在")
-            
-            # 设置全局默认字体
-            font_settings = {
-                "TkDefaultFont": (self.font_family, 10),
-                "TkTextFont": (self.font_family, 10),
-                "TkFixedFont": (self.font_family, 10),
-                "TkMenuFont": (self.font_family, 10),
-                "TkHeadingFont": (self.font_family, 10),
-                "TkCaptionFont": (self.font_family, 10),
-                "TkSmallCaptionFont": (self.font_family, 10),
-                "TkIconFont": (self.font_family, 10),
-                "TkTooltipFont": (self.font_family, 10)
-            }
-            
-            for setting, font_spec in font_settings.items():
-                self.root.option_add(f"*{setting}", font_spec)
-                
-        except tk.TclError:
-            # 字体不存在时使用系统默认字体
-            print(f"警告: 字体'{self.font_family}'未安装，使用默认字体")
-            self.font_family = "Microsoft YaHei"
-            
+            import subprocess
+            PROJECT_ROOT = Path(__file__).resolve().parent.parent
+            CORE_DIR = PROJECT_ROOT / "Core"
+            license_exe_path = CORE_DIR / "LICENSE.exe"
+            if license_exe_path.exists():
+                result = subprocess.run(
+                    [str(license_exe_path), '--quiet'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                return result.returncode == 0
+        except Exception as e:
+            print(f"许可证验证异常: {e}")
+            return False
+
+    def load_font(self):
+        """从配置文件加载字体设置"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
+        
+        if not font_path.exists():
+            messagebox.showerror("错误", f"找不到字体文件：{font_path}")
+            self.root.destroy()
+            return
+        
+        # 使用 fonttools 获取字体名称
+        tt = TTFont(str(font_path))
+        font_name = None
+        for record in tt['name'].names:
+            if record.nameID == 1:  # Font Family
+                font_name = record.toUnicode()
+                break
+        if not font_name:
+            raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
+        tt.close()
+        
+        # 使用 Windows API 注册字体
+        if os.name == 'nt':
+            import ctypes
+            GDI32 = ctypes.windll.gdi32
+            font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+            GDI32.AddFontResourceW(font_path_str)
+            print(f"成功加载自定义字体: {font_path}")
+        
+        from tkinter import font as tkfont
+        self.current_font = (font_name, 10)
+        self.root.option_add("*Font", self.current_font)
+
     def apply_font(self):
         """为已创建的控件应用字体"""
         # 获取所有需要设置字体的控件
@@ -142,9 +202,9 @@ class PDFSplitterApp:
         for widget in widgets:
             try:
                 if isinstance(widget, (tk.Label, tk.Button, tk.Radiobutton, tk.Entry)):
-                    widget.config(font=(self.font_family, 10))
+                    widget.config(font=(self.current_font[0], 10))
                 elif isinstance(widget, tk.LabelFrame):
-                    widget.config(font=(self.font_family, 10, "bold"))
+                    widget.config(font=(self.current_font[0], 10, "bold"))
             except:
                 continue
 
@@ -167,12 +227,6 @@ class PDFSplitterApp:
         if dir:
             self.output_dir = dir
             self.output_label.config(text=dir)
-    def show_help(self):
-        """
-        显示帮助信息，使用统一的帮助系统
-        """
-        help_system = get_help_system()
-        help_system.show_help("PDF拆分")
     def parse_page_ranges(self, range_str, total_pages):
         """解析页码范围字符串，返回页面索引列表"""
         ranges = []
@@ -273,10 +327,8 @@ class PDFSplitterApp:
             messagebox.showerror("错误", f"拆分失败: {str(e)}")
 if __name__ == '__main__':
     root = tk.Tk()
-    # 设置窗口图标
-    try:
-        root.iconbitmap('Image/icon.ico')
-    except Exception as e:
-        print(f"图标加载失败: {str(e)}")
     app = PDFSplitterApp(root)
-    root.mainloop()
+    # 只有在授权验证通过后才启动主循环
+    # 如果授权失败，__init__ 中会调用 root.destroy()
+    if app and root.winfo_exists():
+        root.mainloop()
