@@ -6,6 +6,36 @@ import threading
 from pathlib import Path
 from typing import Tuple, Optional
 import io
+import subprocess
+import sys
+from fontTools.ttLib import TTFont
+
+
+# ============ 授权验证 ============
+
+def check_license():
+    """检查开源协议文档是否存在并验证完整性"""
+    # 如果通过主程序启动（环境变量已设置），则跳过授权验证
+    if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
+        return True
+    
+    try:
+        # 验证授权
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        CORE_DIR = PROJECT_ROOT / "Core"
+        license_exe_path = CORE_DIR / "LICENSE.exe"
+        if license_exe_path.exists():
+            result = subprocess.run(
+                [str(license_exe_path), '--quiet'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            return result.returncode == 0
+    except Exception as e:
+        print(f"许可证验证异常: {e}")
+        return False
+
 
 class ImageProcessor:
     """图片处理核心类"""
@@ -238,28 +268,90 @@ class CompressorGUI:
     """图形界面类"""
     
     def __init__(self):
-        self.window = tk.Tk()
-        self.window.title("B站专用封面与表情包图片批量压缩工具")
-        self.window.geometry("600x400")
-        # 设置窗口图标
-        try:
-            self.window.iconbitmap('Image/icon.ico')
-        except Exception as e:
-            print(f"图标加载失败: {str(e)}")
+        # 首先检查授权
+        if not check_license():
+            messagebox.showerror(
+                "错误", 
+                "缺少授权！无法使用！请先获取授权！\n"
+            )
+            sys.exit(1)
         
-        # 动态加载字体设置
-        try:
-            import json
-            with open('Core/ziti.json', 'r', encoding='utf-8') as f:
-                font_settings = json.load(f)
-            font_family = font_settings.get('family', 'Microsoft YaHei')
-            self.window.option_add('*Font', (font_family, 10))
-        except Exception as e:
-            print(f"加载字体设置失败: {str(e)}")
-            self.window.option_add('*Font', ('Microsoft YaHei', 10))
+        self.window = tk.Tk()
+        self.window.title("封面与表情包图片压缩工具")
+        self.window.geometry("600x400")
+        
+        # 统一在 __init__ 中处理图标和字体
+        self._setup_icon_and_font()
         
         self.processor = ImageProcessor()
         self.setup_gui()
+        
+    def _setup_icon_and_font(self):
+        """设置窗口图标和加载字体"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        # --- 设置图标 ---
+        icon_ico_path = IMAGE_DIR / "icon.ico"
+        icon_png_path = IMAGE_DIR / "icon.png"
+
+        # Windows系统设置应用ID
+        if os.name == 'nt':
+            try:
+                import ctypes
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.BilibiliImageCompressor")
+            except Exception:
+                pass
+
+        # 尝试设置ICO图标
+        if icon_ico_path.exists():
+            try:
+                self.window.iconbitmap(default=str(icon_ico_path))
+            except Exception:
+                try:
+                    self.window.iconbitmap(str(icon_ico_path))
+                except Exception:
+                    pass
+
+        # 尝试设置PNG图标
+        if hasattr(self.window, "iconphoto") and icon_png_path.exists():
+            try:
+                icon_image = tk.PhotoImage(file=str(icon_png_path))
+                self.window.iconphoto(True, icon_image)
+                # 保持引用防止垃圾回收
+                self.window._icon_image = icon_image
+            except Exception:
+                pass
+                
+        # --- 加载字体 ---
+        font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
+        
+        if not font_path.exists():
+            messagebox.showerror("错误", f"找不到字体文件：{font_path}")
+            self.window.destroy()
+            sys.exit(1)
+        
+        # 使用 fonttools 获取字体名称
+        tt = TTFont(str(font_path))
+        font_name = None
+        for record in tt['name'].names:
+            if record.nameID == 1:  # Font Family
+                font_name = record.toUnicode()
+                break
+        if not font_name:
+            raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
+        tt.close()
+        
+        # 使用 Windows API 注册字体
+        if os.name == 'nt':
+            import ctypes
+            GDI32 = ctypes.windll.gdi32
+            font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+            GDI32.AddFontResourceW(font_path_str)
+            print(f"成功加载自定义字体: {font_path}")
+        
+        self.current_font = (font_name, 10)
+        self.window.option_add("*Font", self.current_font)
         
     def setup_gui(self):
         """设置GUI界面"""

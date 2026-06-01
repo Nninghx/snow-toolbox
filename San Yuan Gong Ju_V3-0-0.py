@@ -90,7 +90,7 @@ class PathUtils:
             '音频工具': 'Audio tool-V3',
             '文件工具': 'File tool-V3',
             '其他工具': 'Other tool-V3',
-            'B站专用工具': 'Station B tool',
+            'B站专用工具': 'Station B tool-V3',
             '计算器工具': 'Calculator tool-V3',
             '下载工具': 'Download tool-V3',
             '小游戏': 'Mini-games-V3',
@@ -131,9 +131,8 @@ class ToolLauncher:
                 '内存压缩管理工具': 'nèi cún yā suō guǎn lǐ-V3.py',
             },
             'B站专用工具': {
-                '封面与表情包图片批量压缩': 'Feng Mian Yu Biao Qing Bao Tu Pian Pi Liang Ya Suo.py',
-                '带货链接分批处理工具': 'Lian Jie Fen Pi Chu Li.py',
-                '辅助盯池工具': 'ningB.py',
+                '封面与表情包图片批量压缩': 'fēng miàn yǔ biǎo qíng bāo tú piàn yā suō-V3.py',
+                '带货链接分批处理工具': 'dài huò liàn jiē fēn pī chù lǐ-V3.py',
             },
             '计算器工具': {
                 '数学和统计计算器': 'shù xué hé tǒng jì jì suàn qì-V3.py',
@@ -151,6 +150,7 @@ class ToolLauncher:
                 '24点小游戏': '24diǎn yóu xì-V3.py',
                 '数独小游戏': 'cāishùzì yóuxì-V3.py',
                 '猜数字小游戏': 'cāishùzì yóuxì-V3.py',
+                '2048': '2048-V3.py',
             }
             ,
             '下载工具': {
