@@ -133,6 +133,7 @@ class ToolLauncher:
             'B站专用工具': {
                 '封面与表情包图片批量压缩': 'fēng miàn yǔ biǎo qíng bāo tú piàn yā suō-V3.py',
                 '带货链接分批处理工具': 'dài huò liàn jiē fēn pī chù lǐ-V3.py',
+                '商品链接ID提取': 'shāngpǐn liànjiē ID tíqǔ-V3.py',
             },
             '计算器工具': {
                 '数学和统计计算器': 'shù xué hé tǒng jì jì suàn qì-V3.py',
@@ -167,7 +168,7 @@ class ToolLauncher:
 
     def build(self, page: ft.Page):
         self.page = page
-        page.title = "宁宝工具启动器"
+        page.title = "宁宝工具启动器V4"
         page.window_width = 860
         page.window_height = 520
         page.padding = 16
