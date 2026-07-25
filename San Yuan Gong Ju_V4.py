@@ -152,6 +152,7 @@ class ToolLauncher:
                 '数独小游戏': 'cāishùzì yóuxì-V3.py',
                 '猜数字小游戏': 'cāishùzì yóuxì-V3.py',
                 '2048': '2048-V3.py',
+                '凹凸拼图游戏': 'āo tū pīn tú yóu xì-V3.py',
             }
             ,
             '下载工具': {
