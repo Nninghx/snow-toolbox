@@ -129,6 +129,7 @@ class ToolLauncher:
                 '英文大小写转换': 'yīng wén dà xiǎo xiě zhuǎn huàn-V3.py',
                 '字符频率分析器': 'zìfú pín lǜ fēn xī-V3.py',
                 '内存压缩管理工具': 'nèi cún yā suō guǎn lǐ-V3.py',
+                'VX群聊消息发送': 'VX qúnliáo xiāoxi fāsòng.py',
             },
             'B站专用工具': {
                 '封面与表情包图片批量压缩': 'fēng miàn yǔ biǎo qíng bāo tú piàn yā suō-V3.py',
