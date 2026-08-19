@@ -3,32 +3,28 @@ import sys
 sys.dont_write_bytecode = True
 
 import os
-import json
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk, font
+from tkinter import filedialog, messagebox, ttk
 from PyPDF2 import PdfReader, PdfWriter
 from pathlib import Path
-from fontTools.ttLib import TTFont
+
+# 导入公共基类
+import importlib.util
+_base_spec = importlib.util.spec_from_file_location(
+    "public_base_class",
+    Path(__file__).resolve().parent.parent / "Core" / "Public base class.py"
+)
+_base_module = importlib.util.module_from_spec(_base_spec)
+_base_spec.loader.exec_module(_base_module)
+PDFToolBase = _base_module.PDFToolBase
+del _base_spec, _base_module
 
 
-class PDFSplitterApp:
+class PDFSplitterApp(PDFToolBase):
     def __init__(self, root):
-        self.root = root
-        
-        # 首先检查授权
-        if not self.check_license():
-            messagebox.showerror(
-                "错误", 
-                "缺少授权！无法使用！请先获取授权！\n"
-            )
-            root.destroy()
+        super().__init__(root)
+        if not root.winfo_exists():
             return
-        
-        # 设置窗口图标
-        self.set_window_icon()
-        
-        # 加载字体
-        self.load_font()
         
         self.root.title("PDF拆分")
         self.root.geometry("400x300")
@@ -38,6 +34,13 @@ class PDFSplitterApp:
         # 主布局
         self.root.grid_rowconfigure(1, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
+        
+        self.build_ui()
+        self.apply_font_to_widgets(self._get_all_widgets())
+
+    def build_ui(self):
+        """构建用户界面"""
+        root = self.root
         
         # 文件选择区域
         self.file_frame = tk.LabelFrame(root, text="PDF文件")
@@ -91,122 +94,16 @@ class PDFSplitterApp:
         self.action_frame = tk.Frame(root)
         self.action_frame.grid(row=3, column=0, sticky="ew", padx=10, pady=5)
         tk.Button(self.action_frame, text="拆分PDF", command=self.split_pdf).pack(side=tk.RIGHT, padx=5)
-        
-        # 应用字体到所有控件
-        self.apply_font()
 
-    def set_window_icon(self):
-        """设置应用程序窗口图标"""
-        PROJECT_ROOT = Path(__file__).resolve().parent.parent
-        IMAGE_DIR = PROJECT_ROOT / "Image"
-        
-        icon_ico_path = IMAGE_DIR / "icon.ico"
-        icon_png_path = IMAGE_DIR / "icon.png"
-
-        # Windows系统设置应用ID
-        if os.name == 'nt':
-            try:
-                import ctypes
-                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.PDFSplitter")
-            except Exception:
-                pass
-
-        # 尝试设置ICO图标
-        if icon_ico_path.exists():
-            try:
-                self.root.iconbitmap(default=str(icon_ico_path))
-            except Exception:
-                try:
-                    self.root.iconbitmap(str(icon_ico_path))
-                except Exception:
-                    pass
-
-        # 尝试设置PNG图标
-        if hasattr(self.root, "iconphoto") and icon_png_path.exists():
-            try:
-                self.icon_image = tk.PhotoImage(file=str(icon_png_path))
-                self.root.iconphoto(True, self.icon_image)
-            except Exception:
-                pass
-
-    def check_license(self):
-        """检查开源协议文档是否存在并验证完整性"""
-        # 如果通过主程序启动（环境变量已设置），则跳过授权验证
-        if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
-            return True
-        
-        try:
-            import subprocess
-            PROJECT_ROOT = Path(__file__).resolve().parent.parent
-            CORE_DIR = PROJECT_ROOT / "Core"
-            license_exe_path = CORE_DIR / "LICENSE.exe"
-            if license_exe_path.exists():
-                result = subprocess.run(
-                    [str(license_exe_path), '--quiet'],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
-                return result.returncode == 0
-        except Exception as e:
-            print(f"许可证验证异常: {e}")
-            return False
-
-    def load_font(self):
-        """从配置文件加载字体设置"""
-        PROJECT_ROOT = Path(__file__).resolve().parent.parent
-        IMAGE_DIR = PROJECT_ROOT / "Image"
-        
-        font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
-        
-        if not font_path.exists():
-            messagebox.showerror("错误", f"找不到字体文件：{font_path}")
-            self.root.destroy()
-            return
-        
-        # 使用 fonttools 获取字体名称
-        tt = TTFont(str(font_path))
-        font_name = None
-        for record in tt['name'].names:
-            if record.nameID == 1:  # Font Family
-                font_name = record.toUnicode()
-                break
-        if not font_name:
-            raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
-        tt.close()
-        
-        # 使用 Windows API 注册字体
-        if os.name == 'nt':
-            import ctypes
-            GDI32 = ctypes.windll.gdi32
-            font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
-            GDI32.AddFontResourceW(font_path_str)
-            print(f"成功加载自定义字体: {font_path}")
-        
-        from tkinter import font as tkfont
-        self.current_font = (font_name, 10)
-        self.root.option_add("*Font", self.current_font)
-
-    def apply_font(self):
-        """为已创建的控件应用字体"""
-        # 获取所有需要设置字体的控件
-        widgets = [
+    def _get_all_widgets(self):
+        """获取所有需要设置字体的控件"""
+        return [
             self.file_label, self.output_label,
             *self.file_frame.winfo_children(),
             *self.output_frame.winfo_children(),
             *self.option_frame.winfo_children(),
             *self.action_frame.winfo_children()
         ]
-        
-        # 为每个控件设置字体
-        for widget in widgets:
-            try:
-                if isinstance(widget, (tk.Label, tk.Button, tk.Radiobutton, tk.Entry)):
-                    widget.config(font=(self.current_font[0], 10))
-                elif isinstance(widget, tk.LabelFrame):
-                    widget.config(font=(self.current_font[0], 10, "bold"))
-            except:
-                continue
 
     def select_file(self):
         file = filedialog.askopenfilename(
