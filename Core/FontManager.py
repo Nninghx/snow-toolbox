@@ -3,8 +3,8 @@ import sys
 sys.dont_write_bytecode = True
 
 """
-通用字体加载模块
-提供统一的字体加载和管理功能,供所有GUI工具使用
+主程序字体加载模块
+提供字体加载和管理功能
 """
 
 import os

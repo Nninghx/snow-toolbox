@@ -3,7 +3,7 @@ import sys
 sys.dont_write_bytecode = True
 
 """
-PDF工具公共基类
+项目公共基类
 提供窗口图标设置、授权验证、字体加载等通用功能
 """
 
