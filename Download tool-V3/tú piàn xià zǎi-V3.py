@@ -1,17 +1,29 @@
-
 from __future__ import annotations
+
+# 禁止生成 .pyc 文件
+import sys
+sys.dont_write_bytecode = True
 
 import os
 import re
-import subprocess
 import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import StringVar, filedialog, messagebox, scrolledtext
 from urllib.parse import unquote, urlparse
 
+# 导入公共基类
+import importlib.util
+_base_spec = importlib.util.spec_from_file_location(
+    "public_base_class",
+    Path(__file__).resolve().parent.parent / "Core" / "Public base class.py"
+)
+_base_module = importlib.util.module_from_spec(_base_spec)
+_base_spec.loader.exec_module(_base_module)
+PDFToolBase = _base_module.PDFToolBase
+del _base_spec, _base_module
+
 import requests
-from fontTools.ttLib import TTFont
 
 
 def sanitize_filename(url: str) -> str:
@@ -46,100 +58,18 @@ def resolve_filename(dest_dir: Path, base_filename: str) -> Path:
         counter += 1
 
 
-class ImageDownloaderGUI:
-    def __init__(self) -> None:
-        if not self.check_license():
-            messagebox.showerror("错误", "缺少授权！无法使用！请先获取授权！")
+class ImageDownloaderGUI(PDFToolBase):
+    def __init__(self, root) -> None:
+        super().__init__(root)
+        if not root.winfo_exists():
             return
-
-        self.root = tk.Tk()
+        self.root = root
         self.root.title("图片下载工具")
         self.root.geometry("760x600")
-
-        self.set_window_icon()
-        self.load_font()
 
         self.dest_var = StringVar(value=str(Path.home() / "Downloads"))
         self._cancel_flag = False
         self._build_ui()
-
-    def check_license(self):
-        if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
-            return True
-        try:
-            PROJECT_ROOT = Path(__file__).resolve().parent.parent
-            CORE_DIR = PROJECT_ROOT / "Core"
-            license_exe_path = CORE_DIR / "LICENSE.exe"
-            if license_exe_path.exists():
-                result = subprocess.run(
-                    [str(license_exe_path), '--quiet'],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                )
-                return result.returncode == 0
-        except Exception as e:
-            print(f"许可证验证异常: {e}")
-        return False
-
-    def set_window_icon(self):
-        PROJECT_ROOT = Path(__file__).resolve().parent.parent
-        IMAGE_DIR = PROJECT_ROOT / "Image"
-        icon_ico_path = IMAGE_DIR / "icon.ico"
-        icon_png_path = IMAGE_DIR / "icon.png"
-
-        if os.name == 'nt':
-            try:
-                import ctypes
-                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.ImageDownloaderGUI")
-            except Exception:
-                pass
-
-        if icon_ico_path.exists():
-            try:
-                self.root.iconbitmap(default=str(icon_ico_path))
-            except Exception:
-                try:
-                    self.root.iconbitmap(str(icon_ico_path))
-                except Exception:
-                    pass
-
-        if hasattr(self.root, "iconphoto") and icon_png_path.exists():
-            try:
-                self.icon_image = tk.PhotoImage(file=str(icon_png_path))
-                self.root.iconphoto(True, self.icon_image)
-            except Exception:
-                pass
-
-    def load_font(self):
-        PROJECT_ROOT = Path(__file__).resolve().parent.parent
-        IMAGE_DIR = PROJECT_ROOT / "Image"
-        font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
-
-        if not font_path.exists():
-            messagebox.showerror("错误", f"找不到字体文件：{font_path}")
-            self.root.destroy()
-            return
-
-        tt = TTFont(str(font_path))
-        font_name = None
-        for record in tt['name'].names:
-            if record.nameID == 1:
-                font_name = record.toUnicode()
-                break
-        if not font_name:
-            raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
-        tt.close()
-
-        if os.name == 'nt':
-            import ctypes
-            GDI32 = ctypes.windll.gdi32
-            font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
-            GDI32.AddFontResourceW(font_path_str)
-            print(f"成功加载自定义字体: {font_path}")
-
-        self.current_font = (font_name, 10)
-        self.root.option_add("*Font", self.current_font)
 
     def _build_ui(self) -> None:
         frame = tk.Frame(self.root, padx=12, pady=12)
@@ -349,8 +279,9 @@ def main() -> int:
         except Exception:
             pass
 
-    app = ImageDownloaderGUI()
-    if hasattr(app, 'root'):
+    root = tk.Tk()
+    app = ImageDownloaderGUI(root)
+    if root.winfo_exists():
         app.run()
     return 0
 

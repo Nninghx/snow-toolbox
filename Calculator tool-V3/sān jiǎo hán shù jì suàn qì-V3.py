@@ -1,41 +1,30 @@
-﻿import json
-import os
+﻿# 禁止生成 .pyc 文件
+import sys
+sys.dont_write_bytecode = True
+
 import math
-import subprocess
 from pathlib import Path
 from tkinter import Tk, Label, Entry, Button, StringVar, messagebox, ttk, OptionMenu
-try:
-    from PIL import Image, ImageTk
-    PIL_AVAILABLE = True
-except ImportError:
-    PIL_AVAILABLE = False
 
-try:
-    from fontTools.ttLib import TTFont
-    FONTTOOLS_AVAILABLE = True
-except ImportError:
-    FONTTOOLS_AVAILABLE = False
+# 导入公共基类
+import importlib.util
+_base_spec = importlib.util.spec_from_file_location(
+    "public_base_class",
+    Path(__file__).resolve().parent.parent / "Core" / "Public base class.py"
+)
+_base_module = importlib.util.module_from_spec(_base_spec)
+_base_spec.loader.exec_module(_base_module)
+PDFToolBase = _base_module.PDFToolBase
+del _base_spec, _base_module
 
-class TrigonometryCalculator:
+class TrigonometryCalculator(PDFToolBase):
     def __init__(self, master):
+        super().__init__(master)
+        if not master.winfo_exists():
+            return
         self.master = master
         
-        # 首先检查授权
-        if not self.check_license():
-            messagebox.showerror(
-                "错误", 
-                "缺少授权！无法使用！请先获取授权！"
-            )
-            master.destroy()
-            return
-        
         master.title("三角函数计算器")
-        
-        # 设置窗口图标
-        self.set_window_icon(master)
-        
-        # 加载字体配置
-        self.load_font()
         
         # 创建Notebook选项卡
         self.notebook = ttk.Notebook(master)
@@ -225,98 +214,6 @@ class TrigonometryCalculator:
             self.show_result(f"{func_name}({value}) = {degree:.2f}°")
         else:
             self.show_result(f"{func_name}({value}) = {radian:.4f} rad")
-
-    def check_license(self):
-        """检查开源协议文档是否存在并验证完整性"""
-        # 如果通过主程序启动（环境变量已设置），则跳过授权验证
-        if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
-            return True
-        
-        try:
-            # 验证授权
-            PROJECT_ROOT = Path(__file__).resolve().parent.parent
-            CORE_DIR = PROJECT_ROOT / "Core"
-            license_exe_path = CORE_DIR / "LICENSE.exe"
-            if license_exe_path.exists():
-                result = subprocess.run(
-                    [str(license_exe_path), '--quiet'],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
-                return result.returncode == 0
-        except Exception as e:
-            print(f"许可证验证异常: {e}")
-            return False
-
-    def set_window_icon(self, master):
-        """设置应用程序窗口图标"""
-        PROJECT_ROOT = Path(__file__).resolve().parent.parent
-        IMAGE_DIR = PROJECT_ROOT / "Image"
-        
-        icon_ico_path = IMAGE_DIR / "icon.ico"
-        icon_png_path = IMAGE_DIR / "icon.png"
-
-        # Windows系统设置应用ID
-        if os.name == 'nt':
-            try:
-                import ctypes
-                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.trigonometry_calculator")
-            except Exception:
-                pass
-
-        # 尝试设置ICO图标
-        if icon_ico_path.exists():
-            try:
-                master.iconbitmap(default=str(icon_ico_path))
-            except Exception:
-                try:
-                    master.iconbitmap(str(icon_ico_path))
-                except Exception:
-                    pass
-
-        # 尝试设置PNG图标
-        if hasattr(master, "iconphoto") and icon_png_path.exists():
-            try:
-                self.icon_image = tk.PhotoImage(file=str(icon_png_path))
-                master.iconphoto(True, self.icon_image)
-            except Exception:
-                pass
-
-    def load_font(self):
-        """从配置文件加载字体设置"""
-        PROJECT_ROOT = Path(__file__).resolve().parent.parent
-        IMAGE_DIR = PROJECT_ROOT / "Image"
-        
-        font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
-        
-        if not font_path.exists():
-            messagebox.showerror("错误", f"找不到字体文件：{font_path}")
-            self.master.destroy()
-            return
-        
-        # 使用 fonttools 获取字体名称
-        tt = TTFont(str(font_path))
-        font_name = None
-        for record in tt['name'].names:
-            if record.nameID == 1:  # Font Family
-                font_name = record.toUnicode()
-                break
-        if not font_name:
-            raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
-        tt.close()
-        
-        # 使用 Windows API 注册字体
-        if os.name == 'nt':
-            import ctypes
-            GDI32 = ctypes.windll.gdi32
-            font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
-            GDI32.AddFontResourceW(font_path_str)
-            print(f"成功加载自定义字体: {font_path}")
-        
-        from tkinter import font as tkfont
-        self.current_font = (font_name, 12)
-        self.master.option_add("*Font", self.current_font)
 
 if __name__ == "__main__":
     root = Tk()

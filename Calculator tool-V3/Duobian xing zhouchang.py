@@ -1,11 +1,30 @@
+# 禁止生成 .pyc 文件
+import sys
+sys.dont_write_bytecode = True
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 import math
+from pathlib import Path
+
+# 导入公共基类
+import importlib.util
+_base_spec = importlib.util.spec_from_file_location(
+    "public_base_class",
+    Path(__file__).resolve().parent.parent / "Core" / "Public base class.py"
+)
+_base_module = importlib.util.module_from_spec(_base_spec)
+_base_spec.loader.exec_module(_base_module)
+PDFToolBase = _base_module.PDFToolBase
+del _base_spec, _base_module
 
 
-class PolygonPerimeterApp:
+class PolygonPerimeterApp(PDFToolBase):
     def __init__(self, root):
-        self.root = root
+        super().__init__(root)
+        if not root.winfo_exists():
+            return
+        
         self.root.title("多边形周长计算器")
         self.root.geometry("460x560")
         self.root.resizable(False, False)

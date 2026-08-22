@@ -1,3 +1,6 @@
+# 禁止生成 .pyc 文件
+import sys
+sys.dont_write_bytecode = True
 
 import pygame
 import sys
