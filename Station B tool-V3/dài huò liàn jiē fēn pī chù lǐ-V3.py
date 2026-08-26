@@ -1,6 +1,4 @@
-# 禁止生成 .pyc 文件
-import sys
-sys.dont_write_bytecode = True
+
 
 from __future__ import annotations
 import sys
