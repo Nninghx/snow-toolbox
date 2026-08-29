@@ -2,7 +2,13 @@
 import sys
 sys.dont_write_bytecode = True
 
-from PyPDF2 import PdfReader, PdfWriter
+try:
+    import pikepdf
+except ImportError:
+    import subprocess
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pikepdf'])
+    import pikepdf
+import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import os
@@ -84,11 +90,14 @@ class PDFWatermarkApp(PDFToolBase):
             ttk.Radiobutton(self.position_frame, text=text, variable=self.position, 
                           value=value).pack(side="left", padx=5)
         
-        # 操作按钮
+        # 操作按钮与进度条（拆分工具同款交互）
         self.button_frame = ttk.Frame(self.main_frame)
         self.button_frame.pack(fill="x", padx=5, pady=10)
         
-        ttk.Button(self.button_frame, text="添加水印", command=self.add_watermark).pack(side="right", padx=5)
+        self.wm_button = ttk.Button(self.button_frame, text="添加水印", command=self.add_watermark)
+        self.wm_button.pack(side="right", padx=5)
+        self.progress = ttk.Progressbar(self.button_frame, mode='determinate')
+        self.progress.pack(side="right", fill="x", expand=True, padx=5)
 
     
     def select_pdf(self):
@@ -129,7 +138,7 @@ class PDFWatermarkApp(PDFToolBase):
         
         can.save()
         packet.seek(0)
-        return PdfReader(packet)
+        return pikepdf.open(packet)
     
     def add_watermark(self):
         """添加水印到PDF"""
@@ -138,38 +147,67 @@ class PDFWatermarkApp(PDFToolBase):
             messagebox.showwarning("警告", "请先选择PDF文件")
             return
         
+        # 先选择保存路径，避免处理过程中弹窗阻塞
+        output_path = filedialog.asksaveasfilename(
+            title="保存加水印的PDF",
+            defaultextension=".pdf",
+            filetypes=[("PDF文件", "*.pdf")]
+        )
+        if not output_path:
+            return
+        
         try:
-            # 读取原始PDF
-            pdf = PdfReader(pdf_path)
+            # 读取原始PDF（pikepdf C++ 解析，速度快）
+            pdf = pikepdf.open(pdf_path)
             if len(pdf.pages) == 0:
+                pdf.close()
                 messagebox.showerror("错误", "PDF文件没有有效页面")
                 return
             
             # 获取文本水印
             watermark = self.create_text_watermark()
             
-            # 创建PDF写入器
-            writer = PdfWriter()
-            
-            # 为每一页添加水印
-            for page in pdf.pages:
-                page.merge_page(watermark.pages[0])
-                writer.add_page(page)
-            
-            # 保存文件
-            output_path = filedialog.asksaveasfilename(
-                title="保存加水印的PDF",
-                defaultextension=".pdf",
-                filetypes=[("PDF文件", "*.pdf")]
-            )
-            
-            if output_path:
-                with open(output_path, "wb") as output_file:
-                    writer.write(output_file)
-                messagebox.showinfo("成功", f"PDF加水印完成!\n保存到: {output_path}")
+            # 后台线程执行加水印，避免阻塞 UI
+            self.wm_button.config(state='disabled')
+            self.progress['value'] = 0
+            threading.Thread(
+                target=self._do_add_watermark,
+                args=(pdf, watermark, output_path),
+                daemon=True
+            ).start()
         
         except Exception as e:
             messagebox.showerror("错误", f"加水印过程中发生错误: {str(e)}")
+
+    def _update_progress(self, done, total):
+        """在主线程更新进度条"""
+        pct = int(done / total * 100)
+        self.master.after(0, lambda: self.progress.configure(value=pct))
+
+    def _do_add_watermark(self, pdf, watermark, output_path):
+        """后台线程：为每一页叠加水印并保存（pikepdf C++ 操作释放 GIL）"""
+        total_pages = len(pdf.pages)
+        try:
+            result = pikepdf.new()
+            wm_page = watermark.pages[0]
+            for i, page in enumerate(pdf.pages):
+                # 复制原页面后叠加水印层（保留原始页面内容不丢失）
+                new_page = result.pages.append(result.copy_foreign(page))
+                new_page.add_overlay(watermark.copy_foreign(wm_page))
+                self._update_progress(i + 1, total_pages + 1)
+            result.save(output_path)
+            self.master.after(0, lambda: messagebox.showinfo(
+                "成功", f"PDF加水印完成!\n保存到: {output_path}"))
+        except Exception as e:
+            self.master.after(0, lambda: messagebox.showerror(
+                "错误", f"加水印过程中发生错误: {str(e)}"))
+        finally:
+            try:
+                pdf.close()
+                watermark.close()
+            except Exception:
+                pass
+            self.master.after(0, lambda: self.wm_button.config(state='normal'))
 
 
 if __name__ == "__main__":

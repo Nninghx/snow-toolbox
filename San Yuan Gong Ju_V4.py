@@ -85,6 +85,7 @@ class ToolLauncher:
             'PDF工具': {
                 'PDF拆分': 'PDF chāi fēn-V3.py',
                 'PDF合并': 'PDF hé bìng-V3.py',
+                'PDF压缩': 'PDF yā suō-V3.py',
                 'PDF转Word': 'PDF zhuǎn Word-V3.py',
                 'PDF加水印': 'PDF jiā shuǐ yìn-V3.py',
                 'PDF转图片': 'PDF zhuǎn tú piàn-V3.py',

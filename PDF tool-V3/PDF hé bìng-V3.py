@@ -3,10 +3,16 @@ import sys
 sys.dont_write_bytecode = True
 
 import os
+import threading
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
-from PyPDF2 import PdfReader, PdfWriter
+try:
+    import pikepdf
+except ImportError:
+    import subprocess
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pikepdf'])
+    import pikepdf
 
 # 导入公共基类
 import importlib.util
@@ -27,13 +33,14 @@ class PDFMergerApp(PDFToolBase):
             return
         
         self.root.title("PDF合并工具")
-        self.root.geometry("600x400")
+        self.root.geometry("600x440")
         self.build_ui()
 
     def build_ui(self):
         """构建用户界面"""
         self.input_files = []
         self.selected_pages = {}
+        self.pdf_readers = {}  # 缓存已打开的 pikepdf 句柄，合并时无需重新解析
         
         # 配置样式
         style = ttk.Style()
@@ -89,13 +96,13 @@ class PDFMergerApp(PDFToolBase):
         )
         add_btn.pack(side=tk.LEFT, padx=5)
         
-        # 合并文件按钮
-        merge_btn = ttk.Button(
+        # 合并文件按钮（保存引用以便处理中禁用）
+        self.merge_btn = ttk.Button(
             self.bottom_frame,
             text="合并文件",
             command=self.merge_pdfs
         )
-        merge_btn.pack(side=tk.LEFT, padx=5)
+        self.merge_btn.pack(side=tk.LEFT, padx=5)
         
         # 清空列表链接
         clear_link = tk.Label(
@@ -107,12 +114,27 @@ class PDFMergerApp(PDFToolBase):
         )
         clear_link.pack(side=tk.RIGHT, padx=5)
         clear_link.bind("<Button-1>", lambda e: self.clear_all_files())
+
+        # 进度条区域（单独一行，方便合并时显示进度）
+        self.progress_frame = ttk.Frame(self.root)
+        self.progress_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
+        self.progress_frame.grid_columnconfigure(0, weight=1)
+        self.progress_label = ttk.Label(self.progress_frame, text="")
+        self.progress_label.grid(row=0, column=0, sticky="w")
+        self.progress = ttk.Progressbar(self.progress_frame, mode='determinate')
+        self.progress.grid(row=1, column=0, sticky="ew")
         
     
     def clear_all_files(self):
         """清空所有文件"""
         if self.input_files:
             if messagebox.askyesno("确认", "确定要清空文件列表吗？"):
+                for reader in self.pdf_readers.values():
+                    try:
+                        reader.close()
+                    except Exception:
+                        pass
+                self.pdf_readers.clear()
                 self.input_files.clear()
                 self.selected_pages.clear()
                 self.file_tree.delete(*self.file_tree.get_children())
@@ -123,17 +145,19 @@ class PDFMergerApp(PDFToolBase):
         if files:
             for file in files:
                 if file not in self.input_files:
-                    self.input_files.append(file)
                     try:
-                        reader = PdfReader(file)
+                        # 用 pikepdf 打开并缓存句柄（C++ 解析，速度快）
+                        reader = pikepdf.open(file)
                         page_count = len(reader.pages)
+                        self.input_files.append(file)
+                        self.pdf_readers[file] = reader
                         # 添加文件到表格
                         self.file_tree.insert("", "end", values=(
                             len(self.input_files),
                             os.path.basename(file),
                             page_count
                         ))
-                        self.selected_pages[file] = list(range(len(reader.pages)))
+                        self.selected_pages[file] = list(range(page_count))
                     except Exception as e:
                         messagebox.showerror("错误", f"无法读取文件 {file}: {str(e)}")
     
@@ -147,6 +171,12 @@ class PDFMergerApp(PDFToolBase):
             file = self.input_files[file_index]
             del self.input_files[file_index]
             del self.selected_pages[file]
+            reader = self.pdf_readers.pop(file, None)
+            if reader is not None:
+                try:
+                    reader.close()
+                except Exception:
+                    pass
             self.file_tree.delete(self.file_tree.get_children()[file_index])
             # 更新剩余文件的序号
             for i, child in enumerate(self.file_tree.get_children()):
@@ -180,19 +210,44 @@ class PDFMergerApp(PDFToolBase):
         )
         
         if output_file:
-            try:
-                writer = PdfWriter()
-                for file in self.input_files:
-                    reader = PdfReader(file)
-                    for page_num in sorted(self.selected_pages[file]):
-                        writer.add_page(reader.pages[page_num])
-                
-                with open(output_file, 'wb') as f:
-                    writer.write(f)
-                
-                messagebox.showinfo("成功", f"PDF合并完成!\n保存到: {output_file}")
-            except Exception as e:
-                messagebox.showerror("错误", f"合并失败: {str(e)}")
+            # 在后台线程执行合并，避免阻塞 UI；pikepdf C++ 操作会释放 GIL
+            self.merge_btn.config(state='disabled')
+            self.progress['value'] = 0
+            self.progress_label.config(text="正在合并...")
+            threading.Thread(
+                target=self._do_merge,
+                args=(output_file,),
+                daemon=True
+            ).start()
+
+    def _update_progress(self, done, total):
+        """在主线程更新进度条"""
+        pct = int(done / total * 100)
+        self.root.after(0, lambda: self.progress.configure(value=pct))
+
+    def _do_merge(self, output_file):
+        """执行实际的合并操作（后台线程）"""
+        try:
+            total_files = len(self.input_files)
+            merged = pikepdf.new()
+            for i, file in enumerate(self.input_files):
+                # 复用已缓存的句柄，避免重复解析 PDF 结构
+                reader = self.pdf_readers.get(file)
+                if reader is None:
+                    reader = pikepdf.open(file)
+                    self.pdf_readers[file] = reader
+                # 使用 pages 接口批量复制所选页面，自动处理跨文件对象复制
+                merged.pages.extend(reader.pages[p] for p in sorted(self.selected_pages[file]))
+                self._update_progress(i + 1, total_files + 1)
+            merged.save(output_file)
+            self._update_progress(total_files + 1, total_files + 1)
+            self.root.after(0, lambda: messagebox.showinfo(
+                "成功", f"PDF合并完成!\n保存到: {output_file}"))
+        except Exception as e:
+            self.root.after(0, lambda: messagebox.showerror(
+                "错误", f"合并失败: {str(e)}"))
+        finally:
+            self.root.after(0, lambda: self.merge_btn.config(state='normal'))
 
 if __name__ == '__main__':
     root = tk.Tk()

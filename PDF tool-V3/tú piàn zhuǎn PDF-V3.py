@@ -4,6 +4,7 @@ sys.dont_write_bytecode = True
 
 import os
 import sys
+import threading
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
@@ -101,8 +102,13 @@ class ImageToPDFApp(PDFToolBase):
         status_label = ttk.Label(action_frame, textvariable=self.status_var)
         status_label.pack(side=tk.LEFT, padx=5, pady=5)
         
-        # 转换按钮
-        ttk.Button(action_frame, text="开始转换", command=self._start_conversion).pack(side=tk.RIGHT, padx=5, pady=5)
+        # 进度条（转换时实时显示）
+        self.progress = ttk.Progressbar(action_frame, mode='determinate')
+        self.progress.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
+        
+        # 转换按钮（保存引用以便处理中禁用）
+        self.convert_btn = ttk.Button(action_frame, text="开始转换", command=self._start_conversion)
+        self.convert_btn.pack(side=tk.RIGHT, padx=5, pady=5)
     
     def _add_images(self):
         """添加图片到列表"""
@@ -172,46 +178,77 @@ class ImageToPDFApp(PDFToolBase):
             messagebox.showwarning("警告", "请选择输出PDF文件路径")
             return
         
+        # 后台线程执行转换，避免阻塞 UI
+        self.convert_btn.config(state=tk.DISABLED)
+        self.progress['value'] = 0
+        self.progress['maximum'] = len(self.image_paths)
+        # 快照当前参数，避免线程中读取 UI 变量
+        threading.Thread(
+            target=self._do_convert,
+            args=(list(self.image_paths), self.output_path.get()),
+            daemon=True
+        ).start()
+    
+    def _update_progress(self, done, total, text=None):
+        """在主线程更新进度条与状态"""
+        def _update():
+            self.progress.configure(value=done)
+            if text:
+                self.status_var.set(text)
+        self.root.after(0, _update)
+    
+    def _do_convert(self, image_paths, output_path):
+        """后台线程：按顺序将图片插入PDF（fitz C++ 操作释放 GIL）"""
+        failed = 0
         try:
-            # 创建PDF文档
+            # 创建PDF文档（懒删除：无页面时不落盘）
             pdf_document = fitz.open()
             
-            # 按顺序添加图片到PDF
-            for img_path in self.image_paths:
+            # 按顺序添加图片到PDF（PDF页面顺序必须串行插入）
+            for i, img_path in enumerate(image_paths):
                 try:
-                    # 使用Pillow打开图片
-                    img = Image.open(img_path)
+                    # 一次性读入内存，避免 PIL 和 fitz 重复打开文件（PIL 懒加载只读头部获取尺寸）
+                    with open(img_path, 'rb') as f:
+                        img_data = f.read()
+                    with Image.open(img_path) as img:
+                        width, height = img.size
                     
                     # 创建PDF页面
-                    pdf_page = pdf_document.new_page(
-                        width=img.width,
-                        height=img.height
-                    )
+                    pdf_page = pdf_document.new_page(width=width, height=height)
                     
-                    # 插入图片到PDF页面
+                    # 用字节流插入图片，跳过磁盘重复读取开销
                     pdf_page.insert_image(
-                        fitz.Rect(0, 0, img.width, img.height),
-                        filename=img_path
+                        fitz.Rect(0, 0, width, height),
+                        stream=img_data
                     )
-                    
                 except Exception as e:
-                    messagebox.showwarning("警告", f"无法处理图片 {os.path.basename(img_path)}: {str(e)}")
-                    continue
+                    failed += 1
+                    self.root.after(0, lambda p=os.path.basename(img_path), err=str(e):
+                        messagebox.showwarning("警告", f"无法处理图片 {p}: {err}"))
+                self._update_progress(i + 1, len(image_paths),
+                    f"正在处理 ({i + 1}/{len(image_paths)})")
             
             # 保存PDF
-            pdf_document.save(self.output_path.get())
+            if len(pdf_document) == 0:
+                self.root.after(0, lambda: messagebox.showerror("错误", "没有可转换的图片"))
+                return
+            pdf_document.save(output_path)
             pdf_document.close()
             
-            # 完成提示
-            messagebox.showinfo("完成", f"已成功将 {len(self.image_paths)} 张图片转换为PDF\n保存位置: {self.output_path.get()}")
-            self.status_var.set("转换完成")
+            # 完成提示（在主线程弹窗）
+            done_count = len(image_paths) - failed
+            self.root.after(0, lambda: messagebox.showinfo(
+                "完成", f"已成功将 {done_count} 张图片转换为PDF\n保存位置: {output_path}"))
+            self._update_progress(len(image_paths), len(image_paths), "转换完成")
             
             # 在文件资源管理器中打开输出目录
-            self._open_output_folder(os.path.dirname(self.output_path.get()))
+            self.root.after(0, lambda: self._open_output_folder(os.path.dirname(output_path)))
         
         except Exception as e:
-            messagebox.showerror("错误", f"转换过程中出错: {str(e)}")
-            self.status_var.set("转换失败")
+            self.root.after(0, lambda: messagebox.showerror("错误", f"转换过程中出错: {str(e)}"))
+            self.root.after(0, lambda: self.status_var.set("转换失败"))
+        finally:
+            self.root.after(0, lambda: self.convert_btn.config(state=tk.NORMAL))
     
     def _open_output_folder(self, folder_path):
         """在文件资源管理器中打开输出文件夹"""

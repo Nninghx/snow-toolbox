@@ -12,6 +12,7 @@ import fitz
 from PIL import Image, ImageTk
 import tempfile
 import shutil
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 导入公共基类
 import importlib.util
@@ -267,15 +268,15 @@ class PDFToImageApp(PDFToolBase):
             # 获取页面
             page = self.pdf_document[page_num]
             
-            # 渲染页面为图像
+            # 渲染页面为图像（低缩放率预览）
             pix = page.get_pixmap(matrix=fitz.Matrix(0.2, 0.2))
             
-            # 保存为临时图像
-            temp_img_path = os.path.join(self.temp_dir, f"preview_{page_num}.png")
-            pix.save(temp_img_path)
-            
-            # 使用PIL加载图像
-            img = Image.open(temp_img_path)
+            # 直接从 pixmap 内存构造图像，跳过临时文件落盘再读回的开销
+            img = Image.frombytes(
+                "RGB" if pix.n < 4 else "RGBA",
+                (pix.width, pix.height),
+                pix.samples
+            )
             img_tk = ImageTk.PhotoImage(img)
             
             # 保存引用以防止垃圾回收
@@ -385,36 +386,35 @@ class PDFToImageApp(PDFToolBase):
             self.progress["maximum"] = total_pages
             self.progress["value"] = 0
             
-            # 计算缩放因子
-            zoom = dpi / 72  # 默认PDF DPI是72
-            
-            # 转换选定的页面
-            for i, page_num in enumerate(sorted(self.selected_pages)):
-                # 更新状态
-                self.status_var.set(f"正在转换第 {page_num + 1} 页 ({i + 1}/{total_pages})")
-                self.root.update_idletasks()
-                
-                # 获取页面
-                page = self.pdf_document[page_num]
-                
-                # 渲染页面为图像
-                mat = fitz.Matrix(zoom, zoom)
-                pix = page.get_pixmap(matrix=mat)
-                
-                # 确定输出文件名
-                output_filename = f"{pdf_name}_page_{page_num + 1}.{img_format}"
-                output_path = os.path.join(output_subdir, output_filename)
-                
-                # 保存图像
-                if img_format.lower() == "jpg":
-                    # 对于JPEG，我们需要特殊处理以应用质量设置
-                    pix.save(output_path, output_format="jpeg", jpg_quality=quality)
-                else:
-                    pix.save(output_path)
-                
-                # 更新进度条
-                self.progress["value"] = i + 1
-                self.root.update_idletasks()
+            # 计算缩放因子（默认PDF DPI是72）与输出参数快照，避免线程中读取UI变量
+            zoom = dpi / 72
+            pages = sorted(self.selected_pages)
+            mat = fitz.Matrix(zoom, zoom)
+
+            def _render_page(page_num):
+                """独立打开文档渲染单页（fitz C++ 渲染会释放 GIL，可多线程并行）"""
+                doc = fitz.open(pdf_path)
+                try:
+                    pix = doc[page_num].get_pixmap(matrix=mat)
+                    output_filename = f"{pdf_name}_page_{page_num + 1}.{img_format}"
+                    output_path = os.path.join(output_subdir, output_filename)
+                    if img_format.lower() == "jpg":
+                        # 对于JPEG，需要特殊处理以应用质量设置
+                        pix.save(output_path, output_format="jpeg", jpg_quality=quality)
+                    else:
+                        pix.save(output_path)
+                finally:
+                    doc.close()
+                return page_num
+
+            # 多线程并行转换选定的页面
+            max_workers = min(4, max(1, total_pages))
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {executor.submit(_render_page, p): p for p in pages}
+                for i, future in enumerate(as_completed(futures)):
+                    page_num = future.result()  # 异常会在此处抛出并进入外层except
+                    self.status_var.set(f"已转换第 {page_num + 1} 页 ({i + 1}/{total_pages})")
+                    self.progress["value"] = i + 1
             
             # 完成
             self.status_var.set(f"转换完成! 已保存 {total_pages} 个图像到 {output_subdir}")
