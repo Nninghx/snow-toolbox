@@ -12,8 +12,6 @@ import traceback
 from pathlib import Path
 from typing import Callable, Optional
 
-# 降低 pdf2docx 日志级别：其默认输出大量逐页 INFO 日志，是官方已知的性能开销源之一，
-# 提升日志级别可显著加快大文件转换速度（pdf2docx 官方建议）
 try:
     from pdf2docx import settings as _pdf2docx_settings
     if hasattr(_pdf2docx_settings, 'logging_level'):

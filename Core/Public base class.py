@@ -15,7 +15,6 @@ from pathlib import Path
 
 
 class PDFToolBase:
-    """PDF工具基类，提供通用的初始化功能"""
 
     def __init__(self, root):
         """基础初始化：授权检查 -> 窗口图标 -> 字体加载"""
@@ -96,22 +95,35 @@ class PDFToolBase:
             return False
 
     def load_font(self):
-        """通过 FontManager 加载字体"""
+        """加载自定义字体并应用到根窗口；失败时直接抛错，不允许回退到 Arial"""
         project_root = self._get_project_root()
-        
-        # 确保项目根目录在 sys.path 中（支持独立运行）
-        root_str = str(project_root)
-        if root_str not in sys.path:
-            sys.path.insert(0, root_str)
-        
-        from Core.FontManager import FontManager
-
         font_path = project_root / "Image" / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
 
         if not font_path.exists():
-            print(f"警告: 找不到字体文件: {font_path}，使用系统默认字体")
+            raise FileNotFoundError(f"项目自带字体不存在：{font_path}")
 
-        self.current_font = FontManager.apply_to_root(self.root, 10)
+        try:
+            from fontTools.ttLib import TTFont
+
+            # 解析字体名称表获取字体族名称（优先取 Windows 平台记录）
+            tt = TTFont(str(font_path))
+            font_family = 'Arial'
+            for record in tt['name'].names:
+                if record.nameID == 1:  # Font Family
+                    font_family = record.toUnicode()
+                    break
+            tt.close()
+
+            # 使用 Windows API 注册字体
+            if os.name == 'nt':
+                import ctypes
+                font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+                ctypes.windll.gdi32.AddFontResourceW(font_path_str)
+        except Exception as e:
+            raise RuntimeError(f"无法加载项目自带字体：{font_path}，错误：{e}") from e
+
+        self.root.option_add("*Font", (font_family, 10))
+        self.current_font = (font_family, 10)
 
     def apply_font_to_widgets(self, widgets=None):
         """为指定控件列表应用字体"""

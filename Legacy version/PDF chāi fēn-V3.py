@@ -3,60 +3,41 @@ import sys
 sys.dont_write_bytecode = True
 
 import os
+import json
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
-try:
-    import pikepdf
-except ImportError:
-    import subprocess
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pikepdf'])
-    import pikepdf
+from tkinter import filedialog, messagebox, ttk, font
+from PyPDF2 import PdfReader, PdfWriter
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-# 导入公共基类
-import importlib.util
-_base_spec = importlib.util.spec_from_file_location(
-    "public_base_class",
-    Path(__file__).resolve().parent.parent / "Core" / "Public base class.py"
-)
-_base_module = importlib.util.module_from_spec(_base_spec)
-_base_spec.loader.exec_module(_base_module)
-PDFToolBase = _base_module.PDFToolBase
-del _base_spec, _base_module
+from fontTools.ttLib import TTFont
 
 
-def _write_chunk(args):
-    """模块级函数，用于在线程中写入单个PDF分块（pikepdf C++操作会释放GIL）"""
-    input_file, output_file, page_indices = args
-    with pikepdf.open(input_file) as src:
-        dst = pikepdf.new()
-        dst.pages.extend(src.pages[i] for i in page_indices)
-        dst.save(output_file)
-    return output_file
-
-
-class PDFSplitterApp(PDFToolBase):
+class PDFSplitterApp:
     def __init__(self, root):
-        super().__init__(root)
-        if not root.winfo_exists():
+        self.root = root
+        
+        # 首先检查授权
+        if not self.check_license():
+            messagebox.showerror(
+                "错误", 
+                "缺少授权！无法使用！请先获取授权！\n"
+            )
+            root.destroy()
             return
         
+        # 设置窗口图标
+        self.set_window_icon()
+        
+        # 加载字体
+        self.load_font()
+        
         self.root.title("PDF拆分")
-        self.root.geometry("400x350")
+        self.root.geometry("400x300")
         self.input_file = None
         self.output_dir = None
         
         # 主布局
         self.root.grid_rowconfigure(1, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
-        
-        self.build_ui()
-        self.apply_font_to_widgets(self._get_all_widgets())
-
-    def build_ui(self):
-        """构建用户界面"""
-        root = self.root
         
         # 文件选择区域
         self.file_frame = tk.LabelFrame(root, text="PDF文件")
@@ -109,44 +90,123 @@ class PDFSplitterApp(PDFToolBase):
         # 操作按钮区域
         self.action_frame = tk.Frame(root)
         self.action_frame.grid(row=3, column=0, sticky="ew", padx=10, pady=5)
-        self.split_button = tk.Button(self.action_frame, text="拆分PDF", command=self.split_pdf)
-        self.split_button.pack(side=tk.RIGHT, padx=5)
+        tk.Button(self.action_frame, text="拆分PDF", command=self.split_pdf).pack(side=tk.RIGHT, padx=5)
         
-        # 进度条
-        self.progress = ttk.Progressbar(root, mode='determinate')
-        self.progress.grid(row=4, column=0, sticky="ew", padx=10, pady=(0, 10))
+        # 应用字体到所有控件
+        self.apply_font()
 
-    def _get_all_widgets(self):
-        """获取所有需要设置字体的控件"""
-        return [
+    def set_window_icon(self):
+        """设置应用程序窗口图标"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        icon_ico_path = IMAGE_DIR / "icon.ico"
+        icon_png_path = IMAGE_DIR / "icon.png"
+
+        # Windows系统设置应用ID
+        if os.name == 'nt':
+            try:
+                import ctypes
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("snow_toolbox_master.PDFSplitter")
+            except Exception:
+                pass
+
+        # 尝试设置ICO图标
+        if icon_ico_path.exists():
+            try:
+                self.root.iconbitmap(default=str(icon_ico_path))
+            except Exception:
+                try:
+                    self.root.iconbitmap(str(icon_ico_path))
+                except Exception:
+                    pass
+
+        # 尝试设置PNG图标
+        if hasattr(self.root, "iconphoto") and icon_png_path.exists():
+            try:
+                self.icon_image = tk.PhotoImage(file=str(icon_png_path))
+                self.root.iconphoto(True, self.icon_image)
+            except Exception:
+                pass
+
+    def check_license(self):
+        """检查开源协议文档是否存在并验证完整性"""
+        # 如果通过主程序启动（环境变量已设置），则跳过授权验证
+        if os.environ.get('MAIN_APP_AUTHORIZED') == '1':
+            return True
+        
+        try:
+            import subprocess
+            PROJECT_ROOT = Path(__file__).resolve().parent.parent
+            CORE_DIR = PROJECT_ROOT / "Core"
+            license_exe_path = CORE_DIR / "LICENSE.exe"
+            if license_exe_path.exists():
+                result = subprocess.run(
+                    [str(license_exe_path), '--quiet'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                return result.returncode == 0
+        except Exception as e:
+            print(f"许可证验证异常: {e}")
+            return False
+
+    def load_font(self):
+        """从配置文件加载字体设置"""
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        IMAGE_DIR = PROJECT_ROOT / "Image"
+        
+        font_path = IMAGE_DIR / "AlibabaPuHuiTi-3-55-RegularL3.ttf"
+        
+        if not font_path.exists():
+            messagebox.showerror("错误", f"找不到字体文件：{font_path}")
+            self.root.destroy()
+            return
+        
+        # 使用 fonttools 获取字体名称
+        tt = TTFont(str(font_path))
+        font_name = None
+        for record in tt['name'].names:
+            if record.nameID == 1:  # Font Family
+                font_name = record.toUnicode()
+                break
+        if not font_name:
+            raise RuntimeError(f"无法从字体文件获取字体名称：{font_path}")
+        tt.close()
+        
+        # 使用 Windows API 注册字体
+        if os.name == 'nt':
+            import ctypes
+            GDI32 = ctypes.windll.gdi32
+            font_path_str = str(font_path).encode('utf-16-le') + b'\x00'
+            GDI32.AddFontResourceW(font_path_str)
+            print(f"成功加载自定义字体: {font_path}")
+        
+        from tkinter import font as tkfont
+        self.current_font = (font_name, 10)
+        self.root.option_add("*Font", self.current_font)
+
+    def apply_font(self):
+        """为已创建的控件应用字体"""
+        # 获取所有需要设置字体的控件
+        widgets = [
             self.file_label, self.output_label,
             *self.file_frame.winfo_children(),
             *self.output_frame.winfo_children(),
             *self.option_frame.winfo_children(),
             *self.action_frame.winfo_children()
         ]
-
-    def _update_progress(self, done, total):
-        """在主线程更新进度条"""
-        pct = int(done / total * 100)
-        self.root.after(0, lambda: self.progress.configure(value=pct))
-
-    def _process_chunks(self, chunks, total_chunks, base_name):
-        """并行处理PDF分块写入，利用pikepdf C++释放GIL实现多线程加速"""
-        file_count = 0
-        max_workers = min(4, total_chunks)
-        if max_workers > 1:
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures = {executor.submit(_write_chunk, chunk): chunk for chunk in chunks}
-                for future in as_completed(futures):
-                    future.result()
-                    file_count += 1
-                    self._update_progress(file_count, total_chunks)
-        else:
-            for chunk in chunks:
-                _write_chunk(chunk)
-                file_count += 1
-                self._update_progress(file_count, total_chunks)
+        
+        # 为每个控件设置字体
+        for widget in widgets:
+            try:
+                if isinstance(widget, (tk.Label, tk.Button, tk.Radiobutton, tk.Entry)):
+                    widget.config(font=(self.current_font[0], 10))
+                elif isinstance(widget, tk.LabelFrame):
+                    widget.config(font=(self.current_font[0], 10, "bold"))
+            except:
+                continue
 
     def select_file(self):
         file = filedialog.askopenfilename(
@@ -191,20 +251,17 @@ class PDFSplitterApp(PDFToolBase):
             # 验证PDF文件有效性
             if not os.path.exists(self.input_file):
                 messagebox.showerror("错误", "PDF文件不存在")
-                return
+                return   
             try:
-                with pikepdf.open(self.input_file) as pdf:
-                    total_pages = len(pdf.pages)
-                if total_pages == 0:
+                reader = PdfReader(self.input_file)
+                if len(reader.pages) == 0:
                     messagebox.showerror("错误", "PDF文件没有有效页面")
                     return
+                total_pages = len(reader.pages)
             except Exception as e:
                 messagebox.showerror("错误", f"无效的PDF文件: {str(e)}")
-                return
-
+                return        
             base_name = os.path.splitext(os.path.basename(self.input_file))[0]
-            chunks = []  # (input_file, output_file, page_indices) 列表
-
             if self.mode_var.get() == "page_count":
                 # 按页数拆分模式
                 try:
@@ -214,14 +271,20 @@ class PDFSplitterApp(PDFToolBase):
                 except ValueError:
                     messagebox.showerror("错误", "请输入有效的页数")
                     return
+                file_count = 0
                 for i in range(0, total_pages, pages_per_file):
+                    writer = PdfWriter()
                     end = min(i + pages_per_file, total_pages)
+                    for j in range(i, end):
+                        writer.add_page(reader.pages[j])
                     output_file = os.path.join(
                         self.output_dir,
                         f"{base_name}_p{i+1}-{end}.pdf"
                     )
-                    chunks.append((self.input_file, output_file, list(range(i, end))))
-                file_desc = f"共拆分 {total_pages} 页为 {len(chunks)} 个文件"
+                    with open(output_file, 'wb') as f:
+                        writer.write(f)
+                    file_count += 1
+                message = f"PDF拆分完成!\n共拆分 {total_pages} 页为 {file_count} 个文件"
             else:
                 # 按范围拆分模式
                 range_str = self.range_entry.get().strip()
@@ -245,31 +308,23 @@ class PDFSplitterApp(PDFToolBase):
                         groups.append(current_group)
                         current_group = [page_indices[i]]
                 groups.append(current_group)
-                for group in groups:
+                # 为每个分组创建PDF文件
+                for i, group in enumerate(groups):
+                    writer = PdfWriter()
+                    for page_idx in group:
+                        writer.add_page(reader.pages[page_idx])
                     start_page = group[0] + 1
                     end_page = group[-1] + 1
                     output_file = os.path.join(
                         self.output_dir,
                         f"{base_name}_range_{start_page}-{end_page}.pdf"
                     )
-                    chunks.append((self.input_file, output_file, group))
-                file_desc = f"共提取 {len(page_indices)} 页为 {len(groups)} 个文件"
-
-            # 重置进度条并处理分块
-            total_chunks = len(chunks)
-            self.progress['value'] = 0
-            self.progress['maximum'] = 100
-            self.split_button.config(state='disabled')
-
-            self._process_chunks(chunks, total_chunks, base_name)
-
-            self.progress['value'] = 100
-            self.split_button.config(state='normal')
-            messagebox.showinfo("成功", f"PDF拆分完成!\n{file_desc}")
+                    with open(output_file, 'wb') as f:
+                        writer.write(f)
+                message = f"PDF拆分完成!\n共提取 {len(page_indices)} 页为 {len(groups)} 个文件"
+            messagebox.showinfo("成功", message)
         except Exception as e:
             messagebox.showerror("错误", f"拆分失败: {str(e)}")
-        finally:
-            self.split_button.config(state='normal')
 if __name__ == '__main__':
     root = tk.Tk()
     app = PDFSplitterApp(root)

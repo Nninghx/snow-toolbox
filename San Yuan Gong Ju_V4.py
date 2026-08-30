@@ -1,20 +1,12 @@
+from __future__ import annotations
+
 # 禁止生成 .pyc 文件
 import sys
 sys.dont_write_bytecode = True
 
 import os
 import subprocess
-import flet as ft
 from pathlib import Path
-
-def get_font_name():
-    """通过 FontManager 获取自定义字体名称"""
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from Core.FontManager import FontManager
-    return FontManager.get_font_family()
-
-
-CUSTOM_FONT_NAME = get_font_name()
 
 class PathUtils:
     """统一路径处理工具类"""
@@ -41,49 +33,69 @@ class PathUtils:
             '下载工具': 'Download tool-V3',
             '小游戏': 'Mini-games-V3',
             '报废淘汰': 'scrap-V0',
+            '遗留版本': 'Legacy version',
         }
         sub_dir = category_map.get(category)
         return os.path.join(base_dir, sub_dir, file_name) if sub_dir else os.path.join(base_dir, file_name)
 
-class LicenseValidator:
-    """授权验证类"""
+def run_startup_flow():
+    """复用 Core 公共基类 Public base class执行启动前置流程：授权检查 -> 窗口图标 -> 字体加载"""
+    import importlib.util
+    import subprocess
+    import tkinter as tk
 
-    @staticmethod
-    def validate_license():
-        """
-        验证授权文件
-        返回: (bool, str) - (是否通过, 消息)
-        """
+    base_dir = PathUtils.get_base_dir()
+    license_exe = os.path.join(base_dir, 'Core', 'LICENSE.exe')
+    prewarm = None
+    if os.environ.get('MAIN_APP_AUTHORIZED') != '1' and os.path.exists(license_exe):
         try:
-            base_dir = PathUtils.get_base_dir()
-            license_exe_path = os.path.join(base_dir, 'Core', 'LICENSE.exe')
-
-            if not os.path.exists(license_exe_path):
-                return False, "未找到授权验证程序：Core/LICENSE.exe"
-
-            result = subprocess.run(
-                [license_exe_path, '--quiet'],
-                capture_output=True,
-                text=True,
-                timeout=10
+            prewarm = subprocess.Popen(
+                [license_exe, '--quiet'],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
+        except Exception:
+            prewarm = None
 
-            if result.returncode == 0:
-                return True, "授权验证通过"
-            else:
-                error_msg = result.stderr.strip() if result.stderr else "授权验证失败"
-                return False, error_msg
+    import flet as ft 
+    if prewarm is not None:
+        try:
+            if prewarm.wait(timeout=6) == 0:
+                # 授权通过：告知基类跳过重复验证（仅限本进程，不写入子工具环境）
+                os.environ['MAIN_APP_AUTHORIZED'] = '1'
+        except Exception:
+            pass
 
-        except subprocess.TimeoutExpired:
-            return False, "授权验证超时"
-        except Exception as e:
-            return False, f"授权验证出错：{str(e)}"
+    # 基类文件名含空格，必须使用 importlib 动态加载
+    base_file = Path(__file__).resolve().parent / 'Core' / 'Public base class.py'
+    spec = importlib.util.spec_from_file_location('public_base_class', str(base_file))
+    base_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(base_module)
+
+    root = tk.Tk()
+    root.withdraw()
+    base = base_module.PDFToolBase(root)
+
+    # 授权检查失败：基类已弹出错误提示并销毁窗口，直接终止启动
+    if not root.winfo_exists():
+        raise RuntimeError("启动前置检查失败：授权或窗口初始化失败")
+
+    current_font = getattr(base, 'current_font', None)
+    if not current_font:
+        raise RuntimeError("启动前置检查失败：项目自带字体不可用")
+
+    font_family = current_font[0]
+    root.destroy()
+    return True, font_family
 
 class ToolLauncher:
-    def __init__(self):
+    def __init__(self, font_family):
+        if not font_family:
+            raise RuntimeError("启动器初始化失败：项目自带字体不可用")
         self.tools = {
             'PDF工具': {
-                'PDF拆分': 'PDF chāi fēn-V3.py',
+                'PDF拆分': 'PDF chāi fēn-V4.py',
                 'PDF合并': 'PDF hé bìng-V3.py',
                 'PDF压缩': 'PDF yā suō-V3.py',
                 'PDF转Word': 'PDF zhuǎn Word-V3.py',
@@ -146,6 +158,10 @@ class ToolLauncher:
                 '报废-面积计算器': 'miàn jī jì suàn qì-V3.py',
                 '报废-周长计算器': 'zhōu cháng jì suàn qì-V3.py',
             },
+            '遗留版本': {
+                'PDF拆分': 'PDF chāi fēn-V3.py',
+
+            }
         }
 
         # 分类图标映射
@@ -169,17 +185,16 @@ class ToolLauncher:
         self.search_field = None
         self.status_text = None
         self.stats_text = None
-        self.font_family = CUSTOM_FONT_NAME
+        self.font_family = font_family
 
     def build(self, page: ft.Page):
         self.page = page
         page.title = "宁宝工具启动器V4"
-        page.window.width = 900
-        page.window.height = 600
+        page.window.width = 1080
+        page.window.height = 720
         page.window.center()
         page.padding = 16
         page.theme_mode = ft.ThemeMode.LIGHT
-        page.scroll = "adaptive"
 
         # 设置窗口图标
         icon_path = os.path.join(PathUtils.get_base_dir(), 'Image', 'icon.ico')
@@ -213,57 +228,62 @@ class ToolLauncher:
         self.stats_text = ft.Text(size=13, color=ft.Colors.BLUE_GREY_700, font_family=self.font_family)
 
         page.add(
-            # 顶部标题栏
-            ft.Row(
+            ft.Column(
                 [
+                    # 顶部标题栏（固定）
                     ft.Row(
                         [
-                            ft.Icon(ft.Icons.APPS, size=32, color=ft.Colors.BLUE),
-                            ft.Text("宁宝工具启动器", size=28, weight=ft.FontWeight.BOLD, font_family=self.font_family),
+                            ft.Row(
+                                [
+                                    ft.Icon(ft.Icons.APPS, size=32, color=ft.Colors.BLUE),
+                                    ft.Text("宁宝工具启动器V4.2.6+tools42", size=28, weight=ft.FontWeight.BOLD, font_family=self.font_family),
+                                ],
+                                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                                spacing=10,
+                            ),
+                            ft.Row(
+                                [
+                                    ft.ElevatedButton("刷新", on_click=self.on_refresh_click, icon=ft.Icons.REFRESH),
+                                    ft.ElevatedButton("开源协议", on_click=self.on_license_click, icon=ft.Icons.DESCRIPTION),
+                                ],
+                                spacing=8,
+                            ),
                         ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                        spacing=10,
                     ),
-                    ft.Row(
-                        [
-                            ft.ElevatedButton("刷新", on_click=self.on_refresh_click, icon=ft.Icons.REFRESH),
-                            ft.ElevatedButton("开源协议", on_click=self.on_license_click, icon=ft.Icons.DESCRIPTION),
-                        ],
-                        spacing=8,
+                    ft.Divider(thickness=1, opacity=0.3),
+                    # 搜索栏（固定）
+                    ft.Container(
+                        content=self.search_field,
+                        padding=ft.padding.only(bottom=8),
+                    ),
+                    # 工具标签页（分类菜单固定，仅工具卡片区域滚动）
+                    self.tools_tabs,
+                    # 搜索结果列（固定位置，仅列表内容滚动）
+                    self.tools_column,
+                    # 底部状态栏（固定）
+                    ft.Container(
+                        content=ft.Row(
+                            [self.status_text, self.stats_text],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        ),
+                        padding=ft.padding.symmetric(vertical=8, horizontal=12),
+                        bgcolor=ft.Colors.BLUE_GREY_50,
+                        border_radius=8,
+                        border=ft.border.all(1, ft.Colors.GREY_300),
                     ),
                 ],
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
-            ft.Divider(thickness=1, opacity=0.3),
-            # 搜索栏
-            ft.Container(
-                content=self.search_field,
-                padding=ft.padding.only(bottom=8),
-            ),
-            # 工具标签页（分类视图）
-            self.tools_tabs,
-            # 搜索结果列
-            self.tools_column,
-            # 底部状态栏
-            ft.Container(
-                content=ft.Row(
-                    [self.status_text, self.stats_text],
-                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                ),
-                padding=ft.padding.symmetric(vertical=8, horizontal=12),
-                bgcolor=ft.Colors.BLUE_GREY_50,
-                border_radius=8,
-                border=ft.border.all(1, ft.Colors.GREY_300),
-            ),
+                expand=True,
+                spacing=10,
+            )
         )
 
         self.refresh_tools()
         missing_tools = self.check_tools()
         if missing_tools:
             self.show_warning("以下工具未找到：\n\n" + "\n".join(missing_tools))
-        return page
 
     def build_tool_tabs(self):
         """构建工具标签页"""
@@ -358,8 +378,7 @@ class ToolLauncher:
         """刷新工具列表"""
         self.build_tool_tabs()
         self.update_stats()
-        if self.page:
-            self.page.update()
+        self.page.update()
 
     def update_stats(self):
         """更新统计信息"""
@@ -390,8 +409,6 @@ class ToolLauncher:
         """清除搜索"""
         self.search_field.value = ""
         self.filter_tools("")
-        if self.page:
-            self.page.update()
 
     def on_tab_change(self, e):
         """标签页切换事件"""
@@ -406,14 +423,7 @@ class ToolLauncher:
         if self.search_field.value:
             self.filter_tools(self.search_field.value)
         self.update_stats()
-        total_tools = sum(len(tools) for tools in self.tools.values())
-        available_tools = sum(
-            1
-            for category, tools in self.tools.items()
-            for file_name in tools.values()
-            if self.check_tool_exists(category, file_name)
-        )
-        self.show_status(f"刷新完成 - 可用工具: {available_tools}/{total_tools}")
+        self.show_status(f"刷新完成 - {self.stats_text.value}")
 
     def on_license_click(self, event=None):
         """打开软件开源协议文件"""
@@ -460,8 +470,8 @@ class ToolLauncher:
         if cache_key in self.tool_cache:
             return self.tool_cache[cache_key]
 
-        tool_base_name = os.path.splitext(file_name)[0]
         if getattr(sys, 'frozen', False):
+            tool_base_name = os.path.splitext(file_name)[0]
             exe_dir = os.path.dirname(sys.executable)
             exe_name = tool_base_name.replace(' ', '') + '.exe'
             exe_path = os.path.join(exe_dir, exe_name)
@@ -526,33 +536,10 @@ if __name__ == "__main__":
             print(f"找不到工具文件：{tool_path}")
         sys.exit(0)
 
-    # 在启动前进行授权验证
-    is_valid, message = LicenseValidator.validate_license()
-
-    if not is_valid:
-        print(f"\n{'='*60}")
-        print(f"授权验证失败")
-        print(f"{'='*60}")
-        print(f"{message}")
-        print(f"\n请先获得有效授权")
-        print(f"{'='*60}\n")
-
-        try:
-            import tkinter as tk
-            from tkinter import messagebox
-
-            root = tk.Tk()
-            root.withdraw()
-            messagebox.showerror(
-                "授权验证失败",
-                f"{message}\n\n请先获得有效授权"
-            )
-            root.destroy()
-        except Exception as tk_err:
-            print(f"显示错误对话框失败：{tk_err}")
-
+    is_authorized, font_family = run_startup_flow()
+    if not is_authorized:
         sys.exit(1)
 
-    # 授权通过，正常启动软件
-    launcher = ToolLauncher()
+    import flet as ft
+    launcher = ToolLauncher(font_family)
     ft.app(target=launcher.build)
