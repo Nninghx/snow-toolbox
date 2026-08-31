@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# 禁止生成 .pyc 文件
+# 禁止生成 Python 字节码缓存文件 (.pyc)，避免运行时在目录中生成额外编译产物
 import sys
 sys.dont_write_bytecode = True
 
@@ -9,18 +9,16 @@ import subprocess
 from pathlib import Path
 
 class PathUtils:
-    """统一路径处理工具类"""
-
+    """统一管理项目根目录和各工具文件路径。"""
     @staticmethod
     def get_base_dir():
-        """获取基础目录"""
+        """返回当前运行环境对应的基础目录。"""
         if getattr(sys, 'frozen', False):
             return os.path.join(os.path.dirname(sys.executable), '_internal')
         return os.path.dirname(__file__)
-
     @staticmethod
     def get_tool_path(category, file_name):
-        """根据分类获取工具路径"""
+        """根据工具分类返回对应的文件路径。"""
         base_dir = PathUtils.get_base_dir()
         category_map = {
             'PDF工具': 'PDF tool-V3',
@@ -28,20 +26,20 @@ class PathUtils:
             '音频工具': 'Audio tool-V3',
             '文件工具': 'File tool-V3',
             '其他工具': 'Other tool-V3',
-            'B站专用工具': 'Station B tool-V3',
+            'B站辅助工具': 'Station B tool-V3',
             '计算器工具': 'Calculator tool-V3',
             '下载工具': 'Download tool-V3',
             '小游戏': 'Mini-games-V3',
+            '生活辅助工具': 'Life Assistance-V3',
             '报废淘汰': 'scrap-V0',
-            '遗留版本': 'Legacy version',
+            '遗留版本': 'Legacy version-V0',
         }
         sub_dir = category_map.get(category)
         return os.path.join(base_dir, sub_dir, file_name) if sub_dir else os.path.join(base_dir, file_name)
 
 def run_startup_flow():
-    """复用 Core 公共基类 Public base class执行启动前置流程：授权检查 -> 窗口图标 -> 字体加载"""
+    """复用 Core 公共基类执行启动前置检查：授权验证、窗口初始化和字体加载。"""
     import importlib.util
-    import subprocess
     import tkinter as tk
 
     base_dir = PathUtils.get_base_dir()
@@ -58,16 +56,16 @@ def run_startup_flow():
         except Exception:
             prewarm = None
 
-    import flet as ft 
+    import flet as ft
     if prewarm is not None:
         try:
             if prewarm.wait(timeout=6) == 0:
-                # 授权通过：告知基类跳过重复验证（仅限本进程，不写入子工具环境）
+                # 授权验证通过后，通知当前进程跳过重复检查；不会写入子工具环境变量
                 os.environ['MAIN_APP_AUTHORIZED'] = '1'
         except Exception:
             pass
 
-    # 基类文件名含空格，必须使用 importlib 动态加载
+    # 基类文件名中包含空格，因此必须使用 importlib 方式动态加载
     base_file = Path(__file__).resolve().parent / 'Core' / 'Public base class.py'
     spec = importlib.util.spec_from_file_location('public_base_class', str(base_file))
     base_module = importlib.util.module_from_spec(spec)
@@ -77,7 +75,7 @@ def run_startup_flow():
     root.withdraw()
     base = base_module.PDFToolBase(root)
 
-    # 授权检查失败：基类已弹出错误提示并销毁窗口，直接终止启动
+    # 若授权失败或窗口初始化失败，基类会弹出提示并销毁窗口，此处直接中止启动
     if not root.winfo_exists():
         raise RuntimeError("启动前置检查失败：授权或窗口初始化失败")
 
@@ -101,7 +99,7 @@ class ToolLauncher:
                 'PDF转Word': 'PDF zhuǎn Word-V3.py',
                 'PDF加水印': 'PDF jiā shuǐ yìn-V3.py',
                 'PDF转图片': 'PDF zhuǎn tú piàn-V3.py',
-                '图片转PDF': 'tú piàn zhuǎn PDF-V3.py'
+                '图片转PDF': 'tú piàn zhuǎn PDF-V3.py',
             },
             '图片工具': {
                 '九宫格分割': 'tú piàn jiǔ gōng gé fēn gē-V3.py',
@@ -110,7 +108,7 @@ class ToolLauncher:
                 '图片合成': 'tú piàn hé chéng-V3.py',
             },
             '音频工具': {
-                '音频提取': 'shì pín yīn pín tí qǔ-V3.py'
+                '音频提取': 'shì pín yīn pín tí qǔ-V3.py',
             },
             '文件工具': {
                 '目录树生成器': 'wén jiàn mù lù shù shēng chéng qì-V3.py',
@@ -125,7 +123,7 @@ class ToolLauncher:
                 '内存压缩管理工具': 'nèi cún yā suō guǎn lǐ-V3.py',
                 'VX群聊消息发送': 'VX qúnliáo xiāoxi fāsòng.py',
             },
-            'B站专用工具': {
+            'B站辅助工具': {
                 '封面与表情包图片批量压缩': 'fēng miàn yǔ biǎo qíng bāo tú piàn yā suō-V3.py',
                 '带货链接分批处理工具': 'dài huò liàn jiē fēn pī chù lǐ-V3.py',
                 '商品链接ID提取': 'shāngpǐn liànjiē ID tíqǔ-V3.py',
@@ -154,26 +152,29 @@ class ToolLauncher:
                 'ModelScope 模型下载器': 'ModelScope mó xíng xià zǎi qì-V3.py',
                 '图片下载': 'tú piàn xià zǎi-V3.py',
             },
+            '生活辅助工具': {
+                '路线换乘工具': 'lù xiàn huàn chéng-V3.py',
+            },
             '报废淘汰': {
                 '报废-面积计算器': 'miàn jī jì suàn qì-V3.py',
                 '报废-周长计算器': 'zhōu cháng jì suàn qì-V3.py',
             },
             '遗留版本': {
                 'PDF拆分': 'PDF chāi fēn-V3.py',
-
             }
         }
 
-        # 分类图标映射
+        # 分类图标映射，用于页面顶部的标签页和工具卡片展示
         self.category_icons = {
             'PDF工具': ft.Icons.PICTURE_AS_PDF,
             '图片工具': ft.Icons.IMAGE,
             '音频工具': ft.Icons.AUDIO_FILE,
             '文件工具': ft.Icons.FOLDER,
             '其他工具': ft.Icons.BUILD,
-            'B站专用工具': ft.Icons.VIDEO_LIBRARY,
+            'B站辅助工具': ft.Icons.VIDEO_LIBRARY,
             '计算器工具': ft.Icons.CALCULATE,
             '小游戏': ft.Icons.SPORTS_ESPORTS,
+            '生活辅助工具': ft.Icons.HEALTH_AND_SAFETY,
             '下载工具': ft.Icons.DOWNLOAD,
             '报废淘汰': ft.Icons.DELETE_OUTLINE,
         }
@@ -196,12 +197,12 @@ class ToolLauncher:
         page.padding = 16
         page.theme_mode = ft.ThemeMode.LIGHT
 
-        # 设置窗口图标
+        # 设置主窗口图标，提升程序识别度和专业性
         icon_path = os.path.join(PathUtils.get_base_dir(), 'Image', 'icon.ico')
         if os.path.exists(icon_path):
             page.window.icon = icon_path
 
-        # 搜索框
+        # 搜索输入框，用于按工具名或分类名快速筛选
         self.search_field = ft.TextField(
             hint_text="搜索工具...",
             prefix_icon=ft.Icons.SEARCH,
@@ -217,52 +218,38 @@ class ToolLauncher:
             text_size=14,
         )
 
-        # 标签页
+        # 工具分类标签页，按类别分组显示各类工具
         self.tools_tabs = ft.Tabs(expand=True, on_change=self.on_tab_change)
 
-        # 搜索结果列
+        # 搜索结果列表，仅在搜索状态下可见，用于展示筛选后的工具卡片
         self.tools_column = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True, visible=False)
 
-        # 状态栏
+        # 状态栏：用于展示当前提示和工具可用状态统计
         self.status_text = ft.Text("就绪", size=13, color=ft.Colors.BLUE_GREY_700, font_family=self.font_family)
         self.stats_text = ft.Text(size=13, color=ft.Colors.BLUE_GREY_700, font_family=self.font_family)
 
         page.add(
             ft.Column(
                 [
-                    # 顶部标题栏（固定）
+                    # 顶部搜索区与操作按钮，保持在页面顶部并保持固定布局
                     ft.Row(
                         [
-                            ft.Row(
-                                [
-                                    ft.Icon(ft.Icons.APPS, size=32, color=ft.Colors.BLUE),
-                                    ft.Text("宁宝工具启动器V4.2.6+tools42", size=28, weight=ft.FontWeight.BOLD, font_family=self.font_family),
-                                ],
-                                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                                spacing=10,
+                            ft.Container(
+                                content=self.search_field,
+                                expand=True,
                             ),
-                            ft.Row(
-                                [
-                                    ft.ElevatedButton("刷新", on_click=self.on_refresh_click, icon=ft.Icons.REFRESH),
-                                    ft.ElevatedButton("开源协议", on_click=self.on_license_click, icon=ft.Icons.DESCRIPTION),
-                                ],
-                                spacing=8,
-                            ),
+                            ft.ElevatedButton("刷新", on_click=self.on_refresh_click, icon=ft.Icons.REFRESH),
+                            ft.ElevatedButton("开源协议", on_click=self.on_license_click, icon=ft.Icons.DESCRIPTION),
                         ],
-                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        spacing=8,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
                     ft.Divider(thickness=1, opacity=0.3),
-                    # 搜索栏（固定）
-                    ft.Container(
-                        content=self.search_field,
-                        padding=ft.padding.only(bottom=8),
-                    ),
-                    # 工具标签页（分类菜单固定，仅工具卡片区域滚动）
+                    # 工具标签页：分类菜单固定，卡片区独立滚动
                     self.tools_tabs,
-                    # 搜索结果列（固定位置，仅列表内容滚动）
+                    # 搜索结果列：固定在页面中部，内容滚动展示匹配结果
                     self.tools_column,
-                    # 底部状态栏（固定）
+                    # 底部状态栏：显示提示信息和工具统计
                     ft.Container(
                         content=ft.Row(
                             [self.status_text, self.stats_text],
@@ -465,7 +452,7 @@ class ToolLauncher:
             self.page.update()
 
     def check_tool_exists(self, category, file_name):
-        """检查工具是否存在"""
+        """检查某个工具文件是否可用。"""
         cache_key = (category, file_name)
         if cache_key in self.tool_cache:
             return self.tool_cache[cache_key]
@@ -485,7 +472,7 @@ class ToolLauncher:
         return exists
 
     def run_tool(self, category, file_name):
-        """运行工具"""
+        """启动指定工具，并在当前进程中标记已授权状态。"""
         try:
             tool_base_name = os.path.splitext(file_name)[0]
             tool_path = PathUtils.get_tool_path(category, file_name)
@@ -512,7 +499,7 @@ class ToolLauncher:
 
 
 if __name__ == "__main__":
-    # 处理 --run-tool 参数：由主程序自身新实例运行子工具
+    # 处理 --run-tool 参数：由主程序在新实例中启动子工具，避免重复初始化启动器界面
     if len(sys.argv) >= 4 and sys.argv[1] == '--run-tool':
         category = sys.argv[2]
         file_name = sys.argv[3]

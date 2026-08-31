@@ -20,6 +20,8 @@ Learn
 Station B tool-V3/chromedriver.exe
 architecture.html/
 PDF tool-V3/split_benchmark.py
+Core/Route.txt
+
 # Python
 __pycache__/
 *.py[cod]

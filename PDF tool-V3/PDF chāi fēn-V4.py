@@ -1,4 +1,4 @@
-# 禁止生成 .pyc 文件
+# 禁止生成 .pyc 文件，避免输出目录被污染
 import sys
 sys.dont_write_bytecode = True
 
@@ -18,14 +18,13 @@ except ImportError:
 
 
 def get_project_root():
-    """获取项目根目录"""
+    """返回项目根目录。"""
     if getattr(sys, 'frozen', False):
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parent.parent
 
-
 def run_startup_preflight():
-    """复用 Core 公共基类执行启动前置流程：授权检查 -> 窗口图标 -> 字体加载；失败时直接报错"""
+    """执行启动前置检查：加载公共基类并验证字体可用性。"""
     base_file = get_project_root() / 'Core' / 'Public base class.py'
     if not base_file.exists():
         raise FileNotFoundError(f"缺少公共基类：{base_file}")
@@ -49,8 +48,7 @@ def run_startup_preflight():
         if not current_font:
             raise RuntimeError("公共基类未成功加载字体")
 
-        font_family = current_font[0]
-        return True, font_family
+        return current_font[0]
     except Exception as exc:
         if root.winfo_exists():
             root.destroy()
@@ -60,9 +58,7 @@ def run_startup_preflight():
             root.destroy()
 
 
-STARTUP_OK, APP_FONT_FAMILY = run_startup_preflight()
-if not STARTUP_OK:
-    raise RuntimeError("启动前置检查失败：项目自带字体无法使用")
+APP_FONT_FAMILY = run_startup_preflight()
 
 
 class PDFSplitterApp:
@@ -82,17 +78,17 @@ class PDFSplitterApp:
         page.padding = 16
         page.theme_mode = ft.ThemeMode.LIGHT
 
-        # 设置窗口图标
+        # 设置窗口图标，优先使用项目内图标
         icon_path = get_project_root() / 'Image' / 'icon.ico'
         if icon_path.exists():
             page.window.icon = str(icon_path)
 
-        # 文件/目录选择器
+        # 文件与目录选择器
         self.file_picker = ft.FilePicker(on_result=self.on_file_picked)
         self.dir_picker = ft.FilePicker(on_result=self.on_dir_picked)
         page.overlay.extend([self.file_picker, self.dir_picker])
 
-        # 文件选择卡片
+        # PDF 文件信息
         self.file_text = ft.Text(
             "未选择文件",
             size=13,
@@ -115,7 +111,7 @@ class PDFSplitterApp:
             ),
         )
 
-        # 输出目录卡片
+        # 输出目录信息
         self.output_text = ft.Text(
             "未选择目录",
             size=13,
@@ -138,7 +134,7 @@ class PDFSplitterApp:
             ),
         )
 
-        # 拆分选项卡片
+        # 拆分模式配置
         self.mode_group = ft.RadioGroup(
             value="page_count",
             on_change=self.on_mode_change,
@@ -193,7 +189,7 @@ class PDFSplitterApp:
             ft.Column([self.mode_group, self.page_count_row, self.range_row], spacing=10),
         )
 
-        # 操作按钮与进度条
+        # 操作按钮和进度显示
         self.split_button = ft.ElevatedButton(
             "拆分PDF",
             icon=ft.Icons.CALL_SPLIT,
@@ -210,12 +206,12 @@ class PDFSplitterApp:
         )
         self.progress_text = ft.Text("", size=12, color=ft.Colors.BLUE_GREY_700, font_family=self.font_family)
 
-        # 底部状态栏
+        # 状态栏与统计信息
         self.status_text = ft.Text("就绪", size=13, color=ft.Colors.BLUE_GREY_700, font_family=self.font_family)
         self.stats_text = ft.Text(size=13, color=ft.Colors.BLUE_GREY_700, font_family=self.font_family)
 
         page.add(
-            # 顶部标题栏
+            # 页面标题栏
             ft.Row(
                 [
                     ft.Icon(ft.Icons.CALL_SPLIT, size=32, color=ft.Colors.BLUE),
@@ -234,7 +230,7 @@ class PDFSplitterApp:
                 spacing=10,
             ),
             ft.Row([self.split_button], alignment=ft.MainAxisAlignment.END),
-            # 底部状态栏
+            # 底部状态区
             ft.Container(
                 content=ft.Row(
                     [self.status_text, self.stats_text],
@@ -250,7 +246,7 @@ class PDFSplitterApp:
         return page
 
     def _make_card(self, title, content):
-        """创建白色圆角卡片（与主程序工具卡片风格一致）"""
+        """创建统一的白色卡片容器。"""
         return ft.Container(
             content=ft.Column(
                 [
@@ -295,11 +291,16 @@ class PDFSplitterApp:
         self._refresh_page_info()
         self.page.update()
 
+    def _get_pdf_total_pages(self, pdf_path=None):
+        """返回指定 PDF 的总页数，供校验与展示复用。"""
+        target = pdf_path or self.input_file
+        with pikepdf.open(target) as pdf:
+            return len(pdf.pages)
+
     def _refresh_page_info(self):
-        """读取并展示PDF总页数"""
+        """读取并更新当前 PDF 的页数统计信息。"""
         try:
-            with pikepdf.open(self.input_file) as pdf:
-                self.total_pages = len(pdf.pages)
+            self.total_pages = self._get_pdf_total_pages()
             self.stats_text.value = f"共 {self.total_pages} 页"
         except Exception:
             self.total_pages = 0
@@ -324,18 +325,19 @@ class PDFSplitterApp:
         self.page.update()
 
     def parse_page_ranges(self, range_str, total_pages):
-        """解析页码范围字符串，返回页面索引列表"""
+        """解析页码范围字符串，返回 0 基索引列表。"""
         ranges = []
-        parts = range_str.split(',')
-        for part in parts:
+        for part in range_str.split(','):
+            if not part.strip():
+                continue
             if '-' in part:
-                start, end = map(int, part.split('-'))
-                ranges.extend(range(start - 1, min(end, total_pages)))
+                start, end = map(int, part.split('-', 1))
+                ranges.extend(range(max(start - 1, 0), min(end, total_pages)))
             else:
                 page = int(part)
-                if page <= total_pages:
+                if 1 <= page <= total_pages:
                     ranges.append(page - 1)
-        return sorted(list(set(ranges)))  # 去重并排序
+        return sorted(set(ranges))
 
     def split_pdf(self, e):
         if not self.input_file:
@@ -344,94 +346,89 @@ class PDFSplitterApp:
         if not self.output_dir:
             self.show_status("请先选择输出目录", success=False)
             return
+
         try:
-            # 验证PDF文件有效性
             if not os.path.exists(self.input_file):
                 self.show_status("PDF文件不存在", success=False)
                 return
+
+            total_pages = self._get_pdf_total_pages()
+            if total_pages == 0:
+                self.show_status("PDF文件没有有效页面", success=False)
+                return
+        except Exception as err:
+            self.show_status(f"无效的PDF文件: {err}", success=False)
+            return
+
+        base_name = os.path.splitext(os.path.basename(self.input_file))[0]
+        chunks = []
+
+        if self.mode_group.value == "page_count":
             try:
-                with pikepdf.open(self.input_file) as pdf:
-                    total_pages = len(pdf.pages)
-                if total_pages == 0:
-                    self.show_status("PDF文件没有有效页面", success=False)
-                    return
-            except Exception as err:
-                self.show_status(f"无效的PDF文件: {err}", success=False)
+                pages_per_file = int(self.page_count_field.value or "0")
+                if pages_per_file <= 0:
+                    raise ValueError("页数必须大于0")
+            except ValueError:
+                self.show_status("请输入有效的页数", success=False)
                 return
 
-            base_name = os.path.splitext(os.path.basename(self.input_file))[0]
-            chunks = []  # (output_file, start_index, end_index) 采用连续页区间，减少 Python 级循环与 page 对象创建开销
+            for start_index in range(0, total_pages, pages_per_file):
+                end_index = min(start_index + pages_per_file, total_pages)
+                output_file = os.path.join(
+                    self.output_dir,
+                    f"{base_name}_p{start_index + 1}-{end_index}.pdf",
+                )
+                chunks.append((output_file, start_index, end_index))
+            file_desc = f"共拆分 {total_pages} 页为 {len(chunks)} 个文件"
+        else:
+            range_str = (self.range_field.value or "").strip()
+            if not range_str:
+                self.show_status("请输入有效的页码范围", success=False)
+                return
 
-            if self.mode_group.value == "page_count":
-                # 按页数拆分模式
-                try:
-                    pages_per_file = int(self.page_count_field.value or "0")
-                    if pages_per_file <= 0:
-                        raise ValueError("页数必须大于0")
-                except ValueError:
-                    self.show_status("请输入有效的页数", success=False)
-                    return
-                for i in range(0, total_pages, pages_per_file):
-                    end = min(i + pages_per_file, total_pages)
-                    output_file = os.path.join(
-                        self.output_dir,
-                        f"{base_name}_p{i+1}-{end}.pdf"
-                    )
-                    chunks.append((output_file, i, end))
-                file_desc = f"共拆分 {total_pages} 页为 {len(chunks)} 个文件"
-            else:
-                # 按范围拆分模式
-                range_str = (self.range_field.value or "").strip()
-                if not range_str:
-                    self.show_status("请输入有效的页码范围", success=False)
-                    return
-                try:
-                    page_indices = self.parse_page_ranges(range_str, total_pages)
-                    if not page_indices:
-                        raise ValueError("没有有效的页面被选择")
-                except ValueError as err:
-                    self.show_status(f"页码范围无效: {err}", success=False)
-                    return
-                # 将连续页面分组
-                groups = []
-                current_group = [page_indices[0]]
-                for i in range(1, len(page_indices)):
-                    if page_indices[i] == page_indices[i - 1] + 1:
-                        current_group.append(page_indices[i])
-                    else:
-                        groups.append(current_group)
-                        current_group = [page_indices[i]]
-                groups.append(current_group)
-                for group in groups:
-                    start_index = group[0]
-                    end_index = group[-1] + 1
-                    start_page = start_index + 1
-                    end_page = end_index
-                    output_file = os.path.join(
-                        self.output_dir,
-                        f"{base_name}_range_{start_page}-{end_page}.pdf"
-                    )
-                    chunks.append((output_file, start_index, end_index))
-                file_desc = f"共提取 {len(page_indices)} 页为 {len(groups)} 个文件"
+            try:
+                page_indices = self.parse_page_ranges(range_str, total_pages)
+                if not page_indices:
+                    raise ValueError("没有有效的页面被选择")
+            except ValueError as err:
+                self.show_status(f"页码范围无效: {err}", success=False)
+                return
 
-            # 重置进度条并在后台线程处理分块
-            total_chunks = len(chunks)
-            self.progress.value = 0
-            self.progress.visible = True
-            self.progress_text.value = f"0/{total_chunks}"
-            self.split_button.disabled = True
-            self.show_status("正在拆分...")
+            groups = []
+            current_group = [page_indices[0]]
+            for page_index in page_indices[1:]:
+                if page_index == current_group[-1] + 1:
+                    current_group.append(page_index)
+                else:
+                    groups.append(current_group)
+                    current_group = [page_index]
+            groups.append(current_group)
 
-            threading.Thread(
-                target=self._run_split,
-                args=(chunks, total_chunks, file_desc),
-                daemon=True,
-            ).start()
-        except Exception as err:
-            self.show_status(f"拆分失败: {err}", success=False)
+            for group in groups:
+                start_index = group[0]
+                end_index = group[-1] + 1
+                output_file = os.path.join(
+                    self.output_dir,
+                    f"{base_name}_range_{start_index + 1}-{end_index}.pdf",
+                )
+                chunks.append((output_file, start_index, end_index))
+            file_desc = f"共提取 {len(page_indices)} 页为 {len(groups)} 个文件"
+
+        total_chunks = len(chunks)
+        self.progress.value = 0
+        self.progress.visible = True
+        self.progress_text.value = f"0/{total_chunks}"
+        self.split_button.disabled = True
+        self.show_status("正在拆分...")
+
+        threading.Thread(
+            target=self._run_split,
+            args=(chunks, total_chunks, file_desc),
+            daemon=True,
+        ).start()
 
     def _run_split(self, chunks, total_chunks, file_desc):
-        """后台线程执行拆分任务"""
+        """在后台线程中执行 PDF 拆分任务。"""
         try:
             self._process_chunks(chunks, total_chunks)
             self.progress.value = 1
@@ -447,7 +444,7 @@ class PDFSplitterApp:
             self.split_button.update()
 
     def _process_chunks(self, chunks, total_chunks):
-        """顺序处理PDF分块写入，只打开源文件一次，且按连续页区间复制，避免大量 Python 级对象分配。"""
+        """顺序写出拆分文件，只打开源 PDF 一次，减少额外对象分配。"""
         file_count = 0
         update_every = max(1, total_chunks // 100)
         with pikepdf.open(self.input_file) as src:
@@ -464,14 +461,14 @@ class PDFSplitterApp:
                     self._update_progress(file_count, total_chunks)
 
     def _update_progress(self, done, total):
-        """更新进度条与进度文本，避免每个小文件都频繁刷新UI导致固定成本被放大。"""
+        """更新进度条和状态文本，减少频繁 UI 刷新带来的开销。"""
         self.progress.value = done / total
         self.progress_text.value = f"{done}/{total}"
         self.progress.update()
         self.progress_text.update()
 
     def show_status(self, message: str, success: bool = True):
-        """显示状态消息（底部状态栏 + SnackBar）"""
+        """更新状态栏并显示全局提示消息。"""
         self.status_text.value = message
         self.page.snack_bar = ft.SnackBar(
             ft.Text(message, font_family=self.font_family),
@@ -481,7 +478,7 @@ class PDFSplitterApp:
         self.page.update()
 
     def show_info(self, title: str, message: str):
-        """显示信息对话框"""
+        """显示结果弹窗。"""
         self.page.dialog = ft.AlertDialog(
             title=ft.Text(title, font_family=self.font_family),
             content=ft.Text(message, font_family=self.font_family),
@@ -491,7 +488,7 @@ class PDFSplitterApp:
         self.page.update()
 
     def close_dialog(self, e=None):
-        """关闭对话框"""
+        """关闭当前对话框。"""
         if self.page.dialog:
             self.page.dialog.open = False
             self.page.update()
