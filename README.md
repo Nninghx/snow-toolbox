@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD033 -->
 # 宁宝工具集 V4
 
 [![Python](https://img.shields.io/badge/Python-3.13.13-blue?logo=python)](https://www.python.org/downloads/release/python-31313/)
@@ -85,18 +86,18 @@ python "San yuan Gong Ju_V4.py"
 
 |版本|日期|内容|详细|
 |------|------|------|------|
+|V4.2.9+tools45|2026-09-03|1.图片下载工具新增txt格式文件导入功能<br>2.新增图片批量裁剪工具<br>3.新增图片对比重命名工具|无|
 |V4.2.8+tools43|2026-08-31|1.新增路线换乘工具(本工具只提供功能，不提供数据)<br>2.优化部分工具的界面|无|
 |V4.2.7+tools42|2026-08-30|1.新增遗留版本分支(旧版本的性能要优于新版本，妥妥的反向优化了，但不管新版本更新，但旧版本保留)<br>2.优化了pdf拆分的界面优化|无|
-|V4.2.6+tools42|2026-08-26|1.新增PDF压缩工具<br>2.优化PDF系列工具运行效率<br>3.+新增版本号后缀，tools42表示本发行包内含42个可用工具|无|
-|V4.2.5|2026-08-26|1.修复Station B tool-V3无法正常使用问题，优化PDF chāi fēn-V3.py使得速度更快，多线程|无|
+|V4.2.6+tools42|2026-08-27|1.新增PDF压缩工具<br>2.优化PDF系列工具运行效率<br>3.+新增版本号后缀，tools42表示本发行包内含42个可用工具|无|
 
-> V1 ~ V4.2.4 的历史日志见 [项目更新日志.md](项目更新日志.md)
+> V1 ~ V4.2.5 的历史日志见 [项目更新日志.md](项目更新日志.md)
 
 ## 许可协议
 
 **作者**：宁幻雪  
 **协议**：Apache License 2.0  
-**联系**：[Bilibili 主页](https://space.bilibili.com/556216088)
+**联系**：[Bilibili 主页](https://space.bilibili.com/556216088)  
 **授权宣传** ：[Bilibili 主页](https://space.bilibili.com/3546580200196227)
 
 ```text

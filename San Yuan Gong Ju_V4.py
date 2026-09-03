@@ -106,6 +106,7 @@ class ToolLauncher:
                 '格式转换': 'tú piàn gé shì zhuǎn huàn-V3.py',
                 'ICO转换': 'tú piàn zhuǎn tú biāo-V3.py',
                 '图片合成': 'tú piàn hé chéng-V3.py',
+                '批量裁剪': 'tú piàn pī liàng cái jiǎn-V3.py',
             },
             '音频工具': {
                 '音频提取': 'shì pín yīn pín tí qǔ-V3.py',
