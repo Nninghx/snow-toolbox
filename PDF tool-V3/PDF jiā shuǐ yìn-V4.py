@@ -1,21 +1,15 @@
-# 禁止生成 .pyc 文件
+﻿# 禁止生成 .pyc 文件
 import sys
 sys.dont_write_bytecode = True
 
 import os
 import io
-import subprocess
 import threading
 import importlib.util
 from pathlib import Path
 
 import flet as ft
-
-try:
-    import pikepdf
-except ImportError:
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pikepdf'])
-    import pikepdf
+import pikepdf
 
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -26,7 +20,7 @@ from reportlab.pdfbase.ttfonts import TTFont as RLTTFont
 def get_project_root():
     """获取项目根目录"""
     if getattr(sys, 'frozen', False):
-        return Path(sys.executable).resolve().parent
+        return Path(sys._MEIPASS)
     return Path(__file__).resolve().parent.parent
 
 

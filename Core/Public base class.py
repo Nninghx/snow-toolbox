@@ -34,7 +34,8 @@ class PDFToolBase:
     def _get_project_root(self):
         """获取项目根目录"""
         if getattr(sys, 'frozen', False):
-            return Path(sys.executable).resolve().parent
+            # PyInstaller 打包后资源文件位于 _internal/ 子目录（sys._MEIPASS）
+            return Path(sys._MEIPASS)
         return Path(__file__).resolve().parent.parent
 
     def set_window_icon(self):

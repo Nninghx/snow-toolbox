@@ -1,26 +1,21 @@
-# 禁止生成 .pyc 文件，避免输出目录被污染
+﻿# 禁止生成 .pyc 文件，避免输出目录被污染
 import sys
 sys.dont_write_bytecode = True
 
 import os
-import subprocess
 import threading
 import importlib.util
 from pathlib import Path
 
 import flet as ft
 
-try:
-    import pikepdf
-except ImportError:
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pikepdf'])
-    import pikepdf
+import pikepdf
 
 
 def get_project_root():
     """返回项目根目录。"""
     if getattr(sys, 'frozen', False):
-        return Path(sys.executable).resolve().parent
+        return Path(sys._MEIPASS)
     return Path(__file__).resolve().parent.parent
 
 def run_startup_preflight():
