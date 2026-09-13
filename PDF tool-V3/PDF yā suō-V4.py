@@ -22,11 +22,18 @@ def get_project_root():
     return Path(__file__).resolve().parent.parent
 
 
+def _resolve_base_class_path():
+    """解析公共基类文件路径，打包后自动使用 .pyc 字节码"""
+    base_py = get_project_root() / 'Core' / 'Public base class.py'
+    if getattr(sys, 'frozen', False):
+        import importlib.util
+        return Path(importlib.util.cache_from_source(str(base_py)))
+    return base_py
+
+
 def run_startup_preflight():
     """复用 Core 公共基类执行启动前置流程：授权检查 -> 窗口图标 -> 字体加载；失败时直接报错"""
-    base_file = get_project_root() / 'Core' / 'Public base class.py'
-    if not base_file.exists():
-        raise FileNotFoundError(f"缺少公共基类：{base_file}")
+    base_file = _resolve_base_class_path()
 
     spec = importlib.util.spec_from_file_location('public_base_class', str(base_file))
     if spec is None or spec.loader is None:

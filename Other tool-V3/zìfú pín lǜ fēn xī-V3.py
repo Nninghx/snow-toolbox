@@ -7,6 +7,15 @@ import re
 import json
 import tkinter as tk
 from pathlib import Path
+
+
+def _resolve_base_class_path():
+    """解析公共基类文件路径，打包后自动使用 .pyc 字节码"""
+    base_py = Path(__file__).resolve().parent.parent / 'Core' / 'Public base class.py'
+    if getattr(sys, 'frozen', False):
+        import importlib.util
+        return Path(importlib.util.cache_from_source(str(base_py)))
+    return base_py
 from tkinter import ttk, filedialog, messagebox, font
 from collections import Counter
 
@@ -14,7 +23,7 @@ from collections import Counter
 import importlib.util
 _base_spec = importlib.util.spec_from_file_location(
     "public_base_class",
-    Path(__file__).resolve().parent.parent / "Core" / "Public base class.py"
+    _resolve_base_class_path()
 )
 _base_module = importlib.util.module_from_spec(_base_spec)
 _base_spec.loader.exec_module(_base_module)

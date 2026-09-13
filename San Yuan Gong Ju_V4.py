@@ -6,6 +6,7 @@ sys.dont_write_bytecode = True
 
 import os
 import subprocess
+import importlib.util
 from pathlib import Path
 
 class PathUtils:
@@ -18,7 +19,9 @@ class PathUtils:
         return os.path.dirname(__file__)
     @staticmethod
     def get_tool_path(category, file_name):
-        """根据工具分类返回对应的文件路径。"""
+        """根据工具分类返回对应的文件路径。
+        打包后模式下自动解析为 __pycache__ 中的 .pyc 字节码路径。
+        """
         base_dir = PathUtils.get_base_dir()
         category_map = {
             'PDF工具': 'PDF tool-V3',
@@ -35,11 +38,18 @@ class PathUtils:
             '遗留版本': 'Legacy version-V0',
         }
         sub_dir = category_map.get(category)
-        return os.path.join(base_dir, sub_dir, file_name) if sub_dir else os.path.join(base_dir, file_name)
+        if sub_dir:
+            py_path = os.path.join(base_dir, sub_dir, file_name)
+        else:
+            py_path = os.path.join(base_dir, file_name)
+
+        # 打包后使用编译后的 .pyc 字节码文件（源码已在打包后被删除）
+        if getattr(sys, 'frozen', False):
+            return importlib.util.cache_from_source(py_path)
+        return py_path
 
 def run_startup_flow():
     """复用 Core 公共基类执行启动前置检查：授权验证、窗口初始化和字体加载。"""
-    import importlib.util
     import tkinter as tk
 
     base_dir = PathUtils.get_base_dir()
@@ -65,8 +75,12 @@ def run_startup_flow():
         except Exception:
             pass
 
-    # 基类文件名中包含空格，因此必须使用 importlib 方式动态加载
-    base_file = Path(__file__).resolve().parent / 'Core' / 'Public base class.py'
+    # 基类文件加载：打包后使用编译后的 .pyc 字节码
+    if getattr(sys, 'frozen', False):
+        base_py = os.path.join(base_dir, 'Core', 'Public base class.py')
+        base_file = importlib.util.cache_from_source(base_py)
+    else:
+        base_file = Path(__file__).resolve().parent / 'Core' / 'Public base class.py'
     spec = importlib.util.spec_from_file_location('public_base_class', str(base_file))
     base_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(base_module)
@@ -462,21 +476,13 @@ class ToolLauncher:
             self.page.update()
 
     def check_tool_exists(self, category, file_name):
-        """检查某个工具文件是否可用。"""
+        """检查工具文件是否可用。打包后检查 .pyc 字节码文件。"""
         cache_key = (category, file_name)
         if cache_key in self.tool_cache:
             return self.tool_cache[cache_key]
 
-        if getattr(sys, 'frozen', False):
-            tool_base_name = os.path.splitext(file_name)[0]
-            exe_dir = os.path.dirname(sys.executable)
-            exe_name = tool_base_name.replace(' ', '') + '.exe'
-            exe_path = os.path.join(exe_dir, exe_name)
-            py_path = PathUtils.get_tool_path(category, file_name)
-            exists = os.path.exists(exe_path) or os.path.exists(py_path)
-        else:
-            tool_path = PathUtils.get_tool_path(category, file_name)
-            exists = os.path.exists(tool_path)
+        tool_path = PathUtils.get_tool_path(category, file_name)
+        exists = os.path.exists(tool_path)
 
         self.tool_cache[cache_key] = exists
         return exists
@@ -484,10 +490,12 @@ class ToolLauncher:
     def run_tool(self, category, file_name):
         """启动指定工具，并在当前进程中标记已授权状态。"""
         try:
-            tool_base_name = os.path.splitext(file_name)[0]
             tool_path = PathUtils.get_tool_path(category, file_name)
             if not os.path.exists(tool_path):
                 raise FileNotFoundError(f"找不到工具文件：{file_name}")
+
+            # 显示名称始终基于原始 .py 文件名，去掉扩展名
+            tool_display = file_name.rsplit('.', 1)[0]
 
             env = os.environ.copy()
             env['MAIN_APP_AUTHORIZED'] = '1'
@@ -503,7 +511,7 @@ class ToolLauncher:
             else:
                 subprocess.Popen([sys.executable, tool_path], env=env)
 
-            self.show_status(f"已启动：{tool_base_name}")
+            self.show_status(f"已启动：{tool_display}")
         except Exception as e:
             self.show_status(f"启动失败：{e}", success=False)
 
