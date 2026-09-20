@@ -53,6 +53,57 @@ def load_default_pools_from_temp_file():
     except Exception:
         return []
 
+
+def remove_pool_from_temp_file(items_id: str) -> bool:
+    """从 temp_pools.json 中删除指定 items_id 的池子。
+
+    兼容两种存储格式：
+      - [name, items_id] 元组列表
+      - {"name": ..., "items_id"|"id": ...} 字典列表
+    删除成功后回写文件（ensure_ascii=False，保持中文可读）。
+    返回是否确实删除了条目。
+    """
+    if not items_id:
+        return False
+    temp_path = get_temp_pools_path()
+    if not temp_path.exists():
+        return False
+
+    target = str(items_id).strip()
+    try:
+        with temp_path.open("r", encoding="utf-8") as f:
+            raw_data = json.load(f)
+    except Exception as exc:
+        print(f"读取 temp_pools.json 失败: {exc}")
+        return False
+
+    if not isinstance(raw_data, list):
+        return False
+
+    kept = []
+    removed = False
+    for item in raw_data:
+        item_id = ""
+        if isinstance(item, dict):
+            item_id = str(item.get("items_id", item.get("id", ""))).strip()
+        elif isinstance(item, (list, tuple)) and len(item) >= 2:
+            item_id = str(item[1]).strip()
+        if item_id and item_id == target:
+            removed = True
+            continue
+        kept.append(item)
+
+    if not removed:
+        return False
+
+    try:
+        with temp_path.open("w", encoding="utf-8") as f:
+            json.dump(kept, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as exc:
+        print(f"回写 temp_pools.json 失败: {exc}")
+        return False
+
 # 自动检查并补齐运行时依赖，避免首次启动时缺包报错
 
 def ensure_runtime_dependencies():
@@ -363,14 +414,28 @@ class PoolMonitorApp:
         monitor_frame.pack(fill="x", padx=10, pady=5)
 
         self.monitor_enabled = tk.BooleanVar(value=False)
+        monitor_top_row = tk.Frame(monitor_frame)
+        monitor_top_row.pack(fill="x")
+
         self.monitor_check = tk.Checkbutton(
-            monitor_frame,
+            monitor_top_row,
             text="启用页面看看",
             variable=self.monitor_enabled,
             command=self.toggle_monitoring,
             font=(self.font_family, self.font_size)
         )
-        self.monitor_check.pack(anchor="w")
+        self.monitor_check.pack(side="left")
+
+        # 已下架一键检测（与“启用页面看看”循环互不影响）
+        self.btn_check_delisted = tk.Button(
+            monitor_top_row,
+            text="检测已下架",
+            command=self.check_delisted_pools,
+            font=(self.font_family, self.font_size - 2),
+            bg="#ff9800",
+            fg="white"
+        )
+        self.btn_check_delisted.pack(side="left", padx=(15, 0))
 
         interval_frame = tk.Frame(monitor_frame)
         interval_frame.pack(fill="x", pady=5)
@@ -401,6 +466,13 @@ class PoolMonitorApp:
             text="1~3分钟",
             variable=self.monitor_interval_mode,
             value="one_to_three_minutes",
+            font=(self.font_family, self.font_size)
+        ).pack(side="left", padx=5)
+        tk.Radiobutton(
+            interval_frame,
+            text="只检测一次(导出TXT)",
+            variable=self.monitor_interval_mode,
+            value="once_and_export",
             font=(self.font_family, self.font_size)
         ).pack(side="left", padx=5)
 
@@ -616,7 +688,8 @@ class PoolMonitorApp:
             "name": name,
             "url": url,
             "exists": True,
-            "confirmed_exists": None
+            "confirmed_exists": None,
+            "delisted": False
         }
 
         card = tk.Frame(self.pools_container, relief="groove", borderwidth=2)
@@ -670,13 +743,26 @@ class PoolMonitorApp:
         if pool_id not in self.pools:
             return
 
-        pool_name = self.pools[pool_id]["name"]
+        pool_data = self.pools[pool_id]
+        pool_name = pool_data["name"]
+        pool_url = pool_data.get("url", "")
+        items_id = self._extract_items_id(pool_url) if pool_url else None
 
         del self.pools[pool_id]
 
         if pool_id in self.pool_frames:
             self.pool_frames[pool_id]["card"].destroy()
             del self.pool_frames[pool_id]
+
+        # 同步从 temp_pools.json 删除对应条目，避免下次启动重新加载
+        if items_id:
+            removed = remove_pool_from_temp_file(items_id)
+            if removed:
+                self.add_log(f"已从 temp_pools.json 同步删除: {pool_name} (itemsId={items_id})")
+            else:
+                self.add_log(f"temp_pools.json 中未找到 itemsId={items_id}，无需同步")
+        else:
+            self.add_log(f"无法从链接提取 itemsId，跳过 temp_pools.json 同步")
 
         self.add_log(f"已删除池子: {pool_name}")
 
@@ -728,18 +814,20 @@ class PoolMonitorApp:
                 self.add_log("警告: requests 和 Selenium 均未安装")
                 self.add_log("请运行: pip install requests 或 pip install selenium")
 
-    def create_driver(self):
+    def create_driver(self, headless=True, disable_images=True):
         try:
-            self.root.after(0, self.add_log, "正在创建 WebDriver...")
+            self.root.after(0, self.add_log, f"正在创建 WebDriver...（{'无头' if headless else '可见'}模式）")
 
             chrome_options = self.selenium_module['Options']()
-            chrome_options.add_argument('--headless=new')             
+            if headless:
+                chrome_options.add_argument('--headless=new')
             chrome_options.add_argument('--no-sandbox')
             chrome_options.add_argument('--disable-dev-shm-usage')
             chrome_options.add_argument('--disable-gpu')
             chrome_options.add_argument('--window-size=1920,1080')
 
-            chrome_options.add_argument('--blink-settings=imagesEnabled=false')        
+            if disable_images:
+                chrome_options.add_argument('--blink-settings=imagesEnabled=false')
             chrome_options.add_argument('--disable-extensions')
             chrome_options.add_argument('--disable-application-cache')
             chrome_options.add_argument('--disable-background-networking')
@@ -803,7 +891,10 @@ class PoolMonitorApp:
 
     def toggle_monitoring(self):
         if self.monitor_enabled.get():
-            self.start_monitoring()
+            if self.monitor_interval_mode.get() == "once_and_export":
+                self.run_once_and_export()
+            else:
+                self.start_monitoring()
         else:
             self.stop_monitoring()
 
@@ -936,7 +1027,12 @@ class PoolMonitorApp:
         self.add_log("帮看启动通知已加入微信发送队列")
 
     def _write_pool_event_log(self, pool_name, pool_url, check_time, change_type):
-        title = "首次消失" if change_type == "消失" else "首次出现"
+        if change_type == "消失":
+            title = "首次消失"
+        elif change_type == "已下架":
+            title = "已下架"
+        else:
+            title = "首次出现"
         event_line = (
             f"{check_time} - [{pool_name}] {title}\n"
             f"池子链接: {pool_url}\n"
@@ -1056,10 +1152,12 @@ class PoolMonitorApp:
                         for pid, pdata in self.pools.items()
                     }
                     for future in as_completed(futures):
-                        pid, has_5fa, elapsed, error, method = future.result()
+                        pid, has_5fa, elapsed, error, method, delisted = future.result()
                         name = self.pools[pid]["name"]
                         if error:
                             results.append(f"  [{name}] 失败: {error}")
+                        elif delisted:
+                            results.append(f"  [{name}] {method} {elapsed:.3f}s - 已下架")
                         else:
                             results.append(f"  [{name}] {method} {elapsed:.3f}s - 5发不重:{'存在' if has_5fa else '不存在'}")
 
@@ -1073,15 +1171,329 @@ class PoolMonitorApp:
 
         threading.Thread(target=_run_test, daemon=True).start()
 
+    # 一键检测所有池子是否已下架，使用真实浏览器打开页面（避免 SPA 静态 HTML 抓不到渲染后提示）
+    def check_delisted_pools(self):
+        if not self.pools:
+            messagebox.showinfo("提示", "请先添加池子")
+            return
+
+        if not getattr(self, 'selenium_module', None):
+            messagebox.showerror(
+                "错误",
+                "未安装 Selenium，无法使用浏览器检测已下架。\n请运行: pip install selenium webdriver-manager"
+            )
+            return
+
+        self.add_log("=== 开始检测已下架（浏览器模式）===")
+        self.btn_check_delisted.config(state="disabled", text="检测中...")
+        self.status_var.set("⚙ 正在启动浏览器检测已下架...")
+
+        def _run_check():
+            results = []
+            delisted_ids = []
+            error_ids = []
+            snapshot = list(self.pools.items())
+            dedicated_driver = None
+
+            try:
+                # 创建专用驱动（可见模式），方便用户直观看到浏览器依次打开每个池子
+                self.root.after(0, self.add_log, "正在创建专用 WebDriver（可见浏览器）...")
+                dedicated_driver = self.create_driver(headless=False, disable_images=False)
+                if dedicated_driver is None:
+                    self.root.after(0, self.add_log, "WebDriver 创建失败，无法完成已下架检测")
+                    self.root.after(0, lambda: messagebox.showerror(
+                        "错误", "无法启动浏览器，请确认已安装 Chrome 与匹配的 ChromeDriver"
+                    ))
+                    self.root.after(0, lambda: self.btn_check_delisted.config(state="normal", text="检测已下架"))
+                    self.root.after(0, lambda: self.status_var.set("已下架检测失败：浏览器启动失败"))
+                    return
+
+                self.root.after(0, self.add_log, f"浏览器已就绪，共 {len(snapshot)} 个池子待检测（依次打开）")
+
+                total = len(snapshot)
+                for idx, (pid, pdata) in enumerate(snapshot, 1):
+                    if pid not in self.pools:
+                        continue
+                    name = pdata["name"]
+                    url = pdata["url"]
+                    self.root.after(0, self.status_var.set, f"⚙ 正在打开 ({idx}/{total}): {name}")
+                    self.root.after(0, self.add_log, f"→ [{idx}/{total}] 正在打开: {name} | {url}")
+                    _pid, _has5, elapsed, error, delisted = self._check_pool_selenium(
+                        pid, pdata, driver=dedicated_driver
+                    )
+                    if error:
+                        error_ids.append(pid)
+                        results.append(f"  [{name}] 失败: {error}")
+                        self.root.after(0, self.add_log, f"  [{name}] 失败: {error}")
+                    elif delisted:
+                        delisted_ids.append(pid)
+                        results.append(f"  [{name}] ⚠ 已下架 ({elapsed:.2f}s)")
+                        self.root.after(0, self.add_log, f"  [{name}] ⚠ 已下架 ({elapsed:.2f}s)")
+                    else:
+                        results.append(f"  [{name}] ✓ 在售 ({elapsed:.2f}s)")
+                        self.root.after(0, self.add_log, f"  [{name}] ✓ 在售 ({elapsed:.2f}s)")
+
+                    # 短暂停顿，避免页面切换太快看不清，也降低频率风控风险
+                    if idx < total:
+                        time.sleep(1.0)
+            except Exception as exc:
+                self.root.after(0, self.add_log, f"检测异常: {exc}")
+            finally:
+                if dedicated_driver is not None:
+                    try:
+                        dedicated_driver.quit()
+                    except Exception:
+                        pass
+
+            check_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.root.after(0, self.add_log, "=== 检测结果汇总 ===")
+            for line in results:
+                self.root.after(0, self.add_log, line)
+
+            # 将在售的池子从“已下架”颜色中恢复（若之前被标记过）
+            for pid, _pdata in snapshot:
+                if pid in self.pools and pid not in delisted_ids:
+                    pool_data = self.pools[pid]
+                    if pool_data.get("delisted"):
+                        pool_data["delisted"] = False
+                        self.root.after(0, self._set_pool_card_state, pid, "在售", "SystemButtonFace")
+
+            # 对下架池子逐个弹窗提醒（主线程串行）
+            for pid in delisted_ids:
+                if pid not in self.pools:
+                    continue
+                pool_data = self.pools[pid]
+                self.root.after(
+                    0,
+                    self._handle_delisted_pool,
+                    pid, pool_data["name"], pool_data["url"], check_time
+                )
+
+            summary = (
+                f"检测完成：共 {len(snapshot)} 个池子\n"
+                f"⚠ 已下架: {len(delisted_ids)}\n"
+                f"✓ 在售: {len(snapshot) - len(delisted_ids) - len(error_ids)}\n"
+                f"✗ 失败: {len(error_ids)}"
+            )
+            self.root.after(0, self.add_log, summary.replace("\n", " | "))
+            if not delisted_ids:
+                self.root.after(0, lambda: messagebox.showinfo("检测完成", summary))
+            self.root.after(0, lambda: self.btn_check_delisted.config(state="normal", text="检测已下架"))
+            self.root.after(0, lambda: self.status_var.set("已下架检测完成"))
+
+        threading.Thread(target=_run_check, daemon=True).start()
+
+    # 一次性检测所有池子的 5发不重 状态，将不存在的池子合并导出到 TXT 文件
+    def run_once_and_export(self):
+        if not self.pools:
+            messagebox.showwarning("警告", "请先添加至少一个池子")
+            self.monitor_enabled.set(False)
+            return
+
+        if not REQUESTS_AVAILABLE and not getattr(self, 'selenium_module', None):
+            messagebox.showerror("错误", "未安装任何检测库\n请运行: pip install requests 或 pip install selenium")
+            self.monitor_enabled.set(False)
+            return
+
+        # 先让用户选择保存位置，避免检测完成后才发现取消
+        from tkinter import filedialog
+        default_name = f"5fa_missing_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")],
+            initialfile=default_name,
+            title="选择 5发不重不存在池子清单 的保存位置"
+        )
+        if not file_path:
+            self.add_log("用户取消保存，一次性检测已中止")
+            self.monitor_enabled.set(False)
+            return
+
+        self.add_log(f"=== 开始一次性检测（结果将保存到 {file_path}）===")
+        self.monitor_status.set("一次性检测进行中...")
+        self.status_var.set("⚙ 正在一次性检测所有池子...")
+
+        def _run_once():
+            results = {}
+            snapshot = list(self.pools.items())
+            dedicated_driver = None
+
+            try:
+                if REQUESTS_AVAILABLE and self.http_session:
+                    self.root.after(0, self.add_log, f"使用 requests 并发检测 {len(snapshot)} 个池子...")
+                    with ThreadPoolExecutor(max_workers=min(len(snapshot), 8)) as executor:
+                        futures = {
+                            executor.submit(self._check_pool_requests, pid, pdata): pid
+                            for pid, pdata in snapshot
+                        }
+                        for future in as_completed(futures):
+                            pid, has_5fa, elapsed, error, method, delisted = future.result()
+                            results[pid] = (has_5fa, delisted, error, method)
+                            if pid in self.pools:
+                                name = self.pools[pid]["name"]
+                                if error:
+                                    self.root.after(0, self.add_log, f"  [{name}] 失败: {error}")
+                                elif delisted:
+                                    self.root.after(0, self.add_log, f"  [{name}] ⚠ 已下架")
+                                else:
+                                    self.root.after(0, self.add_log,
+                                        f"  [{name}] 5发不重: {'存在' if has_5fa else '不存在'} ({method} {elapsed:.2f}s)")
+                else:
+                    self.root.after(0, self.add_log, "requests 不可用，切换到浏览器模式...")
+                    dedicated_driver = self.create_driver(headless=False, disable_images=False)
+                    if dedicated_driver is None:
+                        self.root.after(0, self.add_log, "WebDriver 创建失败，无法完成一次性检测")
+                        self.root.after(0, lambda: messagebox.showerror("错误", "无法启动浏览器，检测已中止"))
+                        self.root.after(0, lambda: self.monitor_enabled.set(False))
+                        return
+                    total = len(snapshot)
+                    for idx, (pid, pdata) in enumerate(snapshot, 1):
+                        if pid not in self.pools:
+                            continue
+                        name = pdata["name"]
+                        self.root.after(0, self.status_var.set, f"⚙ 检测中 ({idx}/{total}): {name}")
+                        _pid, has_5fa, elapsed, error, delisted = self._check_pool_selenium(
+                            pid, pdata, driver=dedicated_driver
+                        )
+                        results[pid] = (has_5fa, delisted, error, "Selenium")
+                        if error:
+                            self.root.after(0, self.add_log, f"  [{name}] 失败: {error}")
+                        elif delisted:
+                            self.root.after(0, self.add_log, f"  [{name}] ⚠ 已下架 ({elapsed:.2f}s)")
+                        else:
+                            self.root.after(0, self.add_log,
+                                f"  [{name}] 5发不重: {'存在' if has_5fa else '不存在'} ({elapsed:.2f}s)")
+            except Exception as exc:
+                self.root.after(0, self.add_log, f"检测异常: {exc}")
+            finally:
+                if dedicated_driver is not None:
+                    try:
+                        dedicated_driver.quit()
+                    except Exception:
+                        pass
+
+            # 分类汇总
+            missing_pools = []
+            delisted_pools = []
+            existing_pools = []
+            failed_pools = []
+            for pid, (has_5fa, delisted, error, _method) in results.items():
+                if pid not in self.pools:
+                    continue
+                pool_data = self.pools[pid]
+                if error:
+                    failed_pools.append((pool_data, error))
+                elif delisted:
+                    delisted_pools.append(pool_data)
+                elif has_5fa:
+                    existing_pools.append(pool_data)
+                else:
+                    missing_pools.append(pool_data)
+
+            check_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            lines = []
+            lines.append("===== 5发不重 不存在池子清单 =====")
+            lines.append(f"生成时间: {check_time}")
+            lines.append(f"共检测: {len(results)} 个池子")
+            lines.append(f"✗ 5发不重不存在: {len(missing_pools)}")
+            lines.append(f"⚠ 已下架: {len(delisted_pools)}")
+            lines.append(f"✓ 5发不重存在: {len(existing_pools)}")
+            lines.append(f"⚠ 检测失败: {len(failed_pools)}")
+            lines.append("=" * 40)
+            lines.append("")
+
+            lines.append(f"【✗ 5发不重不存在（{len(missing_pools)} 个）】")
+            if missing_pools:
+                for pool in missing_pools:
+                    lines.append(f"◆ {pool['name']}")
+                    lines.append(f"  链接: {pool['url']}")
+                    support = self._get_support_link(pool)
+                    if support:
+                        lines.append(f"  支持链接: {support}")
+                    lines.append("")
+            else:
+                lines.append("（无）")
+                lines.append("")
+
+            lines.append(f"【⚠ 已下架（{len(delisted_pools)} 个）】")
+            if delisted_pools:
+                for pool in delisted_pools:
+                    lines.append(f"◆ {pool['name']}")
+                    lines.append(f"  链接: {pool['url']}")
+                    lines.append("")
+            else:
+                lines.append("（无）")
+                lines.append("")
+
+            lines.append(f"【⚠ 检测失败（{len(failed_pools)} 个）】")
+            if failed_pools:
+                for pool, err in failed_pools:
+                    lines.append(f"◆ {pool['name']}")
+                    lines.append(f"  链接: {pool['url']}")
+                    lines.append(f"  错误: {err}")
+                    lines.append("")
+            else:
+                lines.append("（无）")
+                lines.append("")
+
+            content = "\n".join(lines)
+
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+                self.root.after(0, self.add_log, f"=== 检测完成，结果已保存: {file_path} ===")
+                self.root.after(0, self.add_log,
+                    f"总计 {len(results)} | 不存在 {len(missing_pools)} | 已下架 {len(delisted_pools)} | 失败 {len(failed_pools)}")
+                summary_msg = (
+                    f"结果已保存到:\n{file_path}\n\n"
+                    f"共检测: {len(results)} 个池子\n"
+                    f"✗ 5发不重不存在: {len(missing_pools)}\n"
+                    f"⚠ 已下架: {len(delisted_pools)}\n"
+                    f"✓ 存在: {len(existing_pools)}\n"
+                    f"⚠ 失败: {len(failed_pools)}"
+                )
+                self.root.after(0, lambda: messagebox.showinfo("检测完成", summary_msg))
+            except Exception as exc:
+                self.root.after(0, self.add_log, f"写入文件失败: {exc}")
+                self.root.after(0, lambda: messagebox.showerror("错误", f"写入文件失败:\n{exc}"))
+
+            self.root.after(0, lambda: self.monitor_enabled.set(False))
+            self.root.after(0, lambda: self.monitor_status.set("一次性检测已完成"))
+            self.root.after(0, lambda: self.status_var.set("一次性检测已完成"))
+
+        threading.Thread(target=_run_once, daemon=True).start()
+
     def _extract_items_id(self, url):
         match = re.search(r'itemsId=(\d+)', url)
         return match.group(1) if match else None
+
+    # 已下架关键字：API 消息字段或页面 HTML 中命中即视为下架
+    # 包括：<div class="buy-btn buy-btn-disable">已下架</div>
+    #       <span data-v-da730104>商品暂时无法购买，逛逛别的吧</span>
+    _DELIST_KEYWORDS = (
+        "已下架",
+        "商品下架",
+        "该商品已下架",
+        "商品暂时无法购买",
+        "逛逛别的吧",
+    )
+
+    # 页面 HTML 中“下架容器”特征属性，命中任一则视为下架（兼容关键字被转义/拆行的情况）
+    _DELIST_HTML_MARKERS = (
+        'data-v-da730104',
+        'buy-btn-disable',
+    )
+
+    def _detect_delisted_from_text(self, text):
+        if not text:
+            return False
+        return any(kw in text for kw in self._DELIST_KEYWORDS)
 
     def _check_pool_api(self, pool_id, pool_data):
         url = pool_data["url"]
         items_id = self._extract_items_id(url)
         if not items_id:
-            return pool_id, None, 0, f"无法从URL提取itemsId: {url}"
+            return pool_id, None, 0, f"无法从URL提取itemsId: {url}", False
 
         api_url = f"https://mall.bilibili.com/magic-c-search/blind_box/info?itemsId={items_id}&afterDraw=false"
 
@@ -1099,10 +1511,24 @@ class PoolMonitorApp:
         try:
             resp = self.http_session.get(api_url, headers=api_headers, timeout=3)
             resp.raise_for_status()
+            raw_text = resp.text
             data = resp.json()
 
+            # 已下架检测：优先看响应文本，其次看业务字段
+            delisted = self._detect_delisted_from_text(raw_text)
+            if not delisted:
+                msg = str(data.get("message", "")) if isinstance(data, dict) else ""
+                if self._detect_delisted_from_text(msg):
+                    delisted = True
+                elif isinstance(data, dict) and isinstance(data.get("data"), dict):
+                    inner = data["data"]
+                    for key in ("itemsName", "name", "saleStatusDesc", "statusDesc"):
+                        if self._detect_delisted_from_text(str(inner.get(key, ""))):
+                            delisted = True
+                            break
+
             has_5fa = False
-            if data.get("code") == 0 and "data" in data:
+            if not delisted and data.get("code") == 0 and "data" in data:
                 multi_options = data["data"].get("multiDrawOptions", [])
                 for opt in multi_options:
 
@@ -1111,16 +1537,16 @@ class PoolMonitorApp:
                         break
 
             elapsed = time.time() - t0
-            return pool_id, has_5fa, elapsed, None
+            return pool_id, has_5fa, elapsed, None, delisted
         except Exception as e:
             elapsed = time.time() - t0
-            return pool_id, None, elapsed, str(e)
+            return pool_id, None, elapsed, str(e), False
 
     def _check_pool_requests(self, pool_id, pool_data):
 
-        pid, has_5fa, elapsed, error = self._check_pool_api(pool_id, pool_data)
+        pid, has_5fa, elapsed, error, api_delisted = self._check_pool_api(pool_id, pool_data)
         if error is None:
-            return pid, has_5fa, elapsed, None, "API"
+            return pid, has_5fa, elapsed, None, "API", api_delisted
 
         url = pool_data["url"]
         t0 = time.time()
@@ -1139,30 +1565,87 @@ class PoolMonitorApp:
                     if len(buffer) > 524288:
                         break
             resp.close()
+            # 页面级已下架识别：命中关键字 或 出现下架容器特征标记
+            delisted = self._detect_delisted_from_text(buffer)
+            if not delisted:
+                for marker in self._DELIST_HTML_MARKERS:
+                    if marker in buffer and (
+                        '已下架' in buffer or '无法购买' in buffer or '逛逛别的' in buffer
+                    ):
+                        delisted = True
+                        break
+            if delisted:
+                has_5fa = False
             elapsed = time.time() - t0
-            return pool_id, has_5fa, elapsed, None, "HTTP"
+            return pool_id, has_5fa, elapsed, None, "HTTP", delisted
         except Exception as e:
             elapsed = time.time() - t0
-            return pool_id, None, elapsed, str(e), "FAIL"
+            return pool_id, None, elapsed, str(e), "FAIL", False
 
-    def _check_pool_selenium(self, pool_id, pool_data):
+    def _check_pool_selenium(self, pool_id, pool_data, driver=None):
         pool_name = pool_data["name"]
         url = pool_data["url"]
+        active_driver = driver if driver is not None else self.driver
         t0 = time.time()
         try:
-            self.driver.get(url)
-            wait = self.selenium_module['WebDriverWait'](self.driver, self.page_load_timeout, poll_frequency=0.3)
+            active_driver.get(url)
+            wait = self.selenium_module['WebDriverWait'](active_driver, self.page_load_timeout, poll_frequency=0.3)
+
+            def _page_ready(d):
+                src = d.page_source
+                return (
+                    '5发不重' in src
+                    or '5发不重复' in src
+                    or '已下架' in src
+                    or '商品暂时无法购买' in src
+                    or '逛逛别的' in src
+                )
+
             try:
-                wait.until(lambda d: ('5发不重' in d.page_source or '5发不重复' in d.page_source))
-                has_5fa = True
+                wait.until(_page_ready)
             except Exception:
-                page_source = self.driver.page_source
-                has_5fa = ('5发不重' in page_source or '5发不重复' in page_source)
+                pass
+
+            page_source = active_driver.page_source
+            has_5fa = ('5发不重' in page_source or '5发不重复' in page_source)
+
+            # DOM 精准识别：
+            #   1) .buy-btn.buy-btn-disable 且文本包含“已下架”
+            #   2) span[data-v-da730104] 且文本包含“商品暂时无法购买”
+            delisted = False
+            try:
+                By = self.selenium_module['By']
+                nodes = active_driver.find_elements(By.CSS_SELECTOR, '.buy-btn.buy-btn-disable')
+                for node in nodes:
+                    txt = (node.text or '').strip()
+                    if '已下架' in txt:
+                        delisted = True
+                        break
+                if not delisted:
+                    spans = active_driver.find_elements(By.CSS_SELECTOR, 'span[data-v-da730104]')
+                    for node in spans:
+                        txt = (node.text or '').strip()
+                        if '商品暂时无法购买' in txt or '逛逛别的' in txt:
+                            delisted = True
+                            break
+            except Exception:
+                pass
+            if not delisted:
+                for marker in self._DELIST_HTML_MARKERS:
+                    if marker in page_source and (
+                        '已下架' in page_source or '无法购买' in page_source or '逛逛别的' in page_source
+                    ):
+                        delisted = True
+                        break
+            if not delisted and self._detect_delisted_from_text(page_source):
+                delisted = True
+            if delisted:
+                has_5fa = False
             elapsed = time.time() - t0
-            return pool_id, has_5fa, elapsed, None
+            return pool_id, has_5fa, elapsed, None, delisted
         except Exception as e:
             elapsed = time.time() - t0
-            return pool_id, None, elapsed, str(e)
+            return pool_id, None, elapsed, str(e), False
 
     # 轮询线程：优先 HTTP 请求，失败时回退到 Selenium
     def monitor_worker(self):
@@ -1193,7 +1676,7 @@ class PoolMonitorApp:
                             for pid, pdata in self.pools.items()
                         }
                         for future in as_completed(futures):
-                            pid, has_5fa, elapsed, error, method = future.result()
+                            pid, has_5fa, elapsed, error, method, _delisted = future.result()
                             if error:
                                 errors.append((pid, error))
                             else:
@@ -1220,7 +1703,7 @@ class PoolMonitorApp:
                             if self.driver:
                                 for pid, error in errors:
                                     if pid in self.pools:
-                                        pid2, has_5fa, elapsed2, err2 = self._check_pool_selenium(pid, self.pools[pid])
+                                        pid2, has_5fa, elapsed2, err2, _delisted2 = self._check_pool_selenium(pid, self.pools[pid])
                                         if err2 is None:
                                             pool_results[pid] = has_5fa
                                             pool_name = self.pools[pid]["name"]
@@ -1257,7 +1740,7 @@ class PoolMonitorApp:
                         pool_name = pool_data["name"]
                         self.root.after(0, self.add_log, f"[{pool_name}] 正在访问页面... ({self.check_count + 1})")
 
-                        pid, has_5fa, elapsed, error = self._check_pool_selenium(pool_id, pool_data)
+                        pid, has_5fa, elapsed, error, _delisted = self._check_pool_selenium(pool_id, pool_data)
                         if error:
                             self.root.after(0, self.add_log, f"[{pool_name}] 页面访问失败: {error}")
                             driver_error = True
@@ -1382,6 +1865,47 @@ class PoolMonitorApp:
                     self._send_wx_notification(pool_name, pool_url, check_time, "出现")
         else:
             self.monitor_status.set(f"未检测到变化 | 最后检查: {check_time.split(' ')[1]}")
+
+    # 弹窗提醒用户已下架，并询问是否立即删除池子
+    def _handle_delisted_pool(self, pool_id, pool_name, pool_url, check_time):
+        self._set_pool_card_state(pool_id, "⚠ 已下架", "#ffe0b2")
+        self.add_log(f"[{check_time}] ★★★ [{pool_name}] 检测到已下架！建议删除该池子 ★★★")
+        self.status_var.set(f"⚠ [{pool_name}] 已下架，建议删除")
+        self._write_pool_event_log(pool_name, pool_url, check_time, "已下架")
+        self._send_wx_delisted_notification(pool_name, pool_url, check_time)
+
+        try:
+            should_delete = messagebox.askyesno(
+                f"【{pool_name}】已下架",
+                f"检测到池子【{pool_name}】已下架！\n\n链接: {pool_url}\n时间: {check_time}\n\n是否立即删除该池子？",
+                parent=self.root
+            )
+        except Exception:
+            should_delete = False
+
+        if should_delete:
+            self.delete_pool(pool_id)
+            self.add_log(f"[{pool_name}] 已下架，用户确认删除")
+        else:
+            self.add_log(f"[{pool_name}] 已下架，用户选择保留（后续不会重复提醒）")
+
+    def _send_wx_delisted_notification(self, pool_name: str, pool_url: str, event_time: str):
+        if not self.wx_notify_enabled:
+            return
+        group = self.wx_group_name.strip()
+        if not group:
+            return
+
+        message = (
+            f"【{pool_name}】⚠ 已下架\n"
+            f"━━━━━━━━━━━━━━\n"
+            f"池子链接: {pool_url}\n"
+            f"检测时间: {event_time}\n"
+            f"建议: 请在工具中删除该池子\n"
+            f"━━━━━━━━━━━━━━"
+        )
+        self.wx_msg_queue.append({"group": group, "message": message})
+        self.add_log(f"已下架通知已加入微信发送队列（当前排队: {len(self.wx_msg_queue)}）")
 
     def update_check_info(self, check_time):
         self.monitor_status.set(f"最后检查: {check_time}")

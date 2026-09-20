@@ -24,8 +24,8 @@ class PathUtils:
         """
         base_dir = PathUtils.get_base_dir()
         category_map = {
-            'PDF工具': 'PDF tool-V3',
-            '图片工具': 'Picture tool-V3',
+            'PDF工具': 'PDF tool-V4',
+            '图片工具': 'Picture tool-V4',
             '音频工具': 'Audio tool-V3',
             '文件工具': 'File tool-V3',
             '其他工具': 'Other tool-V3',
@@ -35,7 +35,7 @@ class PathUtils:
             '小游戏': 'Mini-games-V3',
             '生活辅助工具': 'Life Assistance-V3',
             '报废淘汰': 'scrap-V0',
-            '遗留版本': 'Legacy version-V0',
+            '归档版本': 'Archive version-V0',
         }
         sub_dir = category_map.get(category)
         if sub_dir:
@@ -107,8 +107,8 @@ class ToolLauncher:
             raise RuntimeError("启动器初始化失败：项目自带字体不可用")
         self.tools = {
             'PDF工具': {
-                'PDF拆分': 'PDF chāi fēn-V4.py',
-                'PDF合并': 'PDF hé bìng-V4.py',
+                'PDF拆分': 'PDF chāi fēn-V4P.py',
+                'PDF合并': 'PDF hé bìng-V4P.py',
                 'PDF压缩': 'PDF yā suō-V4.py',
                 'PDF转Word': 'PDF zhuǎn Word-V4.py',
                 'PDF加水印': 'PDF jiā shuǐ yìn-V4.py',
@@ -130,9 +130,14 @@ class ToolLauncher:
                 'ICO转换': 'tú piàn zhuǎn tú biāo-V3.py',
                 '图片合成': 'tú piàn hé chéng-V3.py',
                 '批量裁剪': 'tú piàn pī liàng cái jiǎn-V3.py',
+                '长图滚动视频': 'cháng tú gǔn dòng shì pín-V3.py',
             },
             '音频工具': {
                 '音频提取': 'shì pín yīn pín tí qǔ-V3.py',
+                '音频剪辑': 'yīn pín jiǎn jí-V3.py',
+                '音频裁剪': 'yīn pín cái jiǎn-V3.py',
+                '音频合并': 'yīn pín hé bìng-V3.py',
+                '音频格式转换': 'yīn pín gé shì zhuǎn huàn-V3.py',
             },
             '文件工具': {
                 '目录树生成器': 'wén jiàn mù lù shù shēng chéng qì-V3.py',
@@ -183,8 +188,10 @@ class ToolLauncher:
                 '报废-面积计算器': 'miàn jī jì suàn qì-V3.py',
                 '报废-周长计算器': 'zhōu cháng jì suàn qì-V3.py',
             },
-            '遗留版本': {
+            '归档版本': {
                 'PDF拆分': 'PDF chāi fēn-V3.py',
+                'PDF合并': 'PDF hé bìng-V3.py',
+                'PDF转图片': 'PDF zhuǎn tú piàn-V3.py',
             }
         }
 
@@ -255,15 +262,42 @@ class ToolLauncher:
         page.add(
             ft.Column(
                 [
-                    # 顶部搜索区与操作按钮，保持在页面顶部并保持固定布局
+                    # 顶部：软件名称/版本号 + 搜索框 + 操作按钮，全部同一行
                     ft.Row(
                         [
+                            ft.Container(
+                                content=ft.Column(
+                                    [
+                                        ft.Text(
+                                            "宁宝工具集",
+                                            size=16,
+                                            weight=ft.FontWeight.BOLD,
+                                            font_family=self.font_family,
+                                            color=ft.Colors.BLUE_GREY_800,
+                                        ),
+                                        ft.Text(
+                                            "V4.0",
+                                            size=11,
+                                            font_family=self.font_family,
+                                            color=ft.Colors.BLUE_GREY_500,
+                                        ),
+                                    ],
+                                    spacing=0,
+                                    horizontal_alignment=ft.CrossAxisAlignment.START,
+                                ),
+                                margin=ft.margin.only(right=12),
+                            ),
                             ft.Container(
                                 content=self.search_field,
                                 expand=True,
                             ),
-                            ft.ElevatedButton("刷新", on_click=self.on_refresh_click, icon=ft.Icons.REFRESH),
-                            ft.ElevatedButton("开源协议", on_click=self.on_license_click, icon=ft.Icons.DESCRIPTION),
+                            ft.Column(
+                                [
+                                    ft.ElevatedButton("开源协议", on_click=self.on_license_click, icon=ft.Icons.DESCRIPTION),
+                                    ft.ElevatedButton("刷新", on_click=self.on_refresh_click, icon=ft.Icons.REFRESH),
+                                ],
+                                spacing=4,
+                            ),
                         ],
                         spacing=8,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,

@@ -46,11 +46,11 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-
-
+Test-V0
+Life Assistance-V3/chromedriver.exe
 # Virtualenv
 venv/
-
+Life Assistance-V3/logs
 # Unit test / coverage reports
 htmlcov/
 .tox/

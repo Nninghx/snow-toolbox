@@ -4,11 +4,12 @@ sys.dont_write_bytecode = True
 
 import os
 import threading
-import subprocess
 import importlib.util
 from pathlib import Path
 
 import flet as ft
+
+from PIL import Image
 
 
 def get_project_root():
@@ -62,23 +63,17 @@ def run_startup_preflight():
 APP_FONT_FAMILY = run_startup_preflight()
 
 
-class AudioExtractorApp:
-    """视频音频提取工具
-
-    导入视频文件，通过 FFmpeg 提取音频流并保存为 MP3/WAV 格式。
-    """
-
+class ImageSplitterApp:
     def __init__(self):
         self.page = None
-        self.video_path = None
-        self.audio_path = None
+        self.input_file = None
+        self.output_dir = None
         self.font_family = APP_FONT_FAMILY
-        self.running = False
 
     def build(self, page: ft.Page):
         self.page = page
-        page.title = "视频音频提取"
-        page.window.width = 600
+        page.title = "图片九宫格分割"
+        page.window.width = 580
         page.window.height = 520
         page.window.center()
         page.padding = 16
@@ -89,13 +84,13 @@ class AudioExtractorApp:
         if icon_path.exists():
             page.window.icon = str(icon_path)
 
-        # 文件选择器
-        self.video_picker = ft.FilePicker(on_result=self.on_video_picked)
-        self.audio_picker = ft.FilePicker(on_result=self.on_audio_picked)
-        page.overlay.extend([self.video_picker, self.audio_picker])
+        # 文件与目录选择器
+        self.file_picker = ft.FilePicker(on_result=self.on_file_picked)
+        self.dir_picker = ft.FilePicker(on_result=self.on_dir_picked)
+        page.overlay.extend([self.file_picker, self.dir_picker])
 
-        # 视频文件选择
-        self.video_text = ft.Text(
+        # 输入图片信息
+        self.file_text = ft.Text(
             "未选择文件",
             size=13,
             color=ft.Colors.BLUE_GREY_500,
@@ -104,22 +99,22 @@ class AudioExtractorApp:
             no_wrap=True,
             overflow=ft.TextOverflow.ELLIPSIS,
         )
-        video_card = self._make_card(
-            "视频文件",
+        file_card = self._make_card(
+            "输入图片",
             ft.Row(
                 [
-                    ft.Icon(ft.Icons.MOVIE, size=18, color=ft.Colors.BLUE_GREY_400),
-                    self.video_text,
-                    ft.ElevatedButton("选择文件", icon=ft.Icons.UPLOAD_FILE, on_click=self.select_video),
+                    ft.Icon(ft.Icons.IMAGE, size=18, color=ft.Colors.BLUE_GREY_400),
+                    self.file_text,
+                    ft.ElevatedButton("选择文件", icon=ft.Icons.UPLOAD_FILE, on_click=self.select_file),
                 ],
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=8,
             ),
         )
 
-        # 输出音频文件
-        self.audio_text = ft.Text(
-            "未设置（选择视频后自动生成）",
+        # 输出目录信息
+        self.output_text = ft.Text(
+            "未选择目录",
             size=13,
             color=ft.Colors.BLUE_GREY_500,
             font_family=self.font_family,
@@ -127,24 +122,24 @@ class AudioExtractorApp:
             no_wrap=True,
             overflow=ft.TextOverflow.ELLIPSIS,
         )
-        audio_card = self._make_card(
-            "输出音频文件",
+        output_card = self._make_card(
+            "输出目录",
             ft.Row(
                 [
-                    ft.Icon(ft.Icons.MUSIC_NOTE, size=18, color=ft.Colors.BLUE_GREY_400),
-                    self.audio_text,
-                    ft.ElevatedButton("选择位置", icon=ft.Icons.SAVE, on_click=self.select_audio),
+                    ft.Icon(ft.Icons.FOLDER, size=18, color=ft.Colors.BLUE_GREY_400),
+                    self.output_text,
+                    ft.ElevatedButton("选择目录", icon=ft.Icons.FOLDER_OPEN, on_click=self.select_output_dir),
                 ],
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=8,
             ),
         )
 
-        # 操作按钮
-        self.extract_button = ft.ElevatedButton(
-            "开始提取",
-            icon=ft.Icons.AUDIO_FILE,
-            on_click=self.extract_audio,
+        # 进度条与操作按钮
+        self.split_button = ft.ElevatedButton(
+            "开始分割",
+            icon=ft.Icons.CROP_SQUARE,
+            on_click=self.start_split,
             height=40,
         )
         self.progress = ft.ProgressBar(
@@ -155,6 +150,7 @@ class AudioExtractorApp:
             border_radius=4,
             expand=True,
         )
+        self.progress_text = ft.Text("", size=12, color=ft.Colors.BLUE_GREY_700, font_family=self.font_family)
 
         # 状态栏
         self.status_text = ft.Text("就绪", size=13, color=ft.Colors.BLUE_GREY_700, font_family=self.font_family)
@@ -163,17 +159,21 @@ class AudioExtractorApp:
             # 页面标题栏
             ft.Row(
                 [
-                    ft.Icon(ft.Icons.AUDIO_FILE, size=32, color=ft.Colors.BLUE),
-                    ft.Text("视频音频提取", size=28, weight=ft.FontWeight.BOLD, font_family=self.font_family),
+                    ft.Icon(ft.Icons.CROP_SQUARE, size=32, color=ft.Colors.BLUE),
+                    ft.Text("图片九宫格分割", size=28, weight=ft.FontWeight.BOLD, font_family=self.font_family),
                 ],
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=10,
             ),
             ft.Divider(thickness=1, opacity=0.3),
-            video_card,
-            audio_card,
-            self.progress,
-            ft.Row([self.extract_button], alignment=ft.MainAxisAlignment.END),
+            file_card,
+            output_card,
+            ft.Row(
+                [self.progress, self.progress_text],
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=10,
+            ),
+            ft.Row([self.split_button], alignment=ft.MainAxisAlignment.END),
             # 底部状态区
             ft.Container(
                 content=self.status_text,
@@ -207,133 +207,99 @@ class AudioExtractorApp:
             border=ft.border.all(1, ft.Colors.GREY_200),
         )
 
-    def select_video(self, e):
-        self.video_picker.pick_files(
-            dialog_title="选择视频文件",
+    def select_file(self, e):
+        self.file_picker.pick_files(
+            dialog_title="选择图片文件",
             allow_multiple=False,
             file_type=ft.FilePickerFileType.CUSTOM,
-            allowed_extensions=["mp4", "avi", "mkv", "mov", "flv", "wmv", "webm"],
+            allowed_extensions=["jpg", "jpeg", "png", "bmp", "gif", "webp"],
         )
 
-    def on_video_picked(self, e):
+    def on_file_picked(self, e):
         if not e.files:
             return
         file = e.files[0].path
         if not os.path.exists(file):
             self.show_status("文件不存在", success=False)
             return
-        self.video_path = file
-        self.video_text.value = os.path.basename(file)
-        self.video_text.color = ft.Colors.BLUE_GREY_900
-
-        # 自动生成默认音频输出路径
-        if not self.audio_path:
-            self.audio_path = str(Path(file).with_suffix(".mp3"))
-            self.audio_text.value = self.audio_path
-            self.audio_text.color = ft.Colors.BLUE_GREY_900
-
+        self.input_file = file
+        self.file_text.value = os.path.basename(file)
+        self.file_text.color = ft.Colors.BLUE_GREY_900
         self.page.update()
 
-    def select_audio(self, e):
-        default_name = Path(self.video_path).with_suffix(".mp3").name if self.video_path else "output.mp3"
-        self.audio_picker.save_file(
-            dialog_title="保存音频文件",
-            file_name=default_name,
-            allowed_extensions=["mp3", "wav"],
-        )
+    def select_output_dir(self, e):
+        self.dir_picker.get_directory_path(dialog_title="选择输出目录")
 
-    def on_audio_picked(self, e):
+    def on_dir_picked(self, e):
         if not e.path:
             return
-        self.audio_path = e.path
-        self.audio_text.value = e.path
-        self.audio_text.color = ft.Colors.BLUE_GREY_900
+        self.output_dir = e.path
+        self.output_text.value = e.path
+        self.output_text.color = ft.Colors.BLUE_GREY_900
         self.page.update()
 
-    def extract_audio(self, e):
-        """开始音频提取流程。"""
-        if self.running:
+    def start_split(self, e):
+        if not self.input_file:
+            self.show_status("请先选择输入图片", success=False)
+            return
+        if not self.output_dir:
+            self.show_status("请先选择输出目录", success=False)
             return
 
-        if not self.video_path or not Path(self.video_path).is_file():
-            self.show_status("请选择有效的视频文件", success=False)
-            return
-        if not self.audio_path:
-            self.show_status("请设置音频输出路径", success=False)
-            return
-
-        # 检查 FFmpeg 是否可用
-        if not self._is_ffmpeg_available():
-            self.show_status(
-                "FFmpeg 未安装或不在系统路径中，请安装：winget install Gyan.FFmpeg",
-                success=False,
-            )
-            return
-
-        self.running = True
-        self.extract_button.disabled = True
+        self.progress.value = 0
         self.progress.visible = True
-        self.progress.value = 0.5  # 不确定进度，显示中间位置
-        self.show_status("正在提取中...")
+        self.progress_text.value = "0/9"
+        self.split_button.disabled = True
+        self.show_status("正在分割...")
 
         threading.Thread(
-            target=self._run_extraction,
-            args=(self.video_path, self.audio_path),
+            target=self._run_split,
             daemon=True,
         ).start()
 
-    def _is_ffmpeg_available(self):
-        """检查 FFmpeg 是否已安装并可用。"""
+    def _run_split(self):
+        """在后台线程中执行九宫格分割任务。"""
         try:
-            subprocess.run(
-                ["ffmpeg", "-version"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                check=True,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            )
-            return True
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            return False
+            base_name = os.path.splitext(os.path.basename(self.input_file))[0]
+            save_dir = os.path.join(self.output_dir, base_name + "_split")
+            os.makedirs(save_dir, exist_ok=True)
 
-    def _run_extraction(self, video_file, audio_file):
-        """执行 FFmpeg 音频提取命令。"""
-        command = [
-            "ffmpeg",
-            "-i", video_file,
-            "-q:a", "0",
-            "-map", "a",
-            "-y",
-            audio_file,
-        ]
+            with Image.open(self.input_file) as img:
+                width, height = img.size
+                tile_width = width // 3
+                tile_height = height // 3
 
-        try:
-            result = subprocess.run(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="ignore",
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            )
-            if result.returncode == 0:
-                self.progress.value = 1
-                self.progress.update()
-                self.show_status("提取成功！")
-                self.show_info("成功", f"音频已保存至：\n{audio_file}")
-            else:
-                error_lines = result.stderr.strip().splitlines()
-                error_msg = error_lines[-1] if error_lines else "音频提取过程中发生错误。"
-                self.show_status(f"提取失败: {error_msg}", success=False)
-        except Exception as err:
-            self.show_status(f"提取失败: {err}", success=False)
-        finally:
-            self.running = False
-            self.extract_button.disabled = False
-            self.progress.visible = False
-            self.extract_button.update()
+                for i in range(3):
+                    for j in range(3):
+                        left = j * tile_width
+                        upper = i * tile_height
+                        right = left + tile_width
+                        lower = upper + tile_height
+
+                        tile = img.crop((left, upper, right, lower))
+                        tile.save(os.path.join(save_dir, f'{base_name}_tile_{i}_{j}.png'))
+
+                        done = i * 3 + j + 1
+                        self._update_progress(done, 9)
+
+            self.progress.value = 1
+            self.progress_text.value = "9/9"
             self.progress.update()
+            self.progress_text.update()
+            self.show_status("分割完成")
+            self.show_info("完成", f"图片已成功分割为9份，保存在:\n{save_dir}")
+        except Exception as err:
+            self.show_status(f"分割失败: {err}", success=False)
+        finally:
+            self.split_button.disabled = False
+            self.split_button.update()
+
+    def _update_progress(self, done, total):
+        """更新进度条和进度文本。"""
+        self.progress.value = done / total
+        self.progress_text.value = f"{done}/{total}"
+        self.progress.update()
+        self.progress_text.update()
 
     def show_status(self, message: str, success: bool = True):
         """更新状态栏并显示全局提示消息。"""
@@ -363,5 +329,5 @@ class AudioExtractorApp:
 
 
 if __name__ == '__main__':
-    app = AudioExtractorApp()
+    app = ImageSplitterApp()
     ft.app(target=app.build)
