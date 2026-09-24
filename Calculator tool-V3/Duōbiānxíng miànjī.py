@@ -1,284 +1,302 @@
-# 禁止生成 .pyc 文件
+# 禁止生成 .pyc 文件，避免输出目录被污染
 import sys
 sys.dont_write_bytecode = True
 
-import tkinter as tk
-from tkinter import ttk, messagebox
 import math
+import importlib.util
 from pathlib import Path
+
+import flet as ft
+
+
+def get_project_root():
+    """返回项目根目录。"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
 
 
 def _resolve_base_class_path():
     """解析公共基类文件路径，打包后自动使用 .pyc 字节码"""
-    base_py = Path(__file__).resolve().parent.parent / 'Core' / 'Public base class.py'
+    base_py = get_project_root() / 'Core' / 'Public base class.py'
     if getattr(sys, 'frozen', False):
-        import importlib.util
         return Path(importlib.util.cache_from_source(str(base_py)))
     return base_py
 
-# 导入公共基类
-import importlib.util
-_base_spec = importlib.util.spec_from_file_location(
-    "public_base_class",
-    _resolve_base_class_path()
-)
-_base_module = importlib.util.module_from_spec(_base_spec)
-_base_spec.loader.exec_module(_base_module)
-PDFToolBase = _base_module.PDFToolBase
-del _base_spec, _base_module
 
+def run_startup_preflight():
+    """执行启动前置检查：加载公共基类并验证字体可用性。"""
+    base_file = _resolve_base_class_path()
 
-class PolygonAreaApp(PDFToolBase):
-    def __init__(self, root):
-        super().__init__(root)
+    spec = importlib.util.spec_from_file_location('public_base_class', str(base_file))
+    if spec is None or spec.loader is None:
+        raise ImportError(f"无法加载公共基类：{base_file}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    import tkinter as tk
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        base = module.PDFToolBase(root)
         if not root.winfo_exists():
-            return
-        
-        self.root.title("多边形面积计算器")
-        self.root.geometry("460x560")
-        self.root.resizable(False, False)
+            raise RuntimeError("授权或窗口初始化失败")
 
-        self._setup_styles()
-        self._create_ui()
+        current_font = getattr(base, 'current_font', None)
+        if not current_font:
+            raise RuntimeError("公共基类未成功加载字体")
 
-    def _setup_styles(self):
-        """配置样式"""
-        style = ttk.Style()
-        style.theme_use("clam")
+        font_family = current_font[0]
+        icon_path = str(base._get_project_root() / 'Image' / 'icon.ico')
+        return font_family, icon_path
+    finally:
+        try:
+            if root.winfo_exists():
+                root.destroy()
+        except Exception:
+            pass
 
-        self.colors = {
-            "bg": "#f5f7fa",
-            "card": "#ffffff",
-            "primary": "#4a90d9",
-            "success": "#27ae60",
-            "text": "#2c3e50",
-            "muted": "#7f8c8d",
-        }
 
-        self.root.configure(bg=self.colors["bg"])
+APP_FONT_FAMILY, APP_ICON_PATH = run_startup_preflight()
 
-        style.configure("Title.TLabel",
-                        font=("Microsoft YaHei UI", 15, "bold"),
-                        foreground=self.colors["primary"],
-                        background=self.colors["bg"])
 
-        style.configure("Result.TLabel",
-                        font=("Microsoft YaHei UI", 18, "bold"),
-                        foreground=self.colors["success"],
-                        background=self.colors["bg"])
+# 图形配置：key -> (显示名, [(参数键, 标签, 默认值), ...])
+SHAPE_CONFIGS = {
+    "square": ("正方形", [("a", "边长", "5")]),
+    "rectangle": ("矩形", [("a", "长", "6"), ("b", "宽", "4")]),
+    "parallelogram": ("平行四边形", [("a", "底", "6"), ("h", "高", "4")]),
+    "rhombus": ("菱形", [("d1", "对角线 d₁", "6"), ("d2", "对角线 d₂", "4")]),
+    # 三角形：既可用 底×高，也可用三边（海伦公式），二选一
+    "triangle": ("三角形", [
+        ("a", "底 (可选)", ""),
+        ("h", "高 (可选)", ""),
+        ("s1", "边 a (海伦公式)", "3"),
+        ("s2", "边 b (海伦公式)", "4"),
+        ("s3", "边 c (海伦公式)", "5"),
+    ]),
+    "right_triangle": ("直角三角形", [("a", "直角边 a", "3"), ("b", "直角边 b", "4")]),
+    "equilateral_triangle": ("等边三角形", [("a", "边长", "5")]),
+    "circle": ("圆", [("r", "半径 r", "5")]),
+    "sector": ("扇形", [("r", "半径 r", "5"), ("angle", "圆心角 (°)", "90")]),
+    "annulus": ("圆环", [("R", "外半径 R", "6"), ("r", "内半径 r", "3")]),
+    "parabolic_sector": ("抛物扇形", [("w", "底宽 w", "6"), ("h", "高 h", "4")]),
+    "hyperbolic_sector": ("双曲扇形", [("a", "参数 a", "3"), ("b", "参数 b", "2"), ("t", "双曲角 t", "1.5")]),
+    "elliptic_sector": ("椭圆扇形", [("a", "长半轴 a", "5"), ("b", "短半轴 b", "3"), ("angle", "参数角 θ (°)", "60")]),
+    "ellipse": ("椭圆", [("a", "长半轴 a", "5"), ("b", "短半轴 b", "3")]),
+}
 
-        style.configure("Formula.TLabel",
-                        font=("Microsoft YaHei UI", 9),
-                        foreground=self.colors["muted"],
-                        background=self.colors["bg"])
+SHAPE_KEYS = list(SHAPE_CONFIGS.keys())
 
-        style.configure("TRadiobutton",
-                        font=("Microsoft YaHei UI", 10))
 
-        style.configure("TLabel",
-                        font=("Microsoft YaHei UI", 10),
-                        background=self.colors["bg"])
+class PolygonAreaApp:
+    """多边形面积计算器 Flet 应用"""
 
-        style.configure("TLabelframe",
-                        background=self.colors["bg"])
+    def __init__(self, page: ft.Page):
+        self.page = page
+        self.font_family = APP_FONT_FAMILY
 
-        style.configure("TLabelframe.Label",
-                        font=("Microsoft YaHei UI", 10, "bold"),
-                        foreground=self.colors["text"],
-                        background=self.colors["bg"])
+        page.title = "多边形面积计算器"
+        page.window.width = 720
+        page.window.height = 800
+        page.window.min_width = 560
+        page.window.min_height = 640
+        page.padding = 0
+        page.bgcolor = ft.Colors.GREY_100
+        page.theme = ft.Theme(font_family=self.font_family)
 
-    def _create_ui(self):
-        """创建界面"""
-        # 标题
-        ttk.Label(self.root, text="多边形面积计算器",
-                  style="Title.TLabel").pack(pady=(15, 10))
+        # 窗口图标由公共基类解析，直接使用
+        page.window.icon = APP_ICON_PATH
 
-        # 图形选择区
-        select_frame = ttk.LabelFrame(self.root, text="选择图形", padding=10)
-        select_frame.pack(fill="x", padx=20, pady=(0, 10))
+        self.shape_dropdown = ft.Dropdown(
+            label="选择图形",
+            value="square",
+            options=[ft.dropdown.Option(k, SHAPE_CONFIGS[k][0]) for k in SHAPE_KEYS],
+            text_size=13,
+            border_radius=8,
+            on_change=self.on_shape_change,
+        )
 
-        self.shape_var = tk.StringVar(value="square")
+        self.inputs_container = ft.Column(spacing=8)
+        self.fields = {}
 
-        shapes = [
-            ("正方形", "square"),
-            ("矩形", "rectangle"),
-            ("平行四边形", "parallelogram"),
-            ("菱形", "rhombus"),
-            ("三角形", "triangle"),
-            ("直角三角形", "right_triangle"),
-            ("等边三角形", "equilateral_triangle"),
-            ("圆", "circle"),
-            ("扇形", "sector"),
-            ("圆环", "annulus"),
-            ("抛物扇形", "parabolic_sector"),
-            ("双曲扇形", "hyperbolic_sector"),
-            ("椭圆扇形", "elliptic_sector"),
-            ("椭圆", "ellipse"),
-        ]
+        self.result_text = ft.Text(
+            "面积 = ",
+            size=22, weight=ft.FontWeight.BOLD,
+            color=ft.Colors.GREEN_700,
+            text_align=ft.TextAlign.CENTER,
+            font_family=self.font_family,
+            selectable=True,
+        )
+        self.formula_text = ft.Text(
+            "",
+            size=12,
+            color=ft.Colors.BLUE_GREY_700,
+            text_align=ft.TextAlign.CENTER,
+            font_family="Consolas",
+            selectable=True,
+        )
 
-        rows_data = [shapes[i:i+3] for i in range(0, len(shapes), 3)]
-        for i, row_shapes in enumerate(rows_data):
-            row = ttk.Frame(select_frame)
-            row.pack(fill="x", pady=(0 if i == 0 else 5, 0))
-            for text, value in row_shapes:
-                ttk.Radiobutton(row, text=text, variable=self.shape_var,
-                                value=value, command=self.on_shape_change).pack(
-                                    side="left", padx=(0, 15))
+        self.status_text = ft.Text("就绪", size=12, color=ft.Colors.BLUE_GREY_700,
+                                    font_family=self.font_family)
 
-        # 参数输入区
-        self.input_frame = ttk.LabelFrame(self.root, text="输入参数", padding=15)
-        self.input_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        self._build_ui()
+        self._rebuild_inputs("square")
 
-        # 结果区
-        result_frame = ttk.Frame(self.root)
-        result_frame.pack(fill="x", padx=20, pady=(0, 5))
+    def _make_card(self, title, content):
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(title, size=13, weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.BLUE_GREY_700, font_family=self.font_family),
+                content,
+            ], spacing=8),
+            padding=ft.padding.all(12),
+            border_radius=10,
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.all(1, ft.Colors.GREY_200),
+        )
 
-        self.result_label = ttk.Label(result_frame, text="面积 = ",
-                                      style="Result.TLabel", anchor="center")
-        self.result_label.pack(fill="x")
+    def _build_ui(self):
+        btn_calc = ft.ElevatedButton(
+            "计 算", icon=ft.Icons.CALCULATE,
+            bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE,
+            on_click=self.on_calculate, expand=True,
+        )
+        btn_clear = ft.OutlinedButton("清空", icon=ft.Icons.CLEAR,
+                                         on_click=self.on_clear)
 
-        self.formula_label = ttk.Label(result_frame, text="",
-                                       style="Formula.TLabel", anchor="center")
-        self.formula_label.pack(fill="x", pady=(2, 0))
+        select_card = self._make_card(
+            "选择图形",
+            ft.Column([self.shape_dropdown, self.inputs_container], spacing=10),
+        )
 
-        # 计算按钮
-        ttk.Button(self.root, text="计 算", command=self.calculate).pack(
-            fill="x", padx=20, pady=(5, 15))
+        result_container = ft.Container(
+            content=ft.Column([self.result_text, self.formula_text], spacing=8,
+                              horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            padding=ft.padding.all(14),
+            border_radius=8,
+            bgcolor=ft.Colors.BLUE_GREY_50,
+        )
+        result_card = self._make_card("计算结果", result_container)
 
-        # 初始化输入框
-        self.entries = {}
-        self._build_inputs("square")
+        action_row = ft.Row([btn_calc, btn_clear], spacing=8)
 
-    def _build_inputs(self, shape):
-        """根据图形创建对应的输入框"""
-        # 清空旧输入
-        for widget in self.input_frame.winfo_children():
-            widget.destroy()
-        self.entries.clear()
+        status_bar = ft.Container(
+            content=self.status_text,
+            padding=ft.padding.symmetric(horizontal=12, vertical=6),
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.only(top=ft.BorderSide(1, ft.Colors.GREY_200)),
+        )
 
-        # 各图形的参数定义
-        configs = {
-            "square": [
-                ("a", "边长", "5"),
-            ],
-            "rectangle": [
-                ("a", "长", "6"),
-                ("b", "宽", "4"),
-            ],
-            "parallelogram": [
-                ("a", "底", "6"),
-                ("h", "高", "4"),
-            ],
-            "rhombus": [
-                ("d1", "对角线 d₁", "6"),
-                ("d2", "对角线 d₂", "4"),
-            ],
-            "triangle": [
-                ("a", "底", "6"),
-                ("h", "高", "4"),
-            ],
-            "right_triangle": [
-                ("a", "直角边 a", "3"),
-                ("b", "直角边 b", "4"),
-            ],
-            "equilateral_triangle": [
-                ("a", "边长", "5"),
-            ],
-            "circle": [
-                ("r", "半径 r", "5"),
-            ],
-            "sector": [
-                ("r", "半径 r", "5"),
-                ("angle", "圆心角 (°)", "90"),
-            ],
-            "annulus": [
-                ("R", "外半径 R", "6"),
-                ("r", "内半径 r", "3"),
-            ],
-            "parabolic_sector": [
-                ("w", "底宽 w", "6"),
-                ("h", "高 h", "4"),
-            ],
-            "hyperbolic_sector": [
-                ("a", "参数 a", "3"),
-                ("b", "参数 b", "2"),
-                ("t", "双曲角 t", "1.5"),
-            ],
-            "elliptic_sector": [
-                ("a", "长半轴 a", "5"),
-                ("b", "短半轴 b", "3"),
-                ("angle", "参数角 θ (°)", "60"),
-            ],
-            "ellipse": [
-                ("a", "长半轴 a", "5"),
-                ("b", "短半轴 b", "3"),
-            ],
-        }
+        self.page.add(
+            ft.Container(
+                content=ft.Column(
+                    [select_card, result_card, action_row],
+                    spacing=10,
+                    scroll=ft.ScrollMode.AUTO,
+                    expand=True,
+                ),
+                padding=12,
+                expand=True,
+            ),
+        )
+        self.page.add(status_bar)
 
-        params = configs[shape]
-        for i, (key, label, default) in enumerate(params):
-            row = ttk.Frame(self.input_frame)
-            row.pack(fill="x", pady=(0, 8))
+    def _rebuild_inputs(self, shape):
+        self.inputs_container.controls.clear()
+        self.fields.clear()
+        _, params = SHAPE_CONFIGS[shape]
+        for key, label, default in params:
+            field = ft.TextField(
+                label=label,
+                value=default,
+                text_size=13,
+                content_padding=ft.padding.all(10),
+                border_radius=8,
+                on_submit=lambda e: self.on_calculate(e),
+            )
+            self.fields[key] = field
+            self.inputs_container.controls.append(field)
+        self.page.update()
 
-            ttk.Label(row, text=f"{label}:", width=12, anchor="e").pack(
-                side="left", padx=(0, 5))
+    def on_shape_change(self, e):
+        self._rebuild_inputs(self.shape_dropdown.value)
+        self.result_text.value = "面积 = "
+        self.formula_text.value = ""
+        self.page.update()
 
-            entry = ttk.Entry(row, width=15)
-            entry.insert(0, default)
-            entry.pack(side="left")
-            entry.bind("<Return>", lambda e: self.calculate())
+    def on_clear(self, e):
+        for f in self.fields.values():
+            f.value = ""
+        self.result_text.value = "面积 = "
+        self.formula_text.value = ""
+        self.page.update()
+        self.show_status("已清空", success=True)
 
-            self.entries[key] = entry
+    def on_calculate(self, e):
+        try:
+            self.calculate()
+        except ValueError as ex:
+            self._show_error(str(ex))
+        except Exception as ex:
+            self._show_error(f"计算失败: {ex}")
 
-        # 三角形额外加一个海伦公式选项
-        if shape == "triangle":
-            sep = ttk.Separator(self.input_frame, orient="horizontal")
-            sep.pack(fill="x", pady=8)
-
-            heron_frame = ttk.Frame(self.input_frame)
-            heron_frame.pack(fill="x")
-
-            ttk.Label(heron_frame, text="或使用三边 (海伦公式):",
-                      foreground=self.colors["muted"]).pack(anchor="w", pady=(0, 5))
-
-            hrow = ttk.Frame(heron_frame)
-            hrow.pack(fill="x")
-
-            for key, label, default in [("s1", "a", "3"), ("s2", "b", "4"), ("s3", "c", "5")]:
-                ttk.Label(hrow, text=f"{label}=").pack(side="left", padx=(5, 2))
-                entry = ttk.Entry(hrow, width=6)
-                entry.insert(0, default)
-                entry.pack(side="left", padx=(0, 8))
-                entry.bind("<Return>", lambda e: self.calculate())
-                self.entries[key] = entry
-
-    def on_shape_change(self):
-        """切换图形时重建输入框"""
-        self._build_inputs(self.shape_var.get())
-        self.result_label.config(text="面积 = ")
-        self.formula_label.config(text="")
+    def show_status(self, message, success=True):
+        self.status_text.value = message
+        self.page.snack_bar = ft.SnackBar(
+            ft.Text(message, font_family=self.font_family),
+            bgcolor=ft.Colors.GREEN if success else ft.Colors.RED,
+            open=True,
+        )
+        self.page.update()
 
     def _get_value(self, key):
-        """获取输入值"""
-        try:
-            val = float(self.entries[key].get())
-            if val <= 0:
-                raise ValueError
-            return val
-        except (ValueError, KeyError):
+        field = self.fields.get(key)
+        if field is None:
             return None
+        text = (field.value or "").strip()
+        if not text:
+            return None
+        try:
+            val = float(text)
+        except ValueError:
+            return None
+        if val <= 0:
+            return None
+        return val
+
+    def _require(self, *keys):
+        vals = []
+        shape_name = SHAPE_CONFIGS[self.shape_dropdown.value][0]
+        for k in keys:
+            v = self._get_value(k)
+            if v is None:
+                raise ValueError(f"请输入有效的 {shape_name} 参数 ({k})")
+            vals.append(v)
+        return vals if len(vals) > 1 else vals[0]
+
+    def _fmt(self, val):
+        if val == int(val):
+            return str(int(val))
+        return f"{val:.4f}"
+
+    def _show_error(self, msg):
+        self.result_text.value = f"错误: {msg}"
+        self.formula_text.value = ""
+        self.show_status(msg, success=False)
+
+    def _set_result(self, area, formula):
+        self.result_text.value = f"面积 = {self._fmt(area)}"
+        self.formula_text.value = formula
+        self.show_status("计算完成", success=True)
 
     def calculate(self):
-        """计算面积"""
-        shape = self.shape_var.get()
+        shape = self.shape_dropdown.value
 
         if shape == "square":
-            a = self._get_value("a")
-            if a is None:
-                return self._show_error("请输入有效的边长")
+            a = self._require("a")
             area = a * a
-            self.result_label.config(text=f"面积 = {self._fmt(area)}")
-            self.formula_label.config(text=(
+            self._set_result(area, (
                 f"正方形 边长 a={a}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"【面积公式】A = a²\n"
@@ -286,13 +304,9 @@ class PolygonAreaApp(PDFToolBase):
             ))
 
         elif shape == "rectangle":
-            a = self._get_value("a")
-            b = self._get_value("b")
-            if a is None or b is None:
-                return self._show_error("请输入有效的长和宽")
+            a, b = self._require("a", "b")
             area = a * b
-            self.result_label.config(text=f"面积 = {self._fmt(area)}")
-            self.formula_label.config(text=(
+            self._set_result(area, (
                 f"矩形 长 a={a}, 宽 b={b}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"【面积公式】A = a × b\n"
@@ -300,13 +314,9 @@ class PolygonAreaApp(PDFToolBase):
             ))
 
         elif shape == "parallelogram":
-            a = self._get_value("a")
-            h = self._get_value("h")
-            if a is None or h is None:
-                return self._show_error("请输入有效的底和高")
+            a, h = self._require("a", "h")
             area = a * h
-            self.result_label.config(text=f"面积 = {self._fmt(area)}")
-            self.formula_label.config(text=(
+            self._set_result(area, (
                 f"平行四边形 底 a={a}, 高 h={h}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"【面积公式】A = 底 × 高\n"
@@ -314,13 +324,9 @@ class PolygonAreaApp(PDFToolBase):
             ))
 
         elif shape == "rhombus":
-            d1 = self._get_value("d1")
-            d2 = self._get_value("d2")
-            if d1 is None or d2 is None:
-                return self._show_error("请输入有效的对角线长度")
+            d1, d2 = self._require("d1", "d2")
             area = (d1 * d2) / 2
-            self.result_label.config(text=f"面积 = {self._fmt(area)}")
-            self.formula_label.config(text=(
+            self._set_result(area, (
                 f"菱形 对角线 d₁={d1}, d₂={d2}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"【面积公式】A = (d₁ × d₂) / 2\n"
@@ -328,13 +334,12 @@ class PolygonAreaApp(PDFToolBase):
             ))
 
         elif shape == "triangle":
-            # 优先尝试底×高
+            # 优先尝试 底 × 高
             a = self._get_value("a")
             h = self._get_value("h")
             if a is not None and h is not None:
                 area = (a * h) / 2
-                self.result_label.config(text=f"面积 = {self._fmt(area)}")
-                self.formula_label.config(text=(
+                self._set_result(area, (
                     f"三角形 底 a={a}, 高 h={h}\n"
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                     f"【面积公式】A = (底 × 高) / 2\n"
@@ -348,67 +353,43 @@ class PolygonAreaApp(PDFToolBase):
             s3 = self._get_value("s3")
             if s1 is not None and s2 is not None and s3 is not None:
                 if s1 + s2 <= s3 or s1 + s3 <= s2 or s2 + s3 <= s1:
-                    return self._show_error("三边无法构成三角形")
+                    raise ValueError("三边无法构成三角形")
                 s = (s1 + s2 + s3) / 2
                 area = math.sqrt(s * (s - s1) * (s - s2) * (s - s3))
-                self.result_label.config(text=f"面积 = {self._fmt(area)}")
-                self.formula_label.config(text=(
+                self._set_result(area, (
                     f"三角形 三边 a={s1}, b={s2}, c={s3}\n"
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                     f"【海伦公式】A = √(s(s-a)(s-b)(s-c))\n"
-                    f"【半周长】s = (a+b+c)/2 = ({s1}+{s2}+{s3})/2 = {s}\n"
-                    f"【计算过程】A = √({s}×{s-s1}×{s-s2}×{s-s3}) = {self._fmt(area)}"
+                    f"【半周长】s = (a+b+c)/2 = ({s1}+{s2}+{s3})/2 = {self._fmt(s)}\n"
+                    f"【计算过程】A = √({self._fmt(s)}×{self._fmt(s - s1)}×{self._fmt(s - s2)}×{self._fmt(s - s3)}) = {self._fmt(area)}"
                 ))
                 return
 
-            self._show_error("请输入底和高，或三边长度")
+            raise ValueError("请输入底和高，或三边长度")
 
         elif shape == "right_triangle":
-            a = self._get_value("a")
-            b = self._get_value("b")
-            if a is None or b is None:
-                return self._show_error("请输入有效的直角边长度")
-            
-            # 勾股定理：斜边 c = √(a² + b²)
+            a, b = self._require("a", "b")
             c = math.sqrt(a ** 2 + b ** 2)
-            
-            # 面积
             area = (a * b) / 2
-            
-            # 高 h（欧几里得关系）：h = ab/c
             h = (a * b) / c
-            
-            # 斜边被高分成的两段：p = a²/c, q = b²/c
             p = (a ** 2) / c
             q = (b ** 2) / c
-            
-            # 角度（弧度转角度）
-            alpha = math.degrees(math.atan(a / b))  # 角A（对边为a）
-            beta = math.degrees(math.atan(b / a))   # 角B（对边为b）
-            
-            # 显示结果
-            result_text = f"面积 = {area:.4f}"
-            self.result_label.config(text=result_text)
-            
-            # 显示详细信息
-            detail = (
+            alpha = math.degrees(math.atan(a / b))
+            beta = math.degrees(math.atan(b / a))
+            self._set_result(area, (
                 f"直角三角形 a={a}, b={b}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【勾股定理】斜边 c = √(a²+b²) = {c:.4f}\n"
-                f"【高】h = ab/c = {h:.4f}\n"
-                f"【欧几里得关系】h² = p·q = {p:.4f} × {q:.4f} = {p*q:.4f}\n"
+                f"【勾股定理】斜边 c = √(a²+b²) = {self._fmt(c)}\n"
+                f"【高】h = ab/c = {self._fmt(h)}\n"
+                f"【欧几里得关系】h² = p·q = {self._fmt(p)} × {self._fmt(q)} = {self._fmt(p * q)}\n"
                 f"【边角关系】α = {alpha:.2f}°, β = {beta:.2f}°\n"
                 f"【面积公式】A = (a × b) / 2"
-            )
-            self.formula_label.config(text=detail)
+            ))
 
         elif shape == "equilateral_triangle":
-            a = self._get_value("a")
-            if a is None:
-                return self._show_error("请输入有效的边长")
+            a = self._require("a")
             area = (math.sqrt(3) / 4) * a ** 2
-            self.result_label.config(text=f"面积 = {self._fmt(area)}")
-            self.formula_label.config(text=(
+            self._set_result(area, (
                 f"等边三角形 边长 a={a}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"【面积公式】A = (√3 / 4) × a²\n"
@@ -416,12 +397,9 @@ class PolygonAreaApp(PDFToolBase):
             ))
 
         elif shape == "circle":
-            r = self._get_value("r")
-            if r is None:
-                return self._show_error("请输入有效的半径")
+            r = self._require("r")
             area = math.pi * r ** 2
-            self.result_label.config(text=f"面积 = {self._fmt(area)}")
-            self.formula_label.config(text=(
+            self._set_result(area, (
                 f"圆 半径 r={r}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"【面积公式】A = π × r²\n"
@@ -429,15 +407,10 @@ class PolygonAreaApp(PDFToolBase):
             ))
 
         elif shape == "sector":
-            r = self._get_value("r")
-            angle = self._get_value("angle")
-            if r is None or angle is None:
-                return self._show_error("请输入有效的半径和圆心角")
+            r, angle = self._require("r", "angle")
             area = (angle / 360) * math.pi * r ** 2
-            # 弧长
             arc = (angle / 360) * 2 * math.pi * r
-            self.result_label.config(text=f"面积 = {self._fmt(area)}")
-            self.formula_label.config(text=(
+            self._set_result(area, (
                 f"扇形 半径 r={r}, 圆心角 θ={angle}°\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"【面积公式】A = (θ / 360) × π × r²\n"
@@ -446,30 +419,21 @@ class PolygonAreaApp(PDFToolBase):
             ))
 
         elif shape == "annulus":
-            R = self._get_value("R")
-            r = self._get_value("r")
-            if R is None or r is None:
-                return self._show_error("请输入有效的半径")
+            R, r = self._require("R", "r")
             if R <= r:
-                return self._show_error("外半径必须大于内半径")
+                raise ValueError("外半径必须大于内半径")
             area = math.pi * (R ** 2 - r ** 2)
-            self.result_label.config(text=f"面积 = {self._fmt(area)}")
-            self.formula_label.config(text=(
+            self._set_result(area, (
                 f"圆环 外半径 R={R}, 内半径 r={r}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"【面积公式】A = π × (R² - r²)\n"
-                f"【计算过程】A = π × ({R}² - {r}²) = π × {R**2 - r**2} = {self._fmt(area)}"
+                f"【计算过程】A = π × ({R}² - {r}²) = π × {self._fmt(R ** 2 - r ** 2)} = {self._fmt(area)}"
             ))
 
         elif shape == "parabolic_sector":
-            w = self._get_value("w")
-            h = self._get_value("h")
-            if w is None or h is None:
-                return self._show_error("请输入有效的底宽和高")
-            # 抛物线弓形面积 = (2/3) × 底宽 × 高
+            w, h = self._require("w", "h")
             area = (2 / 3) * w * h
-            self.result_label.config(text=f"面积 = {self._fmt(area)}")
-            self.formula_label.config(text=(
+            self._set_result(area, (
                 f"抛物扇形 底宽 w={w}, 高 h={h}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"【面积公式】A = (2/3) × w × h\n"
@@ -477,19 +441,11 @@ class PolygonAreaApp(PDFToolBase):
             ))
 
         elif shape == "hyperbolic_sector":
-            a = self._get_value("a")
-            b = self._get_value("b")
-            t = self._get_value("t")
-            if a is None or b is None or t is None:
-                return self._show_error("请输入有效的参数")
-            # 双曲线 x=a·cosh(u), y=b·sinh(u) 从 u=0 到 u=t 的扇形面积
-            # A = (ab/2) × t
+            a, b, t = self._require("a", "b", "t")
             area = (a * b / 2) * t
-            # 对应的双曲线上的点
             x = a * math.cosh(t)
             y = b * math.sinh(t)
-            self.result_label.config(text=f"面积 = {self._fmt(area)}")
-            self.formula_label.config(text=(
+            self._set_result(area, (
                 f"双曲扇形 a={a}, b={b}, t={t}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"【参数方程】x = a·cosh(u), y = b·sinh(u)\n"
@@ -499,22 +455,14 @@ class PolygonAreaApp(PDFToolBase):
             ))
 
         elif shape == "elliptic_sector":
-            a = self._get_value("a")
-            b = self._get_value("b")
-            angle_deg = self._get_value("angle")
-            if a is None or b is None or angle_deg is None:
-                return self._show_error("请输入有效的参数")
+            a, b, angle_deg = self._require("a", "b", "angle")
             if angle_deg > 360:
-                return self._show_error("参数角不能超过360°")
-            # 椭圆参数方程: x=a·cos(θ), y=b·sin(θ)
-            # 从参数角 0 到 θ 的扇形面积 = (ab/2) × θ (弧度)
+                raise ValueError("参数角不能超过 360°")
             angle_rad = math.radians(angle_deg)
             area = (a * b / 2) * angle_rad
-            # 对应的椭圆上的点
             x = a * math.cos(angle_rad)
             y = b * math.sin(angle_rad)
-            self.result_label.config(text=f"面积 = {self._fmt(area)}")
-            self.formula_label.config(text=(
+            self._set_result(area, (
                 f"椭圆扇形 a={a}, b={b}, θ={angle_deg}°\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"【参数方程】x = a·cos(θ), y = b·sin(θ)\n"
@@ -524,41 +472,19 @@ class PolygonAreaApp(PDFToolBase):
             ))
 
         elif shape == "ellipse":
-            a = self._get_value("a")
-            b = self._get_value("b")
-            if a is None or b is None:
-                return self._show_error("请输入有效的半轴长度")
+            a, b = self._require("a", "b")
             area = math.pi * a * b
-            self.result_label.config(text=f"面积 = {self._fmt(area)}")
-            self.formula_label.config(text=(
+            self._set_result(area, (
                 f"椭圆 长半轴 a={a}, 短半轴 b={b}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"【面积公式】A = π × a × b\n"
                 f"【计算过程】A = π × {a} × {b} = {self._fmt(area)}"
             ))
 
-    def _fmt(self, val):
-        """格式化数字：整数不显示小数位"""
-        if val == int(val):
-            return str(int(val))
-        return f"{val:.4f}"
 
-    def _show_result(self, area, desc, formula):
-        """显示结果"""
-        # 格式化：整数不显示小数位
-        if area == int(area):
-            area_text = str(int(area))
-        else:
-            area_text = f"{area:.4f}"
-
-        self.result_label.config(text=f"面积 = {area_text}")
-        self.formula_label.config(text=f"{desc}  |  {formula}")
-
-    def _show_error(self, msg):
-        messagebox.showwarning("输入错误", msg)
+def main(page: ft.Page):
+    PolygonAreaApp(page)
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = PolygonAreaApp(root)
-    root.mainloop()
+    ft.app(target=main)

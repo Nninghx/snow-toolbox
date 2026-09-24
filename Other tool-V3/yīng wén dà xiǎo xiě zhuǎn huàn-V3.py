@@ -1,126 +1,246 @@
-# 禁止生成 .pyc 文件
+# 禁止生成 .pyc 文件，避免输出目录被污染
 import sys
 sys.dont_write_bytecode = True
 
-import os
+import importlib.util
 from pathlib import Path
+
+import flet as ft
+
+
+def get_project_root():
+    """返回项目根目录。"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
 
 
 def _resolve_base_class_path():
     """解析公共基类文件路径，打包后自动使用 .pyc 字节码"""
-    base_py = Path(__file__).resolve().parent.parent / 'Core' / 'Public base class.py'
+    base_py = get_project_root() / 'Core' / 'Public base class.py'
     if getattr(sys, 'frozen', False):
-        import importlib.util
         return Path(importlib.util.cache_from_source(str(base_py)))
     return base_py
-import tkinter as tk
-from tkinter import ttk, messagebox
 
-# 导入公共基类
-import importlib.util
-_base_spec = importlib.util.spec_from_file_location(
-    "public_base_class",
-    _resolve_base_class_path()
-)
-_base_module = importlib.util.module_from_spec(_base_spec)
-_base_spec.loader.exec_module(_base_module)
-PDFToolBase = _base_module.PDFToolBase
-del _base_spec, _base_module
+
+def run_startup_preflight():
+    """执行启动前置检查：加载公共基类并验证字体可用性。"""
+    base_file = _resolve_base_class_path()
+
+    spec = importlib.util.spec_from_file_location('public_base_class', str(base_file))
+    if spec is None or spec.loader is None:
+        raise ImportError(f"无法加载公共基类：{base_file}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    import tkinter as tk
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        base = module.PDFToolBase(root)
+        if not root.winfo_exists():
+            raise RuntimeError("授权或窗口初始化失败")
+
+        current_font = getattr(base, 'current_font', None)
+        if not current_font:
+            raise RuntimeError("公共基类未成功加载字体")
+
+        font_family = current_font[0]
+        icon_path = str(base._get_project_root() / 'Image' / 'icon.ico')
+        return font_family, icon_path
+    finally:
+        try:
+            if root.winfo_exists():
+                root.destroy()
+        except Exception:
+            pass
+
+
+APP_FONT_FAMILY, APP_ICON_PATH = run_startup_preflight()
 
 
 def to_upper(text):
-    """Convert text to uppercase"""
+    """转换为全部大写"""
     return text.upper()
 
+
 def to_lower(text):
-    """Convert text to lowercase"""
+    """转换为全部小写"""
     return text.lower()
 
+
 def to_title(text):
-    """Convert text to title case (first letter of each word capitalized)"""
+    """首字母大写"""
     return text.title()
 
+
 def reverse_case(text):
-    """Reverse the case of each character"""
+    """大小写反转"""
     return text.swapcase()
 
 
-class EnglishCaseConverterApp(PDFToolBase):
-    def __init__(self, root):
-        super().__init__(root)
-        if not root.winfo_exists():
-            return
-        self.root = root
-        self.root.title("英文大小写转换")
+class EnglishCaseConverterApp:
+    """英文大小写转换 Flet 应用"""
+
+    def __init__(self, page: ft.Page):
+        self.page = page
+        self.font_family = APP_FONT_FAMILY
+
+        page.title = "英文大小写转换"
+        page.window.width = 720
+        page.window.height = 640
+        page.window.min_width = 560
+        page.window.min_height = 520
+        page.padding = 0
+        page.bgcolor = ft.Colors.GREY_100
+        page.theme = ft.Theme(font_family=self.font_family)
+
+        # 窗口图标由公共基类解析，直接使用
+        page.window.icon = APP_ICON_PATH
+
+        self.case_mode = ft.RadioGroup(
+            value="upper",
+            content=ft.Row(
+                [
+                    ft.Radio(value="upper", label="全部大写"),
+                    ft.Radio(value="lower", label="全部小写"),
+                    ft.Radio(value="title", label="首字母大写"),
+                    ft.Radio(value="reverse", label="大小写反转"),
+                ],
+                spacing=8,
+                wrap=True,
+            ),
+        )
+
+        self.text_input = ft.TextField(
+            label="输入文本",
+            multiline=True,
+            min_lines=5,
+            max_lines=8,
+            text_size=13,
+            content_padding=ft.padding.all(10),
+            border_radius=8,
+        )
+
+        self.text_output = ft.TextField(
+            label="转换结果",
+            multiline=True,
+            min_lines=5,
+            max_lines=8,
+            read_only=True,
+            text_size=13,
+            content_padding=ft.padding.all(10),
+            border_radius=8,
+            bgcolor=ft.Colors.GREY_50,
+        )
+
+        self.status_text = ft.Text("就绪", size=12, color=ft.Colors.BLUE_GREY_700,
+                                    font_family=self.font_family)
+
         self._build_ui()
 
+    def _make_card(self, title, content):
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(title, size=13, weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.BLUE_GREY_700, font_family=self.font_family),
+                content,
+            ], spacing=8),
+            padding=ft.padding.all(12),
+            border_radius=10,
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.all(1, ft.Colors.GREY_200),
+        )
+
     def _build_ui(self):
-        """Create and run the GUI interface"""
-        # Input frame
-        input_frame = ttk.Frame(self.root, padding="10")
-        input_frame.pack(fill='x')
+        input_card = self._make_card("输入", self.text_input)
+        mode_card = self._make_card("转换模式", self.case_mode)
+        output_card = self._make_card("输出", self.text_output)
 
-        ttk.Label(input_frame, text="输入文本:").pack(anchor='w')
-        self.text_input = tk.Text(input_frame, height=5, width=50)
-        self.text_input.pack(fill='x')
+        btn_convert = ft.ElevatedButton(
+            "转换",
+            icon=ft.Icons.SWAP_HORIZ,
+            bgcolor=ft.Colors.BLUE_600,
+            color=ft.Colors.WHITE,
+            on_click=self.on_convert,
+        )
+        btn_clear = ft.OutlinedButton("清空输入", icon=ft.Icons.CLEAR, on_click=self.on_clear)
+        btn_copy = ft.OutlinedButton("复制结果", icon=ft.Icons.COPY, on_click=self.on_copy)
 
-        # Options frame
-        options_frame = ttk.Frame(self.root, padding="10")
-        options_frame.pack(fill='x')
+        button_row = ft.Row([btn_convert, btn_clear, btn_copy], spacing=8, wrap=True)
 
-        self.case_var = tk.StringVar(value="upper")
-        ttk.Radiobutton(options_frame, text="全部大写", variable=self.case_var, value="upper").pack(anchor='w')
-        ttk.Radiobutton(options_frame, text="全部小写", variable=self.case_var, value="lower").pack(anchor='w')
-        ttk.Radiobutton(options_frame, text="首字母大写", variable=self.case_var, value="title").pack(anchor='w')
-        ttk.Radiobutton(options_frame, text="大小写反转", variable=self.case_var, value="reverse").pack(anchor='w')
+        status_bar = ft.Container(
+            content=self.status_text,
+            padding=ft.padding.symmetric(horizontal=12, vertical=6),
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.only(top=ft.BorderSide(1, ft.Colors.GREY_200)),
+        )
 
-        # Output frame
-        output_frame = ttk.Frame(self.root, padding="10")
-        output_frame.pack(fill='x')
+        self.page.add(
+            ft.Container(
+                content=ft.Column(
+                    [
+                        input_card,
+                        mode_card,
+                        button_row,
+                        output_card,
+                    ],
+                    spacing=10,
+                    scroll=ft.ScrollMode.AUTO,
+                    expand=True,
+                ),
+                padding=12,
+                expand=True,
+            ),
+        )
+        self.page.add(status_bar)
 
-        ttk.Label(output_frame, text="转换结果:").pack(anchor='w')
-        self.text_output = tk.Text(output_frame, height=5, width=50, state='disabled')
-        self.text_output.pack(fill='x')
+    def show_status(self, message, success=True):
+        self.status_text.value = message
+        self.page.snack_bar = ft.SnackBar(
+            ft.Text(message, font_family=self.font_family),
+            bgcolor=ft.Colors.GREEN if success else ft.Colors.RED,
+            open=True,
+        )
+        self.page.update()
 
-        # Button frame
-        button_frame = ttk.Frame(self.root, padding="10")
-        button_frame.pack(fill='x')
-
-        ttk.Button(button_frame, text="转换", command=self.convert_text).pack(side='left')
-        ttk.Button(button_frame, text="清空", command=lambda: self.text_input.delete("1.0", tk.END)).pack(side='left')
-        ttk.Button(button_frame, text="复制结果", command=self.copy_result).pack(side='left')
-        ttk.Button(button_frame, text="退出", command=self.root.quit).pack(side='right')
-
-    def convert_text(self):
-        """Handle text conversion"""
-        input_text = self.text_input.get("1.0", tk.END).strip()
-        if not input_text:
+    def on_convert(self, e):
+        text = (self.text_input.value or "").strip()
+        if not text:
+            self.show_status("请先输入文本", success=False)
             return
 
-        if self.case_var.get() == "upper":
-            result = to_upper(input_text)
-        elif self.case_var.get() == "lower":
-            result = to_lower(input_text)
-        elif self.case_var.get() == "title":
-            result = to_title(input_text)
+        mode = self.case_mode.value
+        if mode == "upper":
+            result = to_upper(text)
+        elif mode == "lower":
+            result = to_lower(text)
+        elif mode == "title":
+            result = to_title(text)
         else:
-            result = reverse_case(input_text)
+            result = reverse_case(text)
 
-        self.text_output.config(state='normal')
-        self.text_output.delete("1.0", tk.END)
-        self.text_output.insert("1.0", result)
-        self.text_output.config(state='disabled')
+        self.text_output.value = result
+        self.show_status("转换完成", success=True)
 
-    def copy_result(self):
-        """Copy result to clipboard"""
-        result = self.text_output.get("1.0", tk.END).strip()
-        if result:
-            self.root.clipboard_clear()
-            self.root.clipboard_append(result)
+    def on_clear(self, e):
+        self.text_input.value = ""
+        self.text_output.value = ""
+        self.show_status("已清空", success=True)
+
+    def on_copy(self, e):
+        result = (self.text_output.value or "").strip()
+        if not result:
+            self.show_status("没有可复制的结果", success=False)
+            return
+        self.page.set_clipboard(result)
+        self.show_status("结果已复制到剪贴板", success=True)
 
 
-if __name__ == '__main__':
-    root = tk.Tk()
-    app = EnglishCaseConverterApp(root)
-    if root.winfo_exists():
-        root.mainloop()
+def main(page: ft.Page):
+    EnglishCaseConverterApp(page)
+
+
+if __name__ == "__main__":
+    ft.app(target=main)

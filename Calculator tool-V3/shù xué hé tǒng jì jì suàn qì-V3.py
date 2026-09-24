@@ -1,271 +1,383 @@
-﻿# 禁止生成 .pyc 文件
+﻿# 禁止生成 .pyc 文件，避免输出目录被污染
 import sys
 sys.dont_write_bytecode = True
 
-import json
-import os
 import math
+import importlib.util
 from pathlib import Path
+
+import flet as ft
+
+
+def get_project_root():
+    """返回项目根目录。"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
 
 
 def _resolve_base_class_path():
     """解析公共基类文件路径，打包后自动使用 .pyc 字节码"""
-    base_py = Path(__file__).resolve().parent.parent / 'Core' / 'Public base class.py'
+    base_py = get_project_root() / 'Core' / 'Public base class.py'
     if getattr(sys, 'frozen', False):
-        import importlib.util
         return Path(importlib.util.cache_from_source(str(base_py)))
     return base_py
-from tkinter import Tk, Label, Entry, Button, StringVar, messagebox, ttk, OptionMenu
 
-# 导入公共基类
-import importlib.util
-_base_spec = importlib.util.spec_from_file_location(
-    "public_base_class",
-    _resolve_base_class_path()
-)
-_base_module = importlib.util.module_from_spec(_base_spec)
-_base_spec.loader.exec_module(_base_module)
-PDFToolBase = _base_module.PDFToolBase
-del _base_spec, _base_module
 
-class MathStatisticsCalculator(PDFToolBase):
-    def __init__(self, master):
-        super().__init__(master)
-        if not master.winfo_exists():
-            return
-        self.master = master
-        
-        master.title("数学和统计计算器")
-        
-        # 创建Notebook选项卡
-        self.notebook = ttk.Notebook(master)
-        self.notebook.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
-        
-        # 根计算选项卡
-        self.root_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.root_frame, text="根计算")
-        
-        # 根计算类型选择
-        Label(self.root_frame, text="根类型:").grid(row=0, column=0, padx=5, pady=5)
-        self.root_type = StringVar()
-        self.root_type.set("平方根")
-        OptionMenu(self.root_frame, self.root_type, "平方根", "立方根", "N次方根").grid(row=0, column=1, padx=5)
-        
-        # 输入值和N值
-        Label(self.root_frame, text="数值:").grid(row=1, column=0, padx=5, pady=5)
-        self.value_var = StringVar()
-        Entry(self.root_frame, textvariable=self.value_var, width=8).grid(row=1, column=1, padx=5)
-        
-        Label(self.root_frame, text="N(次方根):").grid(row=1, column=2, padx=5)
-        self.nth_var = StringVar()
-        Entry(self.root_frame, textvariable=self.nth_var, width=8, state='disabled').grid(row=1, column=3, padx=5)
-        
-        Button(self.root_frame, text="计算", command=self.calculate_root).grid(row=1, column=4, padx=10)
-        
-        # 绑定根类型变化事件
-        self.root_type.trace_add('write', self.update_root_ui)
-        
-        # 二次方程计算选项卡
-        self.quadratic_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.quadratic_frame, text="二次方程")
-        
-        # 二次方程系数输入
-        Label(self.quadratic_frame, text="a:").grid(row=0, column=0, padx=5, pady=5)
-        self.a_var = StringVar()
-        Entry(self.quadratic_frame, textvariable=self.a_var, width=8).grid(row=0, column=1, padx=5)
-        
-        Label(self.quadratic_frame, text="b:").grid(row=0, column=2, padx=5)
-        self.b_var = StringVar()
-        Entry(self.quadratic_frame, textvariable=self.b_var, width=8).grid(row=0, column=3, padx=5)
-        
-        Label(self.quadratic_frame, text="c:").grid(row=0, column=4, padx=5)
-        self.c_var = StringVar()
-        Entry(self.quadratic_frame, textvariable=self.c_var, width=8).grid(row=0, column=5, padx=5)
-        
-        Button(self.quadratic_frame, text="求解", command=self.solve_quadratic).grid(row=0, column=6, padx=10)
-        
-        # 四舍五入计算选项卡
-        self.rounding_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.rounding_frame, text="四舍五入")
-        
-        # 数值和位数输入
-        Label(self.rounding_frame, text="数值:").grid(row=0, column=0, padx=5, pady=5)
-        self.round_value_var = StringVar()
-        Entry(self.rounding_frame, textvariable=self.round_value_var).grid(row=0, column=1, padx=5)
-        
-        Label(self.rounding_frame, text="小数位数:").grid(row=0, column=2, padx=5)
-        self.decimal_places_var = StringVar()
-        Entry(self.rounding_frame, textvariable=self.decimal_places_var, width=5).grid(row=0, column=3, padx=5)
-        
-        Button(self.rounding_frame, text="计算", command=self.calculate_rounding).grid(row=0, column=4, padx=10)
-        
-        # 取模计算选项卡
-        self.modulo_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.modulo_frame, text="取模计算")
-        
-        # 被除数和除数输入
-        Label(self.modulo_frame, text="被除数:").grid(row=0, column=0, padx=5, pady=5)
-        self.dividend_var = StringVar()
-        Entry(self.modulo_frame, textvariable=self.dividend_var).grid(row=0, column=1, padx=5)
-        
-        Label(self.modulo_frame, text="除数:").grid(row=0, column=2, padx=5)
-        self.divisor_var = StringVar()
-        Entry(self.modulo_frame, textvariable=self.divisor_var).grid(row=0, column=3, padx=5)
-        
-        Button(self.modulo_frame, text="计算", command=self.calculate_modulo).grid(row=0, column=4, padx=10)
-        
-        # 组合排列计算选项卡
-        self.combination_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.combination_frame, text="组合排列")
-        
-        # 组合排列类型选择
-        Label(self.combination_frame, text="计算类型:").grid(row=0, column=0, padx=5, pady=5)
-        self.comb_type = StringVar()
-        self.comb_type.set("组合")
-        OptionMenu(self.combination_frame, self.comb_type, "组合", "排列", "重复组合", "重复排列").grid(row=0, column=1, padx=5)
-        
-        # 输入n和k
-        Label(self.combination_frame, text="n:").grid(row=1, column=0, padx=5, pady=5)
-        self.n_var = StringVar()
-        Entry(self.combination_frame, textvariable=self.n_var, width=8).grid(row=1, column=1, padx=5)
-        
-        Label(self.combination_frame, text="k:").grid(row=1, column=2, padx=5)
-        self.k_var = StringVar()
-        Entry(self.combination_frame, textvariable=self.k_var, width=8).grid(row=1, column=3, padx=5)
-        
-        Button(self.combination_frame, text="计算", command=self.calculate_combination).grid(row=1, column=4, padx=10)
-        
-        # 结果展示
-        self.result_frame = ttk.Frame(master)
-        self.result_frame.grid(row=1, column=0, columnspan=2, pady=10)
-        
-        Label(self.result_frame, text="结果:").grid(row=0, column=0, padx=5)
-        self.result_var = StringVar()
-        Label(self.result_frame, textvariable=self.result_var).grid(row=0, column=1, padx=5)
-    
-    def update_root_ui(self, *args):
-        """根据选择的根类型更新UI"""
-        if self.root_type.get() == "N次方根":
-            self.nth_var.set("")
-            Entry(self.root_frame, textvariable=self.nth_var, state='normal').grid(row=1, column=3, padx=5)
-        else:
-            self.nth_var.set("")
-            Entry(self.root_frame, textvariable=self.nth_var, state='disabled').grid(row=1, column=3, padx=5)
-    
-    def calculate_root(self):
-        """计算各种根"""
+def run_startup_preflight():
+    """执行启动前置检查：加载公共基类并验证字体可用性。"""
+    base_file = _resolve_base_class_path()
+
+    spec = importlib.util.spec_from_file_location('public_base_class', str(base_file))
+    if spec is None or spec.loader is None:
+        raise ImportError(f"无法加载公共基类：{base_file}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    import tkinter as tk
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        base = module.PDFToolBase(root)
+        if not root.winfo_exists():
+            raise RuntimeError("授权或窗口初始化失败")
+
+        current_font = getattr(base, 'current_font', None)
+        if not current_font:
+            raise RuntimeError("公共基类未成功加载字体")
+
+        font_family = current_font[0]
+        icon_path = str(base._get_project_root() / 'Image' / 'icon.ico')
+        return font_family, icon_path
+    finally:
         try:
-            value = float(self.value_var.get())
-            root_type = self.root_type.get()
-            
+            if root.winfo_exists():
+                root.destroy()
+        except Exception:
+            pass
+
+
+APP_FONT_FAMILY, APP_ICON_PATH = run_startup_preflight()
+
+
+class MathStatisticsApp:
+    """数学和统计计算器 Flet 应用"""
+
+    def __init__(self, page: ft.Page):
+        self.page = page
+        self.font_family = APP_FONT_FAMILY
+
+        page.title = "数学和统计计算器"
+        page.window.width = 820
+        page.window.height = 680
+        page.window.min_width = 640
+        page.window.min_height = 560
+        page.padding = 0
+        page.bgcolor = ft.Colors.GREY_100
+        page.theme = ft.Theme(font_family=self.font_family)
+
+        # 窗口图标由公共基类解析，直接使用
+        page.window.icon = APP_ICON_PATH
+
+        # 根计算
+        self.root_type = ft.Dropdown(
+            label="根类型", value="平方根",
+            options=[ft.dropdown.Option(x) for x in ["平方根", "立方根", "N次方根"]],
+            text_size=13, border_radius=8, width=160,
+            on_change=self._on_root_type_change,
+        )
+        self.root_value = ft.TextField(label="数值", text_size=13,
+                                           border_radius=8, expand=1)
+        self.root_n = ft.TextField(label="N (次方根)", text_size=13,
+                                       border_radius=8, width=140, disabled=True)
+
+        # 二次方程
+        self.quad_a = ft.TextField(label="a", text_size=13, border_radius=8, expand=1)
+        self.quad_b = ft.TextField(label="b", text_size=13, border_radius=8, expand=1)
+        self.quad_c = ft.TextField(label="c", text_size=13, border_radius=8, expand=1)
+
+        # 四舍五入
+        self.round_value = ft.TextField(label="数值", text_size=13,
+                                            border_radius=8, expand=1)
+        self.round_places = ft.TextField(label="小数位数", text_size=13,
+                                              border_radius=8, width=140)
+
+        # 取模
+        self.mod_dividend = ft.TextField(label="被除数", text_size=13,
+                                              border_radius=8, expand=1)
+        self.mod_divisor = ft.TextField(label="除数", text_size=13,
+                                             border_radius=8, expand=1)
+
+        # 组合排列
+        self.comb_type = ft.Dropdown(
+            label="计算类型", value="组合",
+            options=[ft.dropdown.Option(x)
+                        for x in ["组合", "排列", "重复组合", "重复排列"]],
+            text_size=13, border_radius=8, width=160,
+        )
+        self.comb_n = ft.TextField(label="n", text_size=13, border_radius=8, expand=1)
+        self.comb_k = ft.TextField(label="k", text_size=13, border_radius=8, expand=1)
+
+        # 结果
+        self.result_text = ft.Text(
+            "结果将显示在这里",
+            size=15, weight=ft.FontWeight.BOLD,
+            color=ft.Colors.BLUE_GREY_800,
+            text_align=ft.TextAlign.CENTER,
+            font_family=self.font_family,
+            selectable=True,
+        )
+
+        self.status_text = ft.Text("就绪", size=12, color=ft.Colors.BLUE_GREY_700,
+                                    font_family=self.font_family)
+
+        self._build_ui()
+
+    def _make_card(self, title, content):
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(title, size=13, weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.BLUE_GREY_700, font_family=self.font_family),
+                content,
+            ], spacing=8),
+            padding=ft.padding.all(12),
+            border_radius=10,
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.all(1, ft.Colors.GREY_200),
+        )
+
+    def _btn(self, label, callback):
+        return ft.ElevatedButton(
+            label, bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE,
+            on_click=callback,
+        )
+
+    def _build_ui(self):
+        # 根计算
+        root_row = ft.Row([self.root_type, self.root_value, self.root_n,
+                            self._btn("计算", self.calc_root)], spacing=8)
+
+        # 二次方程
+        quad_row = ft.Row([self.quad_a, self.quad_b, self.quad_c,
+                            self._btn("求解", self.solve_quadratic)], spacing=8)
+
+        # 四舍五入
+        round_row = ft.Row([self.round_value, self.round_places,
+                              self._btn("计算", self.calc_round)], spacing=8)
+
+        # 取模
+        mod_row = ft.Row([self.mod_dividend, self.mod_divisor,
+                            self._btn("计算", self.calc_mod)], spacing=8)
+
+        # 组合排列
+        comb_row = ft.Row([self.comb_type, self.comb_n, self.comb_k,
+                             self._btn("计算", self.calc_comb)], spacing=8)
+
+        tabs = ft.Tabs(
+            selected_index=0,
+            animation_duration=200,
+            height=340,
+            tabs=[
+                ft.Tab(text="根计算", content=self._pad(root_row)),
+                ft.Tab(text="二次方程", content=self._pad(quad_row)),
+                ft.Tab(text="四舍五入", content=self._pad(round_row)),
+                ft.Tab(text="取模", content=self._pad(mod_row)),
+                ft.Tab(text="组合排列", content=self._pad(comb_row)),
+            ],
+        )
+        tabs_card = self._make_card("计算类型", tabs)
+
+        result_container = ft.Container(
+            content=self.result_text,
+            padding=ft.padding.all(18),
+            border_radius=8,
+            bgcolor=ft.Colors.BLUE_GREY_50,
+            alignment=ft.alignment.center,
+        )
+        result_card = self._make_card("计算结果", result_container)
+
+        status_bar = ft.Container(
+            content=self.status_text,
+            padding=ft.padding.symmetric(horizontal=12, vertical=6),
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.only(top=ft.BorderSide(1, ft.Colors.GREY_200)),
+        )
+
+        self.page.add(
+            ft.Container(
+                content=ft.Column(
+                    [tabs_card, result_card],
+                    spacing=10,
+                    scroll=ft.ScrollMode.AUTO,
+                    expand=True,
+                ),
+                padding=12,
+                expand=True,
+            ),
+        )
+        self.page.add(status_bar)
+
+    def _pad(self, content):
+        return ft.Container(content=content, padding=ft.padding.all(8))
+
+    def show_status(self, message, success=True):
+        self.status_text.value = message
+        self.page.snack_bar = ft.SnackBar(
+            ft.Text(message, font_family=self.font_family),
+            bgcolor=ft.Colors.GREEN if success else ft.Colors.RED,
+            open=True,
+        )
+        self.page.update()
+
+    def _show_result(self, text):
+        self.result_text.value = text
+        self.show_status("计算完成", success=True)
+
+    def _show_error(self, msg):
+        self.result_text.value = f"错误: {msg}"
+        self.show_status(msg, success=False)
+
+    def _on_root_type_change(self, e):
+        self.root_n.disabled = (self.root_type.value != "N次方根")
+        if self.root_n.disabled:
+            self.root_n.value = ""
+        self.page.update()
+
+    def _get_float(self, field, name):
+        text = (field.value or "").strip()
+        if not text:
+            raise ValueError(f"请输入{name}")
+        return float(text)
+
+    # ----- 根 -----
+    def calc_root(self, e):
+        try:
+            value = self._get_float(self.root_value, "数值")
+            root_type = self.root_type.value
+
             if root_type == "平方根":
                 if value < 0:
                     raise ValueError("负数没有实数平方根")
                 result = math.sqrt(value)
-                self.show_result(f"√{value} = {result:.6f}")
+                self._show_result(f"√{value} = {result:.6f}")
             elif root_type == "立方根":
-                result = value ** (1/3)
-                self.show_result(f"³√{value} = {result:.6f}")
+                if value < 0:
+                    result = -((-value) ** (1 / 3))
+                else:
+                    result = value ** (1 / 3)
+                self._show_result(f"³√{value} = {result:.6f}")
             elif root_type == "N次方根":
-                n = float(self.nth_var.get())
+                n = self._get_float(self.root_n, "N")
                 if n == 0:
-                    raise ValueError("N不能为0")
-                if value < 0 and n % 2 == 0:
+                    raise ValueError("N 不能为 0")
+                if value < 0 and int(n) % 2 == 0:
                     raise ValueError("负数的偶数次方根没有实数解")
-                result = value ** (1/n)
-                self.show_result(f"{n}√{value} = {result:.6f}")
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
-    
-    def show_result(self, text):
-        """显示计算结果"""
-        self.result_var.set(text)
-    
-    def solve_quadratic(self):
-        """解二次方程 ax² + bx + c = 0"""
+                if value < 0:
+                    result = -((-value) ** (1 / n))
+                else:
+                    result = value ** (1 / n)
+                self._show_result(f"{n}√{value} = {result:.6f}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- 二次方程 -----
+    def solve_quadratic(self, e):
         try:
-            a = float(self.a_var.get())
-            b = float(self.b_var.get())
-            c = float(self.c_var.get())
-            
+            a = self._get_float(self.quad_a, "a")
+            b = self._get_float(self.quad_b, "b")
+            c = self._get_float(self.quad_c, "c")
+
             if a == 0:
-                raise ValueError("a不能为0")
-            
-            discriminant = b**2 - 4*a*c
+                raise ValueError("a 不能为 0")
+
+            discriminant = b ** 2 - 4 * a * c
             if discriminant > 0:
-                x1 = (-b + math.sqrt(discriminant)) / (2*a)
-                x2 = (-b - math.sqrt(discriminant)) / (2*a)
-                self.show_result(f"解: x₁ = {x1:.6f}, x₂ = {x2:.6f}")
+                x1 = (-b + math.sqrt(discriminant)) / (2 * a)
+                x2 = (-b - math.sqrt(discriminant)) / (2 * a)
+                self._show_result(f"解: x₁ = {x1:.6f}, x₂ = {x2:.6f}")
             elif discriminant == 0:
-                x = -b / (2*a)
-                self.show_result(f"解: x = {x:.6f} (重根)")
+                x = -b / (2 * a)
+                self._show_result(f"解: x = {x:.6f} (重根)")
             else:
-                real_part = -b / (2*a)
-                imaginary_part = math.sqrt(abs(discriminant)) / (2*a)
-                self.show_result(f"解: x₁ = {real_part:.6f}+{imaginary_part:.6f}i, x₂ = {real_part:.6f}-{imaginary_part:.6f}i")
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
-    
-    def factorial(self, n):
-        """计算阶乘"""
-        if n < 0:
-            raise ValueError("阶乘数不能为负")
-        return math.factorial(n)
-    
-    def calculate_rounding(self):
-        """四舍五入计算"""
+                real = -b / (2 * a)
+                imag = math.sqrt(abs(discriminant)) / (2 * a)
+                self._show_result(
+                    f"解: x₁ = {real:.6f}+{imag:.6f}i, x₂ = {real:.6f}-{imag:.6f}i"
+                )
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- 四舍五入 -----
+    def calc_round(self, e):
         try:
-            value = float(self.round_value_var.get())
-            decimal_places = int(self.decimal_places_var.get())
-            if decimal_places < 0:
+            value = self._get_float(self.round_value, "数值")
+            places_str = (self.round_places.value or "").strip()
+            if not places_str:
+                raise ValueError("请输入小数位数")
+            places = int(places_str)
+            if places < 0:
                 raise ValueError("小数位数不能为负数")
-            rounded = round(value, decimal_places)
-            self.show_result(f"{value} 四舍五入到 {decimal_places} 位小数: {rounded}")
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
-    
-    def calculate_modulo(self):
-        """取模计算"""
+            rounded = round(value, places)
+            self._show_result(f"{value} 四舍五入到 {places} 位小数: {rounded}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- 取模 -----
+    def calc_mod(self, e):
         try:
-            dividend = float(self.dividend_var.get())
-            divisor = float(self.divisor_var.get())
+            dividend = self._get_float(self.mod_dividend, "被除数")
+            divisor = self._get_float(self.mod_divisor, "除数")
             if divisor == 0:
-                raise ValueError("除数不能为0")
+                raise ValueError("除数不能为 0")
             result = dividend % divisor
-            self.show_result(f"{dividend} mod {divisor} = {result}")
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
-    
-    def calculate_combination(self):
-        """计算组合或排列"""
+            self._show_result(f"{dividend} mod {divisor} = {result}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- 组合排列 -----
+    def calc_comb(self, e):
         try:
-            n = int(self.n_var.get())
-            k = int(self.k_var.get())
-            comb_type = self.comb_type.get()
-            
+            n_str = (self.comb_n.value or "").strip()
+            k_str = (self.comb_k.value or "").strip()
+            if not n_str or not k_str:
+                raise ValueError("请输入 n 和 k")
+            n = int(n_str)
+            k = int(k_str)
+            comb_type = self.comb_type.value
+
             if n < 0 or k < 0:
-                raise ValueError("n和k必须为非负整数")
-            
+                raise ValueError("n 和 k 必须为非负整数")
+
             if comb_type == "组合":
                 if k > n:
-                    raise ValueError("k不能大于n")
-                result = self.factorial(n) // (self.factorial(k) * self.factorial(n - k))
-                self.show_result(f"C({n},{k}) = {result}")
+                    raise ValueError("k 不能大于 n")
+                result = math.factorial(n) // (
+                        math.factorial(k) * math.factorial(n - k)
+                )
+                self._show_result(f"C({n},{k}) = {result}")
             elif comb_type == "排列":
                 if k > n:
-                    raise ValueError("k不能大于n")
-                result = self.factorial(n) // self.factorial(n - k)
-                self.show_result(f"P({n},{k}) = {result}")
+                    raise ValueError("k 不能大于 n")
+                result = math.factorial(n) // math.factorial(n - k)
+                self._show_result(f"P({n},{k}) = {result}")
             elif comb_type == "重复组合":
-                result = self.factorial(n + k - 1) // (self.factorial(k) * self.factorial(n - 1))
-                self.show_result(f"H({n},{k}) = {result}")
+                if n == 0:
+                    raise ValueError("n 不能为 0")
+                result = math.factorial(n + k - 1) // (
+                        math.factorial(k) * math.factorial(n - 1)
+                )
+                self._show_result(f"H({n},{k}) = {result}")
             elif comb_type == "重复排列":
                 result = n ** k
-                self.show_result(f"π({n},{k}) = {result}")
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
+                self._show_result(f"π({n},{k}) = {result}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+
+def main(page: ft.Page):
+    MathStatisticsApp(page)
+
 
 if __name__ == "__main__":
-    root = Tk()
-    app = MathStatisticsCalculator(root)
-    root.mainloop()
+    ft.app(target=main)

@@ -1,252 +1,386 @@
+# 禁止生成 .pyc 文件，避免输出目录被污染
 import sys
 sys.dont_write_bytecode = True
 
-import json
-import os
 import math
+import importlib.util
 from pathlib import Path
+
+import flet as ft
+
+
+def get_project_root():
+    """返回项目根目录。"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
 
 
 def _resolve_base_class_path():
     """解析公共基类文件路径，打包后自动使用 .pyc 字节码"""
-    base_py = Path(__file__).resolve().parent.parent / 'Core' / 'Public base class.py'
+    base_py = get_project_root() / 'Core' / 'Public base class.py'
     if getattr(sys, 'frozen', False):
-        import importlib.util
         return Path(importlib.util.cache_from_source(str(base_py)))
     return base_py
-from tkinter import Tk, Label, Entry, Button, StringVar, messagebox, ttk, PhotoImage
 
-# 导入公共基类
-import importlib.util
-_base_spec = importlib.util.spec_from_file_location(
-    "public_base_class",
-    _resolve_base_class_path()
-)
-_base_module = importlib.util.module_from_spec(_base_spec)
-_base_spec.loader.exec_module(_base_module)
-PDFToolBase = _base_module.PDFToolBase
-del _base_spec, _base_module
 
-class SurfaceAreaCalculator(PDFToolBase):
-    def __init__(self, master):
-        super().__init__(master)
-        if not master.winfo_exists():
-            return
-        self.master = master
-        
-        master.title("表面积计算器")
-        
-        # 创建Notebook选项卡
-        self.notebook = ttk.Notebook(master)
-        self.notebook.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
-        
-        # 球体表面积计算器
-        self.sphere_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.sphere_frame, text="球体")
-        
-        Label(self.sphere_frame, text="半径:").grid(row=0, column=0, padx=10, pady=5)
-        self.sphere_radius = StringVar()
-        Entry(self.sphere_frame, textvariable=self.sphere_radius).grid(row=0, column=1, padx=10, pady=5)
-        
-        Button(self.sphere_frame, text="计算表面积", command=self.calculate_sphere).grid(row=1, column=0, columnspan=2, pady=10)
-        
-        # 立方体表面积计算器
-        self.cube_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.cube_frame, text="立方体")
-        
-        Label(self.cube_frame, text="边长:").grid(row=0, column=0, padx=10, pady=5)
-        self.cube_side = StringVar()
-        Entry(self.cube_frame, textvariable=self.cube_side).grid(row=0, column=1, padx=10, pady=5)
-        
-        Button(self.cube_frame, text="计算表面积", command=self.calculate_cube).grid(row=1, column=0, columnspan=2, pady=10)
-        
-        # 三角棱柱表面积计算器
-        self.triangular_prism_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.triangular_prism_frame, text="三角棱柱")
-        
-        # 棱柱类型选择
-        Label(self.triangular_prism_frame, text="棱柱类型:").grid(row=0, column=0, padx=10, pady=5)
-        self.prism_type = StringVar(value="equilateral")
-        ttk.Radiobutton(self.triangular_prism_frame, text="等边三角形", variable=self.prism_type, 
-                       value="equilateral").grid(row=0, column=1, sticky="w")
-        ttk.Radiobutton(self.triangular_prism_frame, text="直角三角形", variable=self.prism_type, 
-                       value="right").grid(row=0, column=2, sticky="w")
-        
-        # 参数输入
-        Label(self.triangular_prism_frame, text="底边长度(b):").grid(row=1, column=0, padx=10, pady=5)
-        self.prism_base = StringVar()
-        Entry(self.triangular_prism_frame, textvariable=self.prism_base).grid(row=1, column=1, padx=10, pady=5)
-        
-        Label(self.triangular_prism_frame, text="三角形高度(h):").grid(row=2, column=0, padx=10, pady=5)
-        self.prism_triangle_height = StringVar()
-        Entry(self.triangular_prism_frame, textvariable=self.prism_triangle_height).grid(row=2, column=1, padx=10, pady=5)
-        
-        Label(self.triangular_prism_frame, text="棱柱长度(l):").grid(row=3, column=0, padx=10, pady=5)
-        self.prism_length = StringVar()
-        Entry(self.triangular_prism_frame, textvariable=self.prism_length).grid(row=3, column=1, padx=10, pady=5)
-        
-        Button(self.triangular_prism_frame, text="计算表面积", command=self.calculate_triangular_prism).grid(row=4, column=0, columnspan=3, pady=10)
-        
-        # 圆锥表面积计算器
-        self.cone_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.cone_frame, text="圆锥")
-        
-        # 输入方式选择
-        Label(self.cone_frame, text="输入方式:").grid(row=0, column=0, padx=10, pady=5)
-        self.cone_input_type = StringVar(value="slant")
-        ttk.Radiobutton(self.cone_frame, text="母线长度", variable=self.cone_input_type, 
-                       value="slant").grid(row=0, column=1, sticky="w")
-        ttk.Radiobutton(self.cone_frame, text="高度", variable=self.cone_input_type, 
-                       value="height").grid(row=0, column=2, sticky="w")
-        
-        # 参数输入
-        Label(self.cone_frame, text="底面半径(r):").grid(row=1, column=0, padx=10, pady=5)
-        self.cone_radius = StringVar()
-        Entry(self.cone_frame, textvariable=self.cone_radius).grid(row=1, column=1, padx=10, pady=5)
-        
-        Label(self.cone_frame, text="母线长度/高度:").grid(row=2, column=0, padx=10, pady=5)
-        self.cone_slant_or_height = StringVar()
-        Entry(self.cone_frame, textvariable=self.cone_slant_or_height).grid(row=2, column=1, padx=10, pady=5)
-        
-        Button(self.cone_frame, text="计算表面积", command=self.calculate_cone).grid(row=3, column=0, columnspan=3, pady=10)
-        Button(self.cone_frame, text="计算侧面积", command=self.calculate_cone_lateral).grid(row=4, column=0, columnspan=3, pady=10)
-        
-        # 金字塔表面积计算器
-        self.pyramid_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.pyramid_frame, text="金字塔")
-        
-        Label(self.pyramid_frame, text="底面长度:").grid(row=0, column=0, padx=10, pady=5)
-        self.pyramid_length = StringVar()
-        Entry(self.pyramid_frame, textvariable=self.pyramid_length).grid(row=0, column=1, padx=10, pady=5)
-        
-        Label(self.pyramid_frame, text="底面宽度:").grid(row=1, column=0, padx=10, pady=5)
-        self.pyramid_width = StringVar()
-        Entry(self.pyramid_frame, textvariable=self.pyramid_width).grid(row=1, column=1, padx=10, pady=5)
-        
-        Label(self.pyramid_frame, text="高度:").grid(row=2, column=0, padx=10, pady=5)
-        self.pyramid_height = StringVar()
-        Entry(self.pyramid_frame, textvariable=self.pyramid_height).grid(row=2, column=1, padx=10, pady=5)
-        
-        Button(self.pyramid_frame, text="计算表面积", command=self.calculate_pyramid).grid(row=3, column=0, columnspan=2, pady=10)
-        Button(self.pyramid_frame, text="计算侧面积", command=self.calculate_pyramid_lateral).grid(row=4, column=0, columnspan=2, pady=10)
-        
-        # 结果展示
-        self.result_frame = ttk.Frame(master)
-        self.result_frame.grid(row=1, column=0, columnspan=2, pady=10)
-        
-        self.result_var = StringVar()
-        self.result_label = Label(self.result_frame, textvariable=self.result_var)
-        self.result_label.grid(row=0, column=0, padx=10)
+def run_startup_preflight():
+    """执行启动前置检查：加载公共基类并验证字体可用性。"""
+    base_file = _resolve_base_class_path()
 
-    def calculate_sphere(self):
+    spec = importlib.util.spec_from_file_location('public_base_class', str(base_file))
+    if spec is None or spec.loader is None:
+        raise ImportError(f"无法加载公共基类：{base_file}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    import tkinter as tk
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        base = module.PDFToolBase(root)
+        if not root.winfo_exists():
+            raise RuntimeError("授权或窗口初始化失败")
+
+        current_font = getattr(base, 'current_font', None)
+        if not current_font:
+            raise RuntimeError("公共基类未成功加载字体")
+
+        font_family = current_font[0]
+        icon_path = str(base._get_project_root() / 'Image' / 'icon.ico')
+        return font_family, icon_path
+    finally:
         try:
-            radius = float(self.sphere_radius.get())
-            area = 4 * math.pi * radius ** 2
-            self.result_var.set(f"球体表面积: {area:.2f}")
+            if root.winfo_exists():
+                root.destroy()
+        except Exception:
+            pass
+
+
+APP_FONT_FAMILY, APP_ICON_PATH = run_startup_preflight()
+
+
+class SurfaceAreaApp:
+    """表面积计算器 Flet 应用"""
+
+    def __init__(self, page: ft.Page):
+        self.page = page
+        self.font_family = APP_FONT_FAMILY
+
+        page.title = "表面积计算器"
+        page.window.width = 820
+        page.window.height = 680
+        page.window.min_width = 640
+        page.window.min_height = 560
+        page.padding = 0
+        page.bgcolor = ft.Colors.GREY_100
+        page.theme = ft.Theme(font_family=self.font_family)
+
+        # 窗口图标由公共基类解析，直接使用
+        page.window.icon = APP_ICON_PATH
+
+        # 球体
+        self.sphere_radius = ft.TextField(label="半径 r", text_size=13,
+                                              border_radius=8)
+        # 立方体
+        self.cube_side = ft.TextField(label="边长 a", text_size=13,
+                                          border_radius=8)
+        # 三角棱柱
+        self.prism_type = ft.RadioGroup(
+            value="equilateral",
+            content=ft.Row([
+                ft.Radio(value="equilateral", label="等边三角形"),
+                ft.Radio(value="right", label="直角三角形"),
+            ], spacing=12),
+        )
+        self.prism_base = ft.TextField(label="底边长度 b", text_size=13,
+                                            border_radius=8)
+        self.prism_triangle_height = ft.TextField(label="三角形高度 h",
+                                                      text_size=13, border_radius=8)
+        self.prism_length = ft.TextField(label="棱柱长度 l", text_size=13,
+                                              border_radius=8)
+        # 圆锥
+        self.cone_input_type = ft.RadioGroup(
+            value="slant",
+            content=ft.Row([
+                ft.Radio(value="slant", label="母线长度"),
+                ft.Radio(value="height", label="高度"),
+            ], spacing=12),
+        )
+        self.cone_radius = ft.TextField(label="底面半径 r", text_size=13,
+                                            border_radius=8)
+        self.cone_slant_or_height = ft.TextField(label="母线/高度",
+                                                      text_size=13, border_radius=8)
+        # 金字塔
+        self.pyramid_length = ft.TextField(label="底面长度", text_size=13,
+                                                border_radius=8)
+        self.pyramid_width = ft.TextField(label="底面宽度", text_size=13,
+                                               border_radius=8)
+        self.pyramid_height = ft.TextField(label="高度", text_size=13,
+                                                border_radius=8)
+
+        # 结果
+        self.result_text = ft.Text(
+            "结果将显示在这里",
+            size=16, weight=ft.FontWeight.BOLD,
+            color=ft.Colors.BLUE_GREY_800,
+            text_align=ft.TextAlign.CENTER,
+            font_family=self.font_family,
+            selectable=True,
+        )
+
+        self.status_text = ft.Text("就绪", size=12, color=ft.Colors.BLUE_GREY_700,
+                                    font_family=self.font_family)
+
+        self._build_ui()
+
+    def _make_card(self, title, content):
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(title, size=13, weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.BLUE_GREY_700, font_family=self.font_family),
+                content,
+            ], spacing=8),
+            padding=ft.padding.all(12),
+            border_radius=10,
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.all(1, ft.Colors.GREY_200),
+        )
+
+    def _btn(self, label, callback):
+        return ft.ElevatedButton(
+            label, bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE,
+            on_click=callback,
+        )
+
+    def _pad(self, content):
+        return ft.Container(content=content, padding=ft.padding.all(8))
+
+    def _build_ui(self):
+        sphere_tab = ft.Column([
+            self.sphere_radius,
+            ft.Row([self._btn("计算表面积", self.calc_sphere)],
+                     alignment=ft.MainAxisAlignment.CENTER),
+        ], spacing=10)
+
+        cube_tab = ft.Column([
+            self.cube_side,
+            ft.Row([self._btn("计算表面积", self.calc_cube)],
+                     alignment=ft.MainAxisAlignment.CENTER),
+        ], spacing=10)
+
+        prism_tab = ft.Column([
+            self.prism_type,
+            self.prism_base,
+            self.prism_triangle_height,
+            self.prism_length,
+            ft.Row([self._btn("计算表面积", self.calc_triangular_prism)],
+                     alignment=ft.MainAxisAlignment.CENTER),
+        ], spacing=10)
+
+        cone_tab = ft.Column([
+            self.cone_input_type,
+            self.cone_radius,
+            self.cone_slant_or_height,
+            ft.Row([
+                self._btn("计算表面积", self.calc_cone),
+                self._btn("计算侧面积", self.calc_cone_lateral),
+            ], spacing=8, alignment=ft.MainAxisAlignment.CENTER),
+        ], spacing=10)
+
+        pyramid_tab = ft.Column([
+            self.pyramid_length,
+            self.pyramid_width,
+            self.pyramid_height,
+            ft.Row([
+                self._btn("计算表面积", self.calc_pyramid),
+                self._btn("计算侧面积", self.calc_pyramid_lateral),
+            ], spacing=8, alignment=ft.MainAxisAlignment.CENTER),
+        ], spacing=10)
+
+        tabs = ft.Tabs(
+            selected_index=0,
+            animation_duration=200,
+            height=420,
+            tabs=[
+                ft.Tab(text="球体", content=self._pad(sphere_tab)),
+                ft.Tab(text="立方体", content=self._pad(cube_tab)),
+                ft.Tab(text="三角棱柱", content=self._pad(prism_tab)),
+                ft.Tab(text="圆锥", content=self._pad(cone_tab)),
+                ft.Tab(text="金字塔", content=self._pad(pyramid_tab)),
+            ],
+        )
+        tabs_card = self._make_card("几何体选择", tabs)
+
+        result_container = ft.Container(
+            content=self.result_text,
+            padding=ft.padding.all(18),
+            border_radius=8,
+            bgcolor=ft.Colors.BLUE_GREY_50,
+            alignment=ft.alignment.center,
+        )
+        result_card = self._make_card("计算结果", result_container)
+
+        status_bar = ft.Container(
+            content=self.status_text,
+            padding=ft.padding.symmetric(horizontal=12, vertical=6),
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.only(top=ft.BorderSide(1, ft.Colors.GREY_200)),
+        )
+
+        self.page.add(
+            ft.Container(
+                content=ft.Column(
+                    [tabs_card, result_card],
+                    spacing=10,
+                    scroll=ft.ScrollMode.AUTO,
+                    expand=True,
+                ),
+                padding=12,
+                expand=True,
+            ),
+        )
+        self.page.add(status_bar)
+
+    def show_status(self, message, success=True):
+        self.status_text.value = message
+        self.page.snack_bar = ft.SnackBar(
+            ft.Text(message, font_family=self.font_family),
+            bgcolor=ft.Colors.GREEN if success else ft.Colors.RED,
+            open=True,
+        )
+        self.page.update()
+
+    def _show_result(self, text):
+        self.result_text.value = text
+        self.show_status("计算完成", success=True)
+
+    def _show_error(self, msg):
+        self.result_text.value = f"错误: {msg}"
+        self.show_status(msg, success=False)
+
+    def _get_float(self, field, name):
+        text = (field.value or "").strip()
+        if not text:
+            raise ValueError(f"请输入{name}")
+        try:
+            value = float(text)
         except ValueError:
-            messagebox.showerror("错误", "请输入有效的数字")
-    
-    def calculate_cube(self):
+            raise ValueError(f"{name}格式无效")
+        if value < 0:
+            raise ValueError(f"{name}不能为负数")
+        return value
+
+    # ----- 球体 -----
+    def calc_sphere(self, e):
         try:
-            side = float(self.cube_side.get())
-            area = 6 * side ** 2
-            self.result_var.set(f"立方体表面积: {area:.2f}")
-        except ValueError:
-            messagebox.showerror("错误", "请输入有效的数字")
-    
-    def calculate_triangular_prism(self):
+            r = self._get_float(self.sphere_radius, "半径")
+            area = 4 * math.pi * r ** 2
+            self._show_result(f"球体表面积 = 4πr² = {area:.4f}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- 立方体 -----
+    def calc_cube(self, e):
         try:
-            base = float(self.prism_base.get())
-            triangle_height = float(self.prism_triangle_height.get())
-            length = float(self.prism_length.get())
-            
-            # 计算底面积(三角形面积)
-            base_area = base * triangle_height / 2
-            
-            # 根据棱柱类型计算侧面积
-            if self.prism_type.get() == "equilateral":
-                # 等边三角形棱柱
-                lateral_area = (base * 3) * length
+            a = self._get_float(self.cube_side, "边长")
+            area = 6 * a ** 2
+            self._show_result(f"立方体表面积 = 6a² = {area:.4f}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- 三角棱柱 -----
+    def calc_triangular_prism(self, e):
+        try:
+            b = self._get_float(self.prism_base, "底边长度")
+            h = self._get_float(self.prism_triangle_height, "三角形高度")
+            l = self._get_float(self.prism_length, "棱柱长度")
+
+            base_area = b * h / 2
+            if self.prism_type.value == "equilateral":
+                lateral_area = (b * 3) * l
             else:
-                # 直角三角形棱柱 (用户提供的公式)
-                hypotenuse = math.sqrt(base**2 + triangle_height**2)
-                lateral_area = (base + triangle_height + hypotenuse) * length
-            
-            total_area = 2 * base_area + lateral_area
-            self.result_var.set(f"三角棱柱表面积: {total_area:.2f}")
-        except ValueError:
-            messagebox.showerror("错误", "请输入有效的数字")
-    
-    def calculate_cone(self):
+                hypotenuse = math.sqrt(b ** 2 + h ** 2)
+                lateral_area = (b + h + hypotenuse) * l
+            total = 2 * base_area + lateral_area
+            self._show_result(
+                f"三角棱柱表面积 = {total:.4f}\n"
+                f"（底面积 {base_area:.4f} × 2 + 侧面积 {lateral_area:.4f}）"
+            )
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- 圆锥 -----
+    def _cone_slant(self, r, value):
+        if self.cone_input_type.value == "slant":
+            if value < r:
+                raise ValueError("母线长度必须不小于底面半径")
+            return value
+        return math.sqrt(r ** 2 + value ** 2)
+
+    def calc_cone(self, e):
         try:
-            radius = float(self.cone_radius.get())
-            value = float(self.cone_slant_or_height.get())
-            
-            base_area = math.pi * radius ** 2
-            
-            if self.cone_input_type.get() == "slant":
-                slant = value
-            else:
-                # 根据高度计算母线长度
-                slant = math.sqrt(radius**2 + value**2)
-            
-            lateral_area = math.pi * radius * slant
-            total_area = base_area + lateral_area
-            self.result_var.set(f"圆锥表面积: {total_area:.2f}")
-        except ValueError:
-            messagebox.showerror("错误", "请输入有效的数字")
-    
-    def calculate_cone_lateral(self):
+            r = self._get_float(self.cone_radius, "底面半径")
+            value = self._get_float(self.cone_slant_or_height, "母线/高度")
+            slant = self._cone_slant(r, value)
+            base_area = math.pi * r ** 2
+            lateral = math.pi * r * slant
+            total = base_area + lateral
+            self._show_result(
+                f"圆锥表面积 = πr² + πrl = {total:.4f}\n"
+                f"（底面积 {base_area:.4f} + 侧面积 {lateral:.4f}, 母线 l={slant:.4f}）"
+            )
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    def calc_cone_lateral(self, e):
         try:
-            radius = float(self.cone_radius.get())
-            value = float(self.cone_slant_or_height.get())
-            
-            if self.cone_input_type.get() == "slant":
-                slant = value
-            else:
-                # 根据高度计算母线长度
-                slant = math.sqrt(radius**2 + value**2)
-            
-            lateral_area = math.pi * radius * slant
-            self.result_var.set(f"圆锥侧面积: {lateral_area:.2f}")
-        except ValueError:
-            messagebox.showerror("错误", "请输入有效的数字")
-    
-    def calculate_pyramid(self):
+            r = self._get_float(self.cone_radius, "底面半径")
+            value = self._get_float(self.cone_slant_or_height, "母线/高度")
+            slant = self._cone_slant(r, value)
+            lateral = math.pi * r * slant
+            self._show_result(f"圆锥侧面积 = πrl = {lateral:.4f}（母线 l={slant:.4f}）")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- 金字塔 -----
+    def _pyramid_slants(self, length, width, height):
+        slant1 = math.sqrt((length / 2) ** 2 + height ** 2)
+        slant2 = math.sqrt((width / 2) ** 2 + height ** 2)
+        return slant1, slant2
+
+    def calc_pyramid(self, e):
         try:
-            length = float(self.pyramid_length.get())
-            width = float(self.pyramid_width.get())
-            height = float(self.pyramid_height.get())
-            
-            # 计算底面积
-            base_area = length * width
-            
-            # 计算侧面积(2对三角形)
-            slant1 = math.sqrt((length / 2) ** 2 + height ** 2)
-            slant2 = math.sqrt((width / 2) ** 2 + height ** 2)
-            lateral_area = 2 * (length * slant2 / 2) + 2 * (width * slant1 / 2)
-            
-            total_area = base_area + lateral_area
-            self.result_var.set(f"金字塔表面积: {total_area:.2f}")
-        except ValueError:
-            messagebox.showerror("错误", "请输入有效的数字")
-    
-    def calculate_pyramid_lateral(self):
+            l = self._get_float(self.pyramid_length, "底面长度")
+            w = self._get_float(self.pyramid_width, "底面宽度")
+            h = self._get_float(self.pyramid_height, "高度")
+            base_area = l * w
+            slant1, slant2 = self._pyramid_slants(l, w, h)
+            lateral = 2 * (l * slant2 / 2) + 2 * (w * slant1 / 2)
+            total = base_area + lateral
+            self._show_result(
+                f"金字塔表面积 = {total:.4f}\n"
+                f"（底面积 {base_area:.4f} + 侧面积 {lateral:.4f}）"
+            )
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    def calc_pyramid_lateral(self, e):
         try:
-            length = float(self.pyramid_length.get())
-            width = float(self.pyramid_width.get())
-            height = float(self.pyramid_height.get())
-            
-            # 计算侧面积(2对三角形)
-            slant1 = math.sqrt((length / 2) ** 2 + height ** 2)
-            slant2 = math.sqrt((width / 2) ** 2 + height ** 2)
-            lateral_area = 2 * (length * slant2 / 2) + 2 * (width * slant1 / 2)
-            
-            self.result_var.set(f"金字塔侧面积: {lateral_area:.2f}")
-        except ValueError:
-            messagebox.showerror("错误", "请输入有效的数字")
+            l = self._get_float(self.pyramid_length, "底面长度")
+            w = self._get_float(self.pyramid_width, "底面宽度")
+            h = self._get_float(self.pyramid_height, "高度")
+            slant1, slant2 = self._pyramid_slants(l, w, h)
+            lateral = 2 * (l * slant2 / 2) + 2 * (w * slant1 / 2)
+            self._show_result(f"金字塔侧面积 = {lateral:.4f}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+
+def main(page: ft.Page):
+    SurfaceAreaApp(page)
+
 
 if __name__ == "__main__":
-    root = Tk()
-    app = SurfaceAreaCalculator(root)
-    root.mainloop()
+    ft.app(target=main)

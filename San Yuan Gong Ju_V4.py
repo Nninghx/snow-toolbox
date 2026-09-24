@@ -117,7 +117,7 @@ class ToolLauncher:
                 'PDF合并为单页': 'PDF hé bìng wéi dān yè-V4.py',
                 'PDF删除页面': 'PDF shān chú yè miàn-V4.py',
                 'PDF旋转': 'PDF xuán zhuǎn-V4.py',
-                'PDF反转页面': 'PDF fǎn zhuǎn yè miàn-V4.py',
+                'PDF反转页面': 'PDF fǎn zhuǎn yè miàn-V4P.py',
                 'OCR PDF': 'OCR PDF-V4.py',
                 'PDF目录': 'PDF mù lù-V4.py',
                 'PDF元数据': 'PDF yuán shù jù-V4.py',
@@ -131,6 +131,7 @@ class ToolLauncher:
                 '图片合成': 'tú piàn hé chéng-V3.py',
                 '批量裁剪': 'tú piàn pī liàng cái jiǎn-V3.py',
                 '长图滚动视频': 'cháng tú gǔn dòng shì pín-V3.py',
+                '图片卡点视频': 'tú piàn kǎ diǎn shì pín-V4.py',
             },
             '音频工具': {
                 '音频提取': 'shì pín yīn pín tí qǔ-V3.py',
@@ -138,11 +139,15 @@ class ToolLauncher:
                 '音频裁剪': 'yīn pín cái jiǎn-V3.py',
                 '音频合并': 'yīn pín hé bìng-V3.py',
                 '音频格式转换': 'yīn pín gé shì zhuǎn huàn-V3.py',
+                '音频倒放': 'yīn pín dào fàng-V3.py',
+                '音频分割器': 'yīn pín fēn gē-V3.py',
+                '音频变速变调': 'yīn pín biàn sù biàn diào-V3.py',
             },
             '文件工具': {
                 '目录树生成器': 'wén jiàn mù lù shù shēng chéng qì-V3.py',
                 '文件时间修改器': 'wén jiàn shí jiān xiū gǎi qì-V3.py',
                 '空文件夹清理': 'kōng wén jiàn jiā qīng lǐ-V3.py',
+                '文件批量分类': 'wén jiàn pī liàng fēn lèi-V3.py',
             },
             '其他工具': {
                 '数字小写转大写': 'shù zì xiǎo xiě zhuǎn dà xiě-V3.py',

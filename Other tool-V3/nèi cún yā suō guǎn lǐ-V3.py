@@ -1,332 +1,373 @@
-# 禁止生成 .pyc 文件
+# 禁止生成 .pyc 文件，避免输出目录被污染
 import sys
 sys.dont_write_bytecode = True
 
 import os
 import ctypes
+import subprocess
+import threading
+import importlib.util
 from pathlib import Path
+
+import flet as ft
+
+
+def get_project_root():
+    """返回项目根目录。"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
 
 
 def _resolve_base_class_path():
     """解析公共基类文件路径，打包后自动使用 .pyc 字节码"""
-    base_py = Path(__file__).resolve().parent.parent / 'Core' / 'Public base class.py'
+    base_py = get_project_root() / 'Core' / 'Public base class.py'
     if getattr(sys, 'frozen', False):
-        import importlib.util
         return Path(importlib.util.cache_from_source(str(base_py)))
     return base_py
-import tkinter as tk
-from tkinter import messagebox, ttk
 
-# 导入公共基类
-import importlib.util
-_base_spec = importlib.util.spec_from_file_location(
-    "public_base_class",
-    _resolve_base_class_path()
-)
-_base_module = importlib.util.module_from_spec(_base_spec)
-_base_spec.loader.exec_module(_base_module)
-PDFToolBase = _base_module.PDFToolBase
-del _base_spec, _base_module
 
-try:
-    from PIL import Image, ImageTk
-    PIL_AVAILABLE = True
-except ImportError:
-    PIL_AVAILABLE = False
+def run_startup_preflight():
+    """执行启动前置检查：加载公共基类并验证字体可用性。"""
+    base_file = _resolve_base_class_path()
+
+    spec = importlib.util.spec_from_file_location('public_base_class', str(base_file))
+    if spec is None or spec.loader is None:
+        raise ImportError(f"无法加载公共基类：{base_file}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    import tkinter as tk
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        base = module.PDFToolBase(root)
+        if not root.winfo_exists():
+            raise RuntimeError("授权或窗口初始化失败")
+
+        current_font = getattr(base, 'current_font', None)
+        if not current_font:
+            raise RuntimeError("公共基类未成功加载字体")
+
+        font_family = current_font[0]
+        icon_path = str(base._get_project_root() / 'Image' / 'icon.ico')
+        return font_family, icon_path
+    finally:
+        try:
+            if root.winfo_exists():
+                root.destroy()
+        except Exception:
+            pass
+
+
+APP_FONT_FAMILY, APP_ICON_PATH = run_startup_preflight()
+
+
+CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
 
 
 def is_admin():
     """检查是否以管理员权限运行"""
     try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
     except Exception:
         return False
 
 
-def run_powershell_as_admin(command):
-    """以管理员权限运行 PowerShell 命令"""
+def _run_ps(command):
+    """执行 PowerShell 命令，返回 (成功, 输出)"""
     try:
-        # 使用 PowerShell 的 Start-Process -Verb RunAs 来提升权限
-        ps_command = f'Start-Process powershell -ArgumentList "-Command {command}" -Verb RunAs -Wait'
         result = subprocess.run(
-            ['powershell', '-Command', ps_command],
+            ['powershell', '-Command', command],
             capture_output=True,
             text=True,
-            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+            creationflags=CREATE_NO_WINDOW,
         )
-        return result.returncode == 0, result.stdout, result.stderr
+        return result.returncode == 0, (result.stdout or "") + (result.stderr or "")
     except Exception as e:
-        return False, "", str(e)
+        return False, str(e)
 
 
 def get_memory_compression_status():
     """获取内存压缩状态"""
     try:
-        # 使用 PowerShell 获取内存压缩状态
-        command = "Get-MMAgent | Select-Object -ExpandProperty MemoryCompression"
         result = subprocess.run(
-            ['powershell', '-Command', command],
+            ['powershell', '-Command',
+             "Get-MMAgent | Select-Object -ExpandProperty MemoryCompression"],
             capture_output=True,
             text=True,
-            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+            creationflags=CREATE_NO_WINDOW,
         )
         if result.returncode == 0:
-            output = result.stdout.strip().lower()
-            return output == 'true'
+            return result.stdout.strip().lower() == 'true'
         return None
-    except Exception as e:
-        print(f"获取状态失败: {e}")
+    except Exception:
         return None
 
 
 def enable_memory_compression():
     """启用内存压缩"""
     if is_admin():
-        try:
-            command = "Enable-MMAgent -MemoryCompression"
-            result = subprocess.run(
-                ['powershell', '-Command', command],
-                capture_output=True,
-                text=True,
-                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
-            )
-            return result.returncode == 0, result.stdout + result.stderr
-        except Exception as e:
-            return False, str(e)
-    else:
-        # 需要管理员权限，使用提升的方式执行
-        command = "Enable-MMAgent -MemoryCompression"
-        ps_script = f'''
-            Start-Process powershell -ArgumentList '-Command {command}' -Verb RunAs -Wait
-        '''
-        try:
-            result = subprocess.run(
-                ['powershell', '-Command', ps_script],
-                capture_output=True,
-                text=True,
-                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
-            )
-            return result.returncode == 0, result.stdout + result.stderr
-        except Exception as e:
-            return False, str(e)
+        return _run_ps("Enable-MMAgent -MemoryCompression")
+    ps_script = "Start-Process powershell -ArgumentList '-Command Enable-MMAgent -MemoryCompression' -Verb RunAs -Wait"
+    return _run_ps(ps_script)
 
 
 def disable_memory_compression():
     """禁用内存压缩"""
     if is_admin():
-        try:
-            command = "Disable-MMAgent -MemoryCompression"
-            result = subprocess.run(
-                ['powershell', '-Command', command],
-                capture_output=True,
-                text=True,
-                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
-            )
-            return result.returncode == 0, result.stdout + result.stderr
-        except Exception as e:
-            return False, str(e)
-    else:
-        # 需要管理员权限，使用提升的方式执行
-        command = "Disable-MMAgent -MemoryCompression"
-        ps_script = f'''
-            Start-Process powershell -ArgumentList '-Command {command}' -Verb RunAs -Wait
-        '''
-        try:
-            result = subprocess.run(
-                ['powershell', '-Command', ps_script],
-                capture_output=True,
-                text=True,
-                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
-            )
-            return result.returncode == 0, result.stdout + result.stderr
-        except Exception as e:
-            return False, str(e)
+        return _run_ps("Disable-MMAgent -MemoryCompression")
+    ps_script = "Start-Process powershell -ArgumentList '-Command Disable-MMAgent -MemoryCompression' -Verb RunAs -Wait"
+    return _run_ps(ps_script)
 
 
-class MemoryCompressionTool(PDFToolBase):
-    def __init__(self, master):
-        super().__init__(master)
-        if not master.winfo_exists():
-            return
-        self.master = master
-        master.title("内存压缩管理工具")
+class MemoryCompressionApp:
+    """Windows 内存压缩管理 Flet 应用"""
 
-        # 设置默认字体
-        self.current_font = ("Microsoft YaHei", 10)
-
-        # 检查管理员权限
+    def __init__(self, page: ft.Page):
+        self.page = page
+        self.font_family = APP_FONT_FAMILY
         self.is_admin = is_admin()
 
-        # 主框架
-        main_frame = ttk.Frame(master, padding="20")
-        main_frame.grid(row=0, column=0, sticky="nsew")
+        page.title = "内存压缩管理工具"
+        page.window.width = 640
+        page.window.height = 620
+        page.window.min_width = 520
+        page.window.min_height = 520
+        page.padding = 0
+        page.bgcolor = ft.Colors.GREY_100
+        page.theme = ft.Theme(font_family=self.font_family)
 
-        # 标题
-        title_label = tk.Label(main_frame, text="Windows 内存压缩管理", font=(self.current_font[0], 14, "bold"))
-        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
+        # 窗口图标由公共基类解析，直接使用
+        page.window.icon = APP_ICON_PATH
 
-        # 说明
-        desc_label = tk.Label(
-            main_frame,
-            text="内存压缩可以将很少使用的内存页面压缩，\n释放物理 RAM 来改善性能。",
-            font=self.current_font,
-            justify="center"
+        self.status_text_value = ft.Text(
+            "检测中...",
+            size=16,
+            weight=ft.FontWeight.BOLD,
+            color=ft.Colors.BLUE_GREY_700,
+            font_family=self.font_family,
         )
-        desc_label.grid(row=1, column=0, columnspan=2, pady=(0, 20))
 
-        # 状态显示
-        status_label = tk.Label(main_frame, text="当前状态:", font=self.current_font)
-        status_label.grid(row=2, column=0, sticky="w", pady=10)
+        self.info_text = ft.Text(
+            "",
+            size=12,
+            color=ft.Colors.BLUE_GREY_800,
+            font_family=self.font_family,
+            selectable=True,
+        )
 
-        self.status_var = tk.StringVar()
-        self.status_value_label = tk.Label(main_frame, textvariable=self.status_var, font=self.current_font, foreground="blue")
-        self.status_value_label.grid(row=2, column=1, sticky="w", pady=10)
+        self.status_text = ft.Text("就绪", size=12, color=ft.Colors.BLUE_GREY_700,
+                                    font_family=self.font_family)
 
-        # 管理员权限提示
+        self.btn_enable = ft.ElevatedButton(
+            "启用内存压缩",
+            icon=ft.Icons.PLAY_ARROW,
+            bgcolor=ft.Colors.GREEN_600,
+            color=ft.Colors.WHITE,
+            on_click=self.on_enable,
+            expand=1,
+        )
+        self.btn_disable = ft.ElevatedButton(
+            "禁用内存压缩",
+            icon=ft.Icons.STOP,
+            bgcolor=ft.Colors.RED_600,
+            color=ft.Colors.WHITE,
+            on_click=self.on_disable,
+            expand=1,
+        )
+        self.btn_refresh = ft.OutlinedButton(
+            "刷新状态",
+            icon=ft.Icons.REFRESH,
+            on_click=self.on_refresh,
+            expand=1,
+        )
+
+        self._build_ui()
+        # 初始刷新（后台执行，避免阻塞 UI）
+        threading.Thread(target=self.refresh_status, daemon=True).start()
+
+    def _make_card(self, title, content):
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(title, size=13, weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.BLUE_GREY_700, font_family=self.font_family),
+                content,
+            ], spacing=8),
+            padding=ft.padding.all(12),
+            border_radius=10,
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.all(1, ft.Colors.GREY_200),
+        )
+
+    def _build_ui(self):
+        # 标题卡片
+        header = ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Icon(ft.Icons.MEMORY, size=28, color=ft.Colors.BLUE_600),
+                    ft.Text("Windows 内存压缩管理",
+                             size=18,
+                             weight=ft.FontWeight.BOLD,
+                             color=ft.Colors.BLUE_GREY_800,
+                             font_family=self.font_family),
+                ], spacing=8),
+                ft.Text(
+                    "内存压缩可以将很少使用的内存页面压缩，释放物理 RAM 来改善性能。",
+                    size=12,
+                    color=ft.Colors.BLUE_GREY_600,
+                    font_family=self.font_family,
+                ),
+            ], spacing=6),
+            padding=ft.padding.all(14),
+            border_radius=10,
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.all(1, ft.Colors.GREY_200),
+        )
+
+        # 权限提示
+        admin_hint = None
         if not self.is_admin:
-            admin_label = tk.Label(
-                main_frame,
-                text="提示: 部分操作可能需要管理员权限",
-                font=(self.current_font[0], 10),
-                foreground="orange"
+            admin_hint = ft.Container(
+                content=ft.Row([
+                    ft.Icon(ft.Icons.WARNING_AMBER, size=16, color=ft.Colors.ORANGE_700),
+                    ft.Text("提示: 部分操作可能需要管理员权限（将弹出 UAC 授权窗口）",
+                             size=12, color=ft.Colors.ORANGE_800,
+                             font_family=self.font_family),
+                ], spacing=6),
+                padding=ft.padding.all(10),
+                border_radius=8,
+                bgcolor=ft.Colors.ORANGE_50,
+                border=ft.border.all(1, ft.Colors.ORANGE_200),
             )
-            admin_label.grid(row=3, column=0, columnspan=2, pady=(0, 10))
 
-        # 按钮框架
-        button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=4, column=0, columnspan=2, pady=20)
-
-        # 启用按钮
-        self.enable_btn = tk.Button(
-            button_frame,
-            text="启用内存压缩",
-            command=self.enable_compression,
-            font=(self.current_font[0], 12),
-            width=15,
-            bg="#4CAF50",
-            fg="white",
-            activebackground="#45a049"
+        # 状态卡片
+        status_card = self._make_card(
+            "当前状态",
+            ft.Container(
+                content=self.status_text_value,
+                padding=ft.padding.all(14),
+                border_radius=8,
+                bgcolor=ft.Colors.BLUE_GREY_50,
+                alignment=ft.alignment.center,
+            ),
         )
-        self.enable_btn.grid(row=0, column=0, padx=10)
 
-        # 禁用按钮
-        self.disable_btn = tk.Button(
-            button_frame,
-            text="禁用内存压缩",
-            command=self.disable_compression,
-            font=(self.current_font[0], 12),
-            width=15,
-            bg="#f44336",
-            fg="white",
-            activebackground="#da190b"
+        # 详细信息卡片
+        info_card = self._make_card("详细信息", self.info_text)
+
+        # 按钮行
+        button_row = ft.Row([self.btn_enable, self.btn_disable, self.btn_refresh], spacing=8)
+
+        status_bar = ft.Container(
+            content=self.status_text,
+            padding=ft.padding.symmetric(horizontal=12, vertical=6),
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.only(top=ft.BorderSide(1, ft.Colors.GREY_200)),
         )
-        self.disable_btn.grid(row=0, column=1, padx=10)
 
-        # 刷新按钮
-        self.refresh_btn = tk.Button(
-            button_frame,
-            text="刷新状态",
-            command=self.refresh_status,
-            font=(self.current_font[0], 12),
-            width=15
+        controls = [header]
+        if admin_hint is not None:
+            controls.append(admin_hint)
+        controls.extend([status_card, button_row, info_card])
+
+        self.page.add(
+            ft.Container(
+                content=ft.Column(controls, spacing=10, scroll=ft.ScrollMode.AUTO, expand=True),
+                padding=12,
+                expand=True,
+            ),
         )
-        self.refresh_btn.grid(row=0, column=2, padx=10)
+        self.page.add(status_bar)
 
-        # 详细信息框架
-        info_frame = ttk.LabelFrame(main_frame, text="详细信息", padding="10")
-        info_frame.grid(row=5, column=0, columnspan=2, pady=10, sticky="nsew")
-
-        self.info_text = ""
-        self.info_label = tk.Label(info_frame, text=self.info_text, font=(self.current_font[0], 10), justify="left")
-        self.info_label.grid(row=0, column=0, sticky="w")
-
-        # 初始刷新状态
-        self.refresh_status()
-
-        # 配置窗口大小
-        master.resizable(False, False)
+    def show_status(self, message, success=True):
+        self.status_text.value = message
+        self.page.snack_bar = ft.SnackBar(
+            ft.Text(message, font_family=self.font_family),
+            bgcolor=ft.Colors.GREEN if success else ft.Colors.RED,
+            open=True,
+        )
+        self.page.update()
 
     def refresh_status(self):
-        """刷新内存压缩状态"""
+        """刷新内存压缩状态（可后台调用）"""
         status = get_memory_compression_status()
-
         if status is None:
-            self.status_var.set("无法获取状态\n(可能需要以管理员身份运行)")
-            self.status_value_label.config(foreground="gray")
-            self.info_text = "无法获取内存压缩状态。\n请确保以管理员身份运行此程序。"
+            self.status_text_value.value = "无法获取状态"
+            self.status_text_value.color = ft.Colors.GREY_600
+            self.info_text.value = "无法获取内存压缩状态。\n请确保以管理员身份运行此程序。"
         elif status:
-            self.status_var.set("已启用")
-            self.status_value_label.config(foreground="green")
-            self.info_text = "内存压缩功能当前已启用。\n这有助于优化内存使用。"
+            self.status_text_value.value = "已启用"
+            self.status_text_value.color = ft.Colors.GREEN_700
+            self.info_text.value = "内存压缩功能当前已启用。\n这有助于优化内存使用。"
         else:
-            self.status_var.set("已禁用")
-            self.status_value_label.config(foreground="red")
-            self.info_text = "内存压缩功能当前已禁用。\n启用后可释放更多物理内存。"
+            self.status_text_value.value = "已禁用"
+            self.status_text_value.color = ft.Colors.RED_700
+            self.info_text.value = "内存压缩功能当前已禁用。\n启用后可释放更多物理内存。"
+        self.page.update()
 
-        self.info_label.config(text=self.info_text)
+    def on_refresh(self, e):
+        self.show_status("正在刷新状态...", success=True)
+        threading.Thread(target=self.refresh_status, daemon=True).start()
 
-    def enable_compression(self):
-        """启用内存压缩"""
+    def _run_action(self, action_name, action_func):
+        """在后台线程执行启用/禁用操作"""
+        def worker():
+            try:
+                success, output = action_func()
+                if success:
+                    self.show_status(f"{action_name}成功", success=True)
+                else:
+                    self.show_status(f"{action_name}失败：{output.strip()[:200]}", success=False)
+                self.refresh_status()
+            except Exception as ex:
+                self.show_status(f"{action_name}失败：{ex}", success=False)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def on_enable(self, e):
+        self._confirm_and_run("启用内存压缩", enable_memory_compression)
+
+    def on_disable(self, e):
+        self._confirm_and_run("禁用内存压缩", disable_memory_compression)
+
+    def _confirm_and_run(self, action_name, action_func):
+        """显示确认对话框后执行"""
+        def do_close(e):
+            self.page.dialog.open = False
+            self.page.update()
+
+        def do_confirm(e):
+            do_close(e)
+            self.show_status(f"正在{action_name}，请稍候...", success=True)
+            self._run_action(action_name, action_func)
+
+        msg = f"确定要{action_name}吗？"
         if not self.is_admin:
-            # 需要管理员权限
-            confirm = messagebox.askyesno(
-                "需要管理员权限",
-                "启用内存压缩需要管理员权限。\n是否以管理员身份重新启动此程序？",
-                icon='warning'
-            )
-            if confirm:
-                self.restart_as_admin("enable")
-            return
+            msg += "\n\n当前非管理员权限运行，将弹出 UAC 授权窗口。"
 
-        success, output = enable_memory_compression()
-        if success:
-            messagebox.showinfo("成功", "内存压缩已成功启用！", icon='info')
-            self.refresh_status()
-        else:
-            messagebox.showerror("错误", f"启用内存压缩失败：\n{output}", icon='error')
+        self.page.dialog = ft.AlertDialog(
+            title=ft.Text("操作确认", font_family=self.font_family),
+            content=ft.Text(msg, font_family=self.font_family),
+            actions=[
+                ft.TextButton("取消", on_click=do_close),
+                ft.ElevatedButton(
+                    "确定",
+                    bgcolor=ft.Colors.BLUE_600,
+                    color=ft.Colors.WHITE,
+                    on_click=do_confirm,
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self.page.dialog.open = True
+        self.page.update()
 
-    def disable_compression(self):
-        """禁用内存压缩"""
-        if not self.is_admin:
-            # 需要管理员权限
-            confirm = messagebox.askyesno(
-                "需要管理员权限",
-                "禁用内存压缩需要管理员权限。\n是否以管理员身份重新启动此程序？",
-                icon='warning'
-            )
-            if confirm:
-                self.restart_as_admin("disable")
-            return
 
-        success, output = disable_memory_compression()
-        if success:
-            messagebox.showinfo("成功", "内存压缩已成功禁用！", icon='info')
-            self.refresh_status()
-        else:
-            messagebox.showerror("错误", f"禁用内存压缩失败：\n{output}", icon='error')
-
-    def restart_as_admin(self, action):
-        """以管理员身份重新启动程序"""
-        try:
-            script_path = os.path.abspath(sys.argv[0])
-            # 构建新的命令行，传递操作参数
-            new_command = f'"{script_path}"'
-            # 使用提升的权限启动新进程
-            ctypes.windll.shell32.ShellExecuteW(
-                None,
-                "runas",
-                sys.executable,
-                new_command,
-                None,
-                1
-            )
-            self.master.quit()
-        except Exception as e:
-            messagebox.showerror("错误", f"无法以管理员身份启动：\n{str(e)}", icon='error')
+def main(page: ft.Page):
+    MemoryCompressionApp(page)
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = MemoryCompressionTool(root)
-    if root.winfo_exists():
-        root.mainloop()
+    ft.app(target=main)

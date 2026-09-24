@@ -1,230 +1,377 @@
-﻿# 禁止生成 .pyc 文件
+﻿# 禁止生成 .pyc 文件，避免输出目录被污染
 import sys
 sys.dont_write_bytecode = True
 
 import math
+import importlib.util
 from pathlib import Path
+
+import flet as ft
+
+
+def get_project_root():
+    """返回项目根目录。"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
 
 
 def _resolve_base_class_path():
     """解析公共基类文件路径，打包后自动使用 .pyc 字节码"""
-    base_py = Path(__file__).resolve().parent.parent / 'Core' / 'Public base class.py'
+    base_py = get_project_root() / 'Core' / 'Public base class.py'
     if getattr(sys, 'frozen', False):
-        import importlib.util
         return Path(importlib.util.cache_from_source(str(base_py)))
     return base_py
-from tkinter import Tk, Label, Entry, Button, StringVar, messagebox, ttk, OptionMenu
 
-# 导入公共基类
-import importlib.util
-_base_spec = importlib.util.spec_from_file_location(
-    "public_base_class",
-    _resolve_base_class_path()
-)
-_base_module = importlib.util.module_from_spec(_base_spec)
-_base_spec.loader.exec_module(_base_module)
-PDFToolBase = _base_module.PDFToolBase
-del _base_spec, _base_module
 
-class TrigonometryCalculator(PDFToolBase):
-    def __init__(self, master):
-        super().__init__(master)
-        if not master.winfo_exists():
-            return
-        self.master = master
-        
-        master.title("三角函数计算器")
-        
-        # 创建Notebook选项卡
-        self.notebook = ttk.Notebook(master)
-        self.notebook.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
-        
-        # 正弦计算选项卡
-        self.sine_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.sine_frame, text="正弦计算")
-        
-        # 角度转正弦值
-        Label(self.sine_frame, text="角度转正弦:").grid(row=0, column=0, padx=10, pady=5)
-        self.degree_sin_var = StringVar()
-        Entry(self.sine_frame, textvariable=self.degree_sin_var).grid(row=0, column=1, padx=10, pady=5)
-        Button(self.sine_frame, text="计算", command=self.calculate_sin_from_degree).grid(row=0, column=2, padx=5)
-        
-        # 弧度转正弦值
-        Label(self.sine_frame, text="弧度转正弦:").grid(row=1, column=0, padx=10, pady=5)
-        self.radian_sin_var = StringVar()
-        Entry(self.sine_frame, textvariable=self.radian_sin_var).grid(row=1, column=1, padx=10, pady=5)
-        Button(self.sine_frame, text="计算", command=self.calculate_sin_from_radian).grid(row=1, column=2, padx=5)
-        
-        # 余弦计算选项卡
-        self.cosine_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.cosine_frame, text="余弦计算")
-        
-        # 角度转余弦值
-        Label(self.cosine_frame, text="角度转余弦:").grid(row=0, column=0, padx=10, pady=5)
-        self.degree_cos_var = StringVar()
-        Entry(self.cosine_frame, textvariable=self.degree_cos_var).grid(row=0, column=1, padx=10, pady=5)
-        Button(self.cosine_frame, text="计算", command=self.calculate_cos_from_degree).grid(row=0, column=2, padx=5)
-        
-        # 弧度转余弦值
-        Label(self.cosine_frame, text="弧度转余弦:").grid(row=1, column=0, padx=10, pady=5)
-        self.radian_cos_var = StringVar()
-        Entry(self.cosine_frame, textvariable=self.radian_cos_var).grid(row=1, column=1, padx=10, pady=5)
-        Button(self.cosine_frame, text="计算", command=self.calculate_cos_from_radian).grid(row=1, column=2, padx=5)
-        
-        # 正切计算选项卡
-        self.tangent_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.tangent_frame, text="正切计算")
-        
-        # 角度转正切值
-        Label(self.tangent_frame, text="角度转正切:").grid(row=0, column=0, padx=10, pady=5)
-        self.degree_tan_var = StringVar()
-        Entry(self.tangent_frame, textvariable=self.degree_tan_var).grid(row=0, column=1, padx=10, pady=5)
-        Button(self.tangent_frame, text="计算", command=self.calculate_tan_from_degree).grid(row=0, column=2, padx=5)
-        
-        # 弧度转正切值
-        Label(self.tangent_frame, text="弧度转正切:").grid(row=1, column=0, padx=10, pady=5)
-        self.radian_tan_var = StringVar()
-        Entry(self.tangent_frame, textvariable=self.radian_tan_var).grid(row=1, column=1, padx=10, pady=5)
-        Button(self.tangent_frame, text="计算", command=self.calculate_tan_from_radian).grid(row=1, column=2, padx=5)
-        
-        # 反三角函数选项卡
-        self.inverse_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.inverse_frame, text="反三角函数")
-        
-        # 输出单位选择
-        Label(self.inverse_frame, text="输出单位:").grid(row=0, column=0, padx=10, pady=5)
-        self.output_unit = StringVar()
-        self.output_unit.set("角度")
-        OptionMenu(self.inverse_frame, self.output_unit, "角度", "弧度").grid(row=0, column=1, padx=10, pady=5)
-        
-        # 反正弦计算
-        Label(self.inverse_frame, text="反正弦:").grid(row=1, column=0, padx=10, pady=5)
-        self.arcsin_var = StringVar()
-        Entry(self.inverse_frame, textvariable=self.arcsin_var).grid(row=1, column=1, padx=10, pady=5)
-        Button(self.inverse_frame, text="计算", command=self.calculate_arcsin).grid(row=1, column=2, padx=5)
-        
-        # 反余弦计算
-        Label(self.inverse_frame, text="反余弦:").grid(row=2, column=0, padx=10, pady=5)
-        self.arccos_var = StringVar()
-        Entry(self.inverse_frame, textvariable=self.arccos_var).grid(row=2, column=1, padx=10, pady=5)
-        Button(self.inverse_frame, text="计算", command=self.calculate_arccos).grid(row=2, column=2, padx=5)
-        
-        # 反正切计算
-        Label(self.inverse_frame, text="反正切:").grid(row=3, column=0, padx=10, pady=5)
-        self.arctan_var = StringVar()
-        Entry(self.inverse_frame, textvariable=self.arctan_var).grid(row=3, column=1, padx=10, pady=5)
-        Button(self.inverse_frame, text="计算", command=self.calculate_arctan).grid(row=3, column=2, padx=5)
-        
-        
-        # 结果展示
-        self.result_frame = ttk.Frame(master)
-        self.result_frame.grid(row=1, column=0, columnspan=2, pady=10)
-        
-        Label(self.result_frame, text="结果:").grid(row=0, column=0, padx=5)
-        self.result_var = StringVar()
-        Label(self.result_frame, textvariable=self.result_var).grid(row=0, column=1, padx=5)
-    
-    def calculate_sin_from_degree(self):
+def run_startup_preflight():
+    """执行启动前置检查：加载公共基类并验证字体可用性。"""
+    base_file = _resolve_base_class_path()
+
+    spec = importlib.util.spec_from_file_location('public_base_class', str(base_file))
+    if spec is None or spec.loader is None:
+        raise ImportError(f"无法加载公共基类：{base_file}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    import tkinter as tk
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        base = module.PDFToolBase(root)
+        if not root.winfo_exists():
+            raise RuntimeError("授权或窗口初始化失败")
+
+        current_font = getattr(base, 'current_font', None)
+        if not current_font:
+            raise RuntimeError("公共基类未成功加载字体")
+
+        font_family = current_font[0]
+        icon_path = str(base._get_project_root() / 'Image' / 'icon.ico')
+        return font_family, icon_path
+    finally:
         try:
-            degree = float(self.degree_sin_var.get())
-            radian = math.radians(degree)
+            if root.winfo_exists():
+                root.destroy()
+        except Exception:
+            pass
+
+
+APP_FONT_FAMILY, APP_ICON_PATH = run_startup_preflight()
+
+
+class TrigonometryApp:
+    """三角函数计算器 Flet 应用"""
+
+    def __init__(self, page: ft.Page):
+        self.page = page
+        self.font_family = APP_FONT_FAMILY
+
+        page.title = "三角函数计算器"
+        page.window.width = 780
+        page.window.height = 620
+        page.window.min_width = 620
+        page.window.min_height = 540
+        page.padding = 0
+        page.bgcolor = ft.Colors.GREY_100
+        page.theme = ft.Theme(font_family=self.font_family)
+
+        # 窗口图标由公共基类解析，直接使用
+        page.window.icon = APP_ICON_PATH
+
+        # 输入控件
+        self.degree_sin = ft.TextField(label="角度值", hint_text="例如 30",
+                                          text_size=13, border_radius=8, expand=1)
+        self.radian_sin = ft.TextField(label="弧度值", hint_text="例如 1.5708",
+                                          text_size=13, border_radius=8, expand=1)
+
+        self.degree_cos = ft.TextField(label="角度值", hint_text="例如 60",
+                                          text_size=13, border_radius=8, expand=1)
+        self.radian_cos = ft.TextField(label="弧度值", hint_text="例如 1.0472",
+                                          text_size=13, border_radius=8, expand=1)
+
+        self.degree_tan = ft.TextField(label="角度值", hint_text="例如 45",
+                                          text_size=13, border_radius=8, expand=1)
+        self.radian_tan = ft.TextField(label="弧度值", hint_text="例如 0.7854",
+                                          text_size=13, border_radius=8, expand=1)
+
+        self.arcsin_input = ft.TextField(label="值 (-1 ~ 1)", text_size=13,
+                                             border_radius=8, expand=1)
+        self.arccos_input = ft.TextField(label="值 (-1 ~ 1)", text_size=13,
+                                             border_radius=8, expand=1)
+        self.arctan_input = ft.TextField(label="任意实数", text_size=13,
+                                             border_radius=8, expand=1)
+
+        self.output_unit = ft.RadioGroup(
+            value="角度",
+            content=ft.Row([
+                ft.Radio(value="角度", label="角度"),
+                ft.Radio(value="弧度", label="弧度"),
+            ], spacing=16),
+        )
+
+        self.result_text = ft.Text(
+            "结果将显示在这里",
+            size=15, weight=ft.FontWeight.BOLD,
+            color=ft.Colors.BLUE_GREY_800,
+            text_align=ft.TextAlign.CENTER,
+            font_family=self.font_family,
+            selectable=True,
+        )
+
+        self.status_text = ft.Text("就绪", size=12, color=ft.Colors.BLUE_GREY_700,
+                                    font_family=self.font_family)
+
+        self._build_ui()
+
+    def _make_card(self, title, content):
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(title, size=13, weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.BLUE_GREY_700, font_family=self.font_family),
+                content,
+            ], spacing=8),
+            padding=ft.padding.all(12),
+            border_radius=10,
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.all(1, ft.Colors.GREY_200),
+        )
+
+    def _btn(self, label, callback, color=ft.Colors.BLUE_600):
+        return ft.ElevatedButton(
+            label, bgcolor=color, color=ft.Colors.WHITE, on_click=callback,
+        )
+
+    def _build_ui(self):
+        # 正弦 Tab
+        sine_tab = ft.Column([
+            ft.Row([
+                self.degree_sin,
+                self._btn("计算 sin", lambda e: self.calc_sin_from_degree()),
+            ], spacing=8),
+            ft.Row([
+                self.radian_sin,
+                self._btn("计算 sin", lambda e: self.calc_sin_from_radian()),
+            ], spacing=8),
+        ], spacing=10)
+
+        # 余弦 Tab
+        cosine_tab = ft.Column([
+            ft.Row([
+                self.degree_cos,
+                self._btn("计算 cos", lambda e: self.calc_cos_from_degree()),
+            ], spacing=8),
+            ft.Row([
+                self.radian_cos,
+                self._btn("计算 cos", lambda e: self.calc_cos_from_radian()),
+            ], spacing=8),
+        ], spacing=10)
+
+        # 正切 Tab
+        tangent_tab = ft.Column([
+            ft.Row([
+                self.degree_tan,
+                self._btn("计算 tan", lambda e: self.calc_tan_from_degree()),
+            ], spacing=8),
+            ft.Row([
+                self.radian_tan,
+                self._btn("计算 tan", lambda e: self.calc_tan_from_radian()),
+            ], spacing=8),
+        ], spacing=10)
+
+        # 反三角 Tab
+        inverse_tab = ft.Column([
+            self.output_unit,
+            ft.Row([
+                self.arcsin_input,
+                self._btn("计算 arcsin", lambda e: self.calc_arcsin()),
+            ], spacing=8),
+            ft.Row([
+                self.arccos_input,
+                self._btn("计算 arccos", lambda e: self.calc_arccos()),
+            ], spacing=8),
+            ft.Row([
+                self.arctan_input,
+                self._btn("计算 arctan", lambda e: self.calc_arctan()),
+            ], spacing=8),
+        ], spacing=10)
+
+        tabs = ft.Tabs(
+            selected_index=0,
+            animation_duration=200,
+            height=380,
+            tabs=[
+                ft.Tab(text="正弦 sin", content=self._pad(sine_tab)),
+                ft.Tab(text="余弦 cos", content=self._pad(cosine_tab)),
+                ft.Tab(text="正切 tan", content=self._pad(tangent_tab)),
+                ft.Tab(text="反三角函数", content=self._pad(inverse_tab)),
+            ],
+        )
+        tabs_card = self._make_card("函数选择", tabs)
+
+        # 结果卡片
+        result_container = ft.Container(
+            content=self.result_text,
+            padding=ft.padding.all(18),
+            border_radius=8,
+            bgcolor=ft.Colors.BLUE_GREY_50,
+            alignment=ft.alignment.center,
+        )
+        result_card = self._make_card("计算结果", result_container)
+
+        status_bar = ft.Container(
+            content=self.status_text,
+            padding=ft.padding.symmetric(horizontal=12, vertical=6),
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.only(top=ft.BorderSide(1, ft.Colors.GREY_200)),
+        )
+
+        self.page.add(
+            ft.Container(
+                content=ft.Column(
+                    [tabs_card, result_card],
+                    spacing=10,
+                    scroll=ft.ScrollMode.AUTO,
+                    expand=True,
+                ),
+                padding=12,
+                expand=True,
+            ),
+        )
+        self.page.add(status_bar)
+
+    def _pad(self, content):
+        return ft.Container(content=content, padding=ft.padding.all(8))
+
+    def show_status(self, message, success=True):
+        self.status_text.value = message
+        self.page.snack_bar = ft.SnackBar(
+            ft.Text(message, font_family=self.font_family),
+            bgcolor=ft.Colors.GREEN if success else ft.Colors.RED,
+            open=True,
+        )
+        self.page.update()
+
+    def _show_result(self, text):
+        self.result_text.value = text
+        self.page.update()
+
+    def _show_error(self, msg):
+        self.show_status(msg, success=False)
+        self.result_text.value = f"错误: {msg}"
+        self.page.update()
+
+    def _get_float(self, field, name):
+        text = (field.value or "").strip()
+        if not text:
+            raise ValueError(f"请输入{name}")
+        try:
+            return float(text)
+        except ValueError:
+            raise ValueError(f"{name}格式无效")
+
+    # ----- sin -----
+    def calc_sin_from_degree(self):
+        try:
+            degree = self._get_float(self.degree_sin, "角度值")
+            value = math.sin(math.radians(degree))
+            self._show_result(f"sin({degree}°) = {value:.6f}")
+            self.show_status("计算完成", success=True)
+        except ValueError as e:
+            self._show_error(str(e))
+
+    def calc_sin_from_radian(self):
+        try:
+            radian = self._get_float(self.radian_sin, "弧度值")
             value = math.sin(radian)
-            self.show_result(f"sin({degree}°) = {value:.6f}")
-        except ValueError:
-            messagebox.showerror("错误", "请输入有效的角度值")
-    
-    def calculate_sin_from_radian(self):
+            self._show_result(f"sin({radian:.4f} rad) = {value:.6f}")
+            self.show_status("计算完成", success=True)
+        except ValueError as e:
+            self._show_error(str(e))
+
+    # ----- cos -----
+    def calc_cos_from_degree(self):
         try:
-            radian = float(self.radian_sin_var.get())
-            value = math.sin(radian)
-            self.show_result(f"sin({radian:.4f} rad) = {value:.6f}")
-        except ValueError:
-            messagebox.showerror("错误", "请输入有效的弧度值")
-    
-    def calculate_cos_from_degree(self):
+            degree = self._get_float(self.degree_cos, "角度值")
+            value = math.cos(math.radians(degree))
+            self._show_result(f"cos({degree}°) = {value:.6f}")
+            self.show_status("计算完成", success=True)
+        except ValueError as e:
+            self._show_error(str(e))
+
+    def calc_cos_from_radian(self):
         try:
-            degree = float(self.degree_cos_var.get())
-            radian = math.radians(degree)
+            radian = self._get_float(self.radian_cos, "弧度值")
             value = math.cos(radian)
-            self.show_result(f"cos({degree}°) = {value:.6f}")
-        except ValueError:
-            messagebox.showerror("错误", "请输入有效的角度值")
-    
-    def calculate_cos_from_radian(self):
+            self._show_result(f"cos({radian:.4f} rad) = {value:.6f}")
+            self.show_status("计算完成", success=True)
+        except ValueError as e:
+            self._show_error(str(e))
+
+    # ----- tan -----
+    def calc_tan_from_degree(self):
         try:
-            radian = float(self.radian_cos_var.get())
-            value = math.cos(radian)
-            self.show_result(f"cos({radian:.4f} rad) = {value:.6f}")
-        except ValueError:
-            messagebox.showerror("错误", "请输入有效的弧度值")
-    
-    def calculate_tan_from_degree(self):
-        try:
-            degree = float(self.degree_tan_var.get())
+            degree = self._get_float(self.degree_tan, "角度值")
             if degree % 90 == 0 and degree % 180 != 0:
-                raise ValueError("正切值在90°±180°n时无定义")
-            radian = math.radians(degree)
+                raise ValueError("正切值在 90°±180°n 时无定义")
+            value = math.tan(math.radians(degree))
+            self._show_result(f"tan({degree}°) = {value:.6f}")
+            self.show_status("计算完成", success=True)
+        except ValueError as e:
+            self._show_error(str(e))
+
+    def calc_tan_from_radian(self):
+        try:
+            radian = self._get_float(self.radian_tan, "弧度值")
+            # 判断是否接近 π/2 + nπ
+            k = (radian - math.pi / 2) / math.pi
+            if abs(k - round(k)) < 1e-9:
+                raise ValueError("正切值在 π/2±nπ 时无定义")
             value = math.tan(radian)
-            self.show_result(f"tan({degree}°) = {value:.6f}")
+            self._show_result(f"tan({radian:.4f} rad) = {value:.6f}")
+            self.show_status("计算完成", success=True)
         except ValueError as e:
-            messagebox.showerror("错误", str(e))
-    
-    def calculate_tan_from_radian(self):
+            self._show_error(str(e))
+
+    # ----- 反三角 -----
+    def _format_inverse(self, name, value, radian):
+        if self.output_unit.value == "角度":
+            return f"{name}({value}) = {math.degrees(radian):.2f}°"
+        return f"{name}({value}) = {radian:.4f} rad"
+
+    def calc_arcsin(self):
         try:
-            radian = float(self.radian_tan_var.get())
-            if (radian - math.pi/2) % math.pi == 0:
-                raise ValueError("正切值在π/2±nπ时无定义")
-            value = math.tan(radian)
-            self.show_result(f"tan({radian:.4f} rad) = {value:.6f}")
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
-    
-    def calculate_arcsin(self):
-        try:
-            value = float(self.arcsin_var.get())
+            value = self._get_float(self.arcsin_input, "值")
             if value < -1 or value > 1:
-                raise ValueError("值必须在-1到1之间")
-            radian = math.asin(value)
-            self.show_inverse_result("arcsin", value, radian)
+                raise ValueError("值必须在 -1 到 1 之间")
+            self._show_result(self._format_inverse("arcsin", value, math.asin(value)))
+            self.show_status("计算完成", success=True)
         except ValueError as e:
-            messagebox.showerror("错误", str(e))
-    
-    def calculate_arccos(self):
+            self._show_error(str(e))
+
+    def calc_arccos(self):
         try:
-            value = float(self.arccos_var.get())
+            value = self._get_float(self.arccos_input, "值")
             if value < -1 or value > 1:
-                raise ValueError("值必须在-1到1之间")
-            radian = math.acos(value)
-            self.show_inverse_result("arccos", value, radian)
+                raise ValueError("值必须在 -1 到 1 之间")
+            self._show_result(self._format_inverse("arccos", value, math.acos(value)))
+            self.show_status("计算完成", success=True)
         except ValueError as e:
-            messagebox.showerror("错误", str(e))
-    
-    def calculate_arctan(self):
+            self._show_error(str(e))
+
+    def calc_arctan(self):
         try:
-            value = float(self.arctan_var.get())
-            radian = math.atan(value)
-            self.show_inverse_result("arctan", value, radian)
+            value = self._get_float(self.arctan_input, "值")
+            self._show_result(self._format_inverse("arctan", value, math.atan(value)))
+            self.show_status("计算完成", success=True)
         except ValueError as e:
-            messagebox.showerror("错误", str(e))
-    
-    def show_result(self, text):
-        """显示计算结果"""
-        if not hasattr(self, 'result_var'):
-            self.result_frame = ttk.Frame(self.master)
-            self.result_frame.grid(row=2, column=0, columnspan=3, pady=10)
-            self.result_var = StringVar()
-            Label(self.result_frame, textvariable=self.result_var).pack()
-        self.result_var.set(text)
-    
-    def show_inverse_result(self, func_name, value, radian):
-        """显示反三角函数结果"""
-        if self.output_unit.get() == "角度":
-            degree = math.degrees(radian)
-            self.show_result(f"{func_name}({value}) = {degree:.2f}°")
-        else:
-            self.show_result(f"{func_name}({value}) = {radian:.4f} rad")
+            self._show_error(str(e))
+
+
+def main(page: ft.Page):
+    TrigonometryApp(page)
+
 
 if __name__ == "__main__":
-    root = Tk()
-    app = TrigonometryCalculator(root)
-    root.mainloop()
+    ft.app(target=main)

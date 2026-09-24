@@ -1,249 +1,271 @@
-# 禁止生成 .pyc 文件
+# 禁止生成 .pyc 文件，避免输出目录被污染
 import sys
 sys.dont_write_bytecode = True
 
-import tkinter as tk
-from tkinter import ttk, messagebox
 import math
+import importlib.util
 from pathlib import Path
+
+import flet as ft
+
+
+def get_project_root():
+    """返回项目根目录。"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
 
 
 def _resolve_base_class_path():
     """解析公共基类文件路径，打包后自动使用 .pyc 字节码"""
-    base_py = Path(__file__).resolve().parent.parent / 'Core' / 'Public base class.py'
+    base_py = get_project_root() / 'Core' / 'Public base class.py'
     if getattr(sys, 'frozen', False):
-        import importlib.util
         return Path(importlib.util.cache_from_source(str(base_py)))
     return base_py
 
-# 导入公共基类
-import importlib.util
-_base_spec = importlib.util.spec_from_file_location(
-    "public_base_class",
-    _resolve_base_class_path()
-)
-_base_module = importlib.util.module_from_spec(_base_spec)
-_base_spec.loader.exec_module(_base_module)
-PDFToolBase = _base_module.PDFToolBase
-del _base_spec, _base_module
 
+def run_startup_preflight():
+    """执行启动前置检查：加载公共基类并验证字体可用性。"""
+    base_file = _resolve_base_class_path()
 
-class PolygonPerimeterApp(PDFToolBase):
-    def __init__(self, root):
-        super().__init__(root)
+    spec = importlib.util.spec_from_file_location('public_base_class', str(base_file))
+    if spec is None or spec.loader is None:
+        raise ImportError(f"无法加载公共基类：{base_file}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    import tkinter as tk
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        base = module.PDFToolBase(root)
         if not root.winfo_exists():
-            return
-        
-        self.root.title("多边形周长计算器")
-        self.root.geometry("460x560")
-        self.root.resizable(False, False)
+            raise RuntimeError("授权或窗口初始化失败")
 
-        self._setup_styles()
-        self._create_ui()
+        current_font = getattr(base, 'current_font', None)
+        if not current_font:
+            raise RuntimeError("公共基类未成功加载字体")
 
-    def _setup_styles(self):
-        """配置样式"""
-        style = ttk.Style()
-        style.theme_use("clam")
+        font_family = current_font[0]
+        icon_path = str(base._get_project_root() / 'Image' / 'icon.ico')
+        return font_family, icon_path
+    finally:
+        try:
+            if root.winfo_exists():
+                root.destroy()
+        except Exception:
+            pass
 
-        self.colors = {
-            "bg": "#f5f7fa",
-            "card": "#ffffff",
-            "primary": "#4a90d9",
-            "success": "#27ae60",
-            "text": "#2c3e50",
-            "muted": "#7f8c8d",
-        }
 
-        self.root.configure(bg=self.colors["bg"])
+APP_FONT_FAMILY, APP_ICON_PATH = run_startup_preflight()
 
-        style.configure("Title.TLabel",
-                        font=("Microsoft YaHei UI", 15, "bold"),
-                        foreground=self.colors["primary"],
-                        background=self.colors["bg"])
 
-        style.configure("Result.TLabel",
-                        font=("Microsoft YaHei UI", 18, "bold"),
-                        foreground=self.colors["success"],
-                        background=self.colors["bg"])
+# 图形配置：key -> (显示名, [(参数键, 标签, 默认值), ...])
+SHAPE_CONFIGS = {
+    "square": ("正方形", [("a", "边长", "5")]),
+    "rectangle": ("矩形", [("a", "长", "6"), ("b", "宽", "4")]),
+    "parallelogram": ("平行四边形", [("a", "边 a", "6"), ("b", "边 b", "5")]),
+    "rhombus": ("菱形", [("d1", "对角线 d₁", "6"), ("d2", "对角线 d₂", "4")]),
+    "triangle": ("三角形", [("s1", "边 a", "3"), ("s2", "边 b", "4"), ("s3", "边 c", "5")]),
+    "right_triangle": ("直角三角形", [("a", "直角边 a", "3"), ("b", "直角边 b", "4")]),
+    "equilateral_triangle": ("等边三角形", [("a", "边长", "5")]),
+    "circle": ("圆", [("r", "半径 r", "5")]),
+    "sector": ("扇形", [("r", "半径 r", "5"), ("angle", "圆心角 (°)", "90")]),
+    "annulus": ("圆环", [("R", "外半径 R", "6"), ("r", "内半径 r", "3")]),
+    "parabolic_sector": ("抛物扇形", [("w", "底宽 w", "6"), ("h", "高 h", "4")]),
+    "hyperbolic_sector": ("双曲扇形", [("a", "参数 a", "3"), ("b", "参数 b", "2"), ("t", "双曲角 t", "1.5")]),
+    "elliptic_sector": ("椭圆扇形", [("a", "长半轴 a", "5"), ("b", "短半轴 b", "3"), ("angle", "参数角 θ (°)", "60")]),
+    "ellipse": ("椭圆", [("a", "长半轴 a", "5"), ("b", "短半轴 b", "3")]),
+}
 
-        style.configure("Formula.TLabel",
-                        font=("Microsoft YaHei UI", 9),
-                        foreground=self.colors["muted"],
-                        background=self.colors["bg"])
+SHAPE_KEYS = list(SHAPE_CONFIGS.keys())
 
-        style.configure("TRadiobutton",
-                        font=("Microsoft YaHei UI", 10))
 
-        style.configure("TLabel",
-                        font=("Microsoft YaHei UI", 10),
-                        background=self.colors["bg"])
+class PolygonPerimeterApp:
+    """多边形周长计算器 Flet 应用"""
 
-        style.configure("TLabelframe",
-                        background=self.colors["bg"])
+    def __init__(self, page: ft.Page):
+        self.page = page
+        self.font_family = APP_FONT_FAMILY
 
-        style.configure("TLabelframe.Label",
-                        font=("Microsoft YaHei UI", 10, "bold"),
-                        foreground=self.colors["text"],
-                        background=self.colors["bg"])
+        page.title = "多边形周长计算器"
+        page.window.width = 720
+        page.window.height = 780
+        page.window.min_width = 560
+        page.window.min_height = 620
+        page.padding = 0
+        page.bgcolor = ft.Colors.GREY_100
+        page.theme = ft.Theme(font_family=self.font_family)
 
-    def _create_ui(self):
-        """创建界面"""
-        # 标题
-        ttk.Label(self.root, text="多边形周长计算器",
-                  style="Title.TLabel").pack(pady=(15, 10))
+        # 窗口图标由公共基类解析，直接使用
+        page.window.icon = APP_ICON_PATH
 
-        # 图形选择区
-        select_frame = ttk.LabelFrame(self.root, text="选择图形", padding=10)
-        select_frame.pack(fill="x", padx=20, pady=(0, 10))
+        self.shape_dropdown = ft.Dropdown(
+            label="选择图形",
+            value="square",
+            options=[ft.dropdown.Option(k, SHAPE_CONFIGS[k][0]) for k in SHAPE_KEYS],
+            text_size=13,
+            border_radius=8,
+            on_change=self.on_shape_change,
+        )
 
-        self.shape_var = tk.StringVar(value="square")
+        self.inputs_container = ft.Column(spacing=8)
+        self.fields = {}
 
-        shapes = [
-            ("正方形", "square"),
-            ("矩形", "rectangle"),
-            ("平行四边形", "parallelogram"),
-            ("菱形", "rhombus"),
-            ("三角形", "triangle"),
-            ("直角三角形", "right_triangle"),
-            ("等边三角形", "equilateral_triangle"),
-            ("圆", "circle"),
-            ("扇形", "sector"),
-            ("圆环", "annulus"),
-            ("抛物扇形", "parabolic_sector"),
-            ("双曲扇形", "hyperbolic_sector"),
-            ("椭圆扇形", "elliptic_sector"),
-            ("椭圆", "ellipse"),
-        ]
+        self.result_text = ft.Text(
+            "周长 = ",
+            size=22, weight=ft.FontWeight.BOLD,
+            color=ft.Colors.GREEN_700,
+            text_align=ft.TextAlign.CENTER,
+            font_family=self.font_family,
+            selectable=True,
+        )
+        self.formula_text = ft.Text(
+            "",
+            size=12,
+            color=ft.Colors.BLUE_GREY_700,
+            text_align=ft.TextAlign.CENTER,
+            font_family="Consolas",
+            selectable=True,
+        )
 
-        rows_data = [shapes[i:i+3] for i in range(0, len(shapes), 3)]
-        for i, row_shapes in enumerate(rows_data):
-            row = ttk.Frame(select_frame)
-            row.pack(fill="x", pady=(0 if i == 0 else 5, 0))
-            for text, value in row_shapes:
-                ttk.Radiobutton(row, text=text, variable=self.shape_var,
-                                value=value, command=self.on_shape_change).pack(
-                                    side="left", padx=(0, 15))
+        self.status_text = ft.Text("就绪", size=12, color=ft.Colors.BLUE_GREY_700,
+                                    font_family=self.font_family)
 
-        # 参数输入区
-        self.input_frame = ttk.LabelFrame(self.root, text="输入参数", padding=15)
-        self.input_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        self._build_ui()
+        self._rebuild_inputs("square")
 
-        # 结果区
-        result_frame = ttk.Frame(self.root)
-        result_frame.pack(fill="x", padx=20, pady=(0, 5))
+    def _make_card(self, title, content):
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(title, size=13, weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.BLUE_GREY_700, font_family=self.font_family),
+                content,
+            ], spacing=8),
+            padding=ft.padding.all(12),
+            border_radius=10,
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.all(1, ft.Colors.GREY_200),
+        )
 
-        self.result_label = ttk.Label(result_frame, text="周长 = ",
-                                      style="Result.TLabel", anchor="center")
-        self.result_label.pack(fill="x")
+    def _build_ui(self):
+        btn_calc = ft.ElevatedButton(
+            "计 算", icon=ft.Icons.CALCULATE,
+            bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE,
+            on_click=self.on_calculate, expand=True,
+        )
+        btn_clear = ft.OutlinedButton("清空", icon=ft.Icons.CLEAR,
+                                         on_click=self.on_clear)
 
-        self.formula_label = ttk.Label(result_frame, text="",
-                                       style="Formula.TLabel", anchor="center")
-        self.formula_label.pack(fill="x", pady=(2, 0))
+        select_card = self._make_card(
+            "选择图形",
+            ft.Column([self.shape_dropdown, self.inputs_container], spacing=10),
+        )
 
-        # 计算按钮
-        ttk.Button(self.root, text="计 算", command=self.calculate).pack(
-            fill="x", padx=20, pady=(5, 15))
+        result_container = ft.Container(
+            content=ft.Column([self.result_text, self.formula_text], spacing=8,
+                              horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            padding=ft.padding.all(14),
+            border_radius=8,
+            bgcolor=ft.Colors.BLUE_GREY_50,
+        )
+        result_card = self._make_card("计算结果", result_container)
 
-        # 初始化输入框
-        self.entries = {}
-        self._build_inputs("square")
+        action_row = ft.Row([btn_calc, btn_clear], spacing=8)
 
-    def _build_inputs(self, shape):
-        """根据图形创建对应的输入框"""
-        for widget in self.input_frame.winfo_children():
-            widget.destroy()
-        self.entries.clear()
+        status_bar = ft.Container(
+            content=self.status_text,
+            padding=ft.padding.symmetric(horizontal=12, vertical=6),
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.only(top=ft.BorderSide(1, ft.Colors.GREY_200)),
+        )
 
-        configs = {
-            "square": [
-                ("a", "边长", "5"),
-            ],
-            "rectangle": [
-                ("a", "长", "6"),
-                ("b", "宽", "4"),
-            ],
-            "parallelogram": [
-                ("a", "边 a", "6"),
-                ("b", "边 b", "5"),
-            ],
-            "rhombus": [
-                ("d1", "对角线 d₁", "6"),
-                ("d2", "对角线 d₂", "4"),
-            ],
-            "triangle": [
-                ("s1", "边 a", "3"),
-                ("s2", "边 b", "4"),
-                ("s3", "边 c", "5"),
-            ],
-            "right_triangle": [
-                ("a", "直角边 a", "3"),
-                ("b", "直角边 b", "4"),
-            ],
-            "equilateral_triangle": [
-                ("a", "边长", "5"),
-            ],
-            "circle": [
-                ("r", "半径 r", "5"),
-            ],
-            "sector": [
-                ("r", "半径 r", "5"),
-                ("angle", "圆心角 (°)", "90"),
-            ],
-            "annulus": [
-                ("R", "外半径 R", "6"),
-                ("r", "内半径 r", "3"),
-            ],
-            "parabolic_sector": [
-                ("w", "底宽 w", "6"),
-                ("h", "高 h", "4"),
-            ],
-            "hyperbolic_sector": [
-                ("a", "参数 a", "3"),
-                ("b", "参数 b", "2"),
-                ("t", "双曲角 t", "1.5"),
-            ],
-            "elliptic_sector": [
-                ("a", "长半轴 a", "5"),
-                ("b", "短半轴 b", "3"),
-                ("angle", "参数角 θ (°)", "60"),
-            ],
-            "ellipse": [
-                ("a", "长半轴 a", "5"),
-                ("b", "短半轴 b", "3"),
-            ],
-        }
+        self.page.add(
+            ft.Container(
+                content=ft.Column(
+                    [select_card, result_card, action_row],
+                    spacing=10,
+                    scroll=ft.ScrollMode.AUTO,
+                    expand=True,
+                ),
+                padding=12,
+                expand=True,
+            ),
+        )
+        self.page.add(status_bar)
 
-        params = configs[shape]
-        for i, (key, label, default) in enumerate(params):
-            row = ttk.Frame(self.input_frame)
-            row.pack(fill="x", pady=(0, 8))
+    def _rebuild_inputs(self, shape):
+        self.inputs_container.controls.clear()
+        self.fields.clear()
+        _, params = SHAPE_CONFIGS[shape]
+        for key, label, default in params:
+            field = ft.TextField(
+                label=label,
+                value=default,
+                text_size=13,
+                content_padding=ft.padding.all(10),
+                border_radius=8,
+                on_submit=lambda e: self.on_calculate(e),
+            )
+            self.fields[key] = field
+            self.inputs_container.controls.append(field)
+        self.page.update()
 
-            ttk.Label(row, text=f"{label}:", width=12, anchor="e").pack(
-                side="left", padx=(0, 5))
+    def on_shape_change(self, e):
+        self._rebuild_inputs(self.shape_dropdown.value)
+        self.result_text.value = "周长 = "
+        self.formula_text.value = ""
+        self.page.update()
 
-            entry = ttk.Entry(row, width=15)
-            entry.insert(0, default)
-            entry.pack(side="left")
-            entry.bind("<Return>", lambda e: self.calculate())
+    def on_clear(self, e):
+        for f in self.fields.values():
+            f.value = ""
+        self.result_text.value = "周长 = "
+        self.formula_text.value = ""
+        self.page.update()
+        self.show_status("已清空", success=True)
 
-            self.entries[key] = entry
+    def on_calculate(self, e):
+        try:
+            self.calculate()
+        except ValueError as ex:
+            self._show_error(str(ex))
+        except Exception as ex:
+            self._show_error(f"计算失败: {ex}")
 
-    def on_shape_change(self):
-        """切换图形时重建输入框"""
-        self._build_inputs(self.shape_var.get())
-        self.result_label.config(text="周长 = ")
-        self.formula_label.config(text="")
+    def show_status(self, message, success=True):
+        self.status_text.value = message
+        self.page.snack_bar = ft.SnackBar(
+            ft.Text(message, font_family=self.font_family),
+            bgcolor=ft.Colors.GREEN if success else ft.Colors.RED,
+            open=True,
+        )
+        self.page.update()
 
     def _get_value(self, key):
-        """获取输入值"""
-        try:
-            val = float(self.entries[key].get())
-            if val <= 0:
-                raise ValueError
-            return val
-        except (ValueError, KeyError):
+        field = self.fields.get(key)
+        if field is None:
             return None
+        text = (field.value or "").strip()
+        if not text:
+            return None
+        try:
+            val = float(text)
+        except ValueError:
+            return None
+        if val <= 0:
+            return None
+        return val
+
+    def _require(self, *keys):
+        vals = []
+        for k in keys:
+            v = self._get_value(k)
+            if v is None:
+                raise ValueError(f"请输入有效的 {SHAPE_CONFIGS[self.shape_dropdown.value][0]} 参数 ({k})")
+            vals.append(v)
+        return vals if len(vals) > 1 else vals[0]
 
     def _simpson(self, f, a, b, n=200):
         """辛普森数值积分"""
@@ -258,260 +280,200 @@ class PolygonPerimeterApp(PDFToolBase):
             s += (4 if i % 2 == 1 else 2) * f(x)
         return s * h / 3
 
-    def calculate(self):
-        """计算周长"""
-        shape = self.shape_var.get()
-
-        if shape == "square":
-            a = self._get_value("a")
-            if a is None:
-                return self._show_error("请输入有效的边长")
-            perimeter = 4 * a
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"正方形 边长 a={a}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【周长公式】P = 4a"
-            ))
-
-        elif shape == "rectangle":
-            a = self._get_value("a")
-            b = self._get_value("b")
-            if a is None or b is None:
-                return self._show_error("请输入有效的长和宽")
-            perimeter = 2 * (a + b)
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"矩形 长 a={a}, 宽 b={b}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【周长公式】P = 2(a + b)"
-            ))
-
-        elif shape == "parallelogram":
-            a = self._get_value("a")
-            b = self._get_value("b")
-            if a is None or b is None:
-                return self._show_error("请输入有效的边长")
-            perimeter = 2 * (a + b)
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"平行四边形 边 a={a}, 边 b={b}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【周长公式】P = 2(a + b)"
-            ))
-
-        elif shape == "rhombus":
-            d1 = self._get_value("d1")
-            d2 = self._get_value("d2")
-            if d1 is None or d2 is None:
-                return self._show_error("请输入有效的对角线长度")
-            side = math.sqrt(d1**2 + d2**2) / 2
-            perimeter = 4 * side
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"菱形 对角线 d₁={d1}, d₂={d2}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【边长公式】s = √(d₁² + d₂²) / 2\n"
-                f"【周长公式】P = 4s = 2√(d₁² + d₂²)"
-            ))
-
-        elif shape == "triangle":
-            s1 = self._get_value("s1")
-            s2 = self._get_value("s2")
-            s3 = self._get_value("s3")
-            if s1 is None or s2 is None or s3 is None:
-                return self._show_error("请输入三边长度")
-            if s1 + s2 <= s3 or s1 + s3 <= s2 or s2 + s3 <= s1:
-                return self._show_error("三边无法构成三角形")
-            perimeter = s1 + s2 + s3
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"三角形 三边 a={s1}, b={s2}, c={s3}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【周长公式】P = a + b + c"
-            ))
-
-        elif shape == "right_triangle":
-            a = self._get_value("a")
-            b = self._get_value("b")
-            if a is None or b is None:
-                return self._show_error("请输入有效的直角边长度")
-            c = math.sqrt(a**2 + b**2)
-            perimeter = a + b + c
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"直角三角形 a={a}, b={b}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【勾股定理】c = √(a² + b²)\n"
-                f"【周长公式】P = a + b + c = a + b + √(a² + b²)"
-            ))
-
-        elif shape == "equilateral_triangle":
-            a = self._get_value("a")
-            if a is None:
-                return self._show_error("请输入有效的边长")
-            perimeter = 3 * a
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"等边三角形 边长 a={a}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【周长公式】P = 3a"
-            ))
-
-        elif shape == "circle":
-            r = self._get_value("r")
-            if r is None:
-                return self._show_error("请输入有效的半径")
-            perimeter = 2 * math.pi * r
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"圆 半径 r={r}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【周长公式】C = 2πr"
-            ))
-
-        elif shape == "sector":
-            r = self._get_value("r")
-            angle = self._get_value("angle")
-            if r is None or angle is None:
-                return self._show_error("请输入有效的半径和圆心角")
-            arc = (angle / 360) * 2 * math.pi * r
-            perimeter = arc + 2 * r
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"扇形 半径 r={r}, 圆心角 θ={angle}°\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【弧长公式】L = (θ / 360) × 2πr\n"
-                f"【周长公式】P = L + 2r"
-            ))
-
-        elif shape == "annulus":
-            R = self._get_value("R")
-            r = self._get_value("r")
-            if R is None or r is None:
-                return self._show_error("请输入有效的半径")
-            if R <= r:
-                return self._show_error("外半径必须大于内半径")
-            outer_c = 2 * math.pi * R
-            inner_c = 2 * math.pi * r
-            perimeter = outer_c + inner_c
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"圆环 外半径 R={R}, 内半径 r={r}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【外圆周长】C₁ = 2πR\n"
-                f"【内圆周长】C₂ = 2πr\n"
-                f"【总周长】P = C₁ + C₂ = 2π(R + r)"
-            ))
-
-        elif shape == "parabolic_sector":
-            w = self._get_value("w")
-            h = self._get_value("h")
-            if w is None or h is None:
-                return self._show_error("请输入有效的底宽和高")
-            # 抛物线弧长：y = (4h/w²)x², x ∈ [-w/2, w/2]
-            # dy/dx = 8hx/w²
-            # arc = ∫√(1 + (8hx/w²)²) dx, 利用对称性 = 2 × ∫[0, w/2]
-            def integrand(x):
-                dydx = 8 * h * x / (w ** 2)
-                return math.sqrt(1 + dydx ** 2)
-            arc = 2 * self._simpson(integrand, 0, w / 2)
-            perimeter = w + arc
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"抛物扇形 底宽 w={w}, 高 h={h}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【抛物线方程】y = (4h/w²)x²\n"
-                f"【弧长公式】L = ∫√(1 + (dy/dx)²) dx\n"
-                f"【周长公式】P = w + L"
-            ))
-
-        elif shape == "hyperbolic_sector":
-            a = self._get_value("a")
-            b = self._get_value("b")
-            t = self._get_value("t")
-            if a is None or b is None or t is None:
-                return self._show_error("请输入有效的参数")
-            # 双曲线弧长：x=a·cosh(u), y=b·sinh(u), u ∈ [0, t]
-            # dx/du = a·sinh(u), dy/du = b·cosh(u)
-            def integrand(u):
-                dxdu = a * math.sinh(u)
-                dydu = b * math.cosh(u)
-                return math.sqrt(dxdu ** 2 + dydu ** 2)
-            arc = self._simpson(integrand, 0, t)
-            # 两条直线段：从原点到 (a, 0) 和从原点到 (a·cosh(t), b·sinh(t))
-            r1 = a  # 到 (a·cosh(0), b·sinh(0)) = (a, 0)
-            x2 = a * math.cosh(t)
-            y2 = b * math.sinh(t)
-            r2 = math.sqrt(x2 ** 2 + y2 ** 2)
-            perimeter = arc + r1 + r2
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"双曲扇形 a={a}, b={b}, t={t}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【参数方程】x = a·cosh(u), y = b·sinh(u)\n"
-                f"【弧长公式】L = ∫√((dx/du)² + (dy/du)²) du\n"
-                f"【周长公式】P = L + r₁ + r₂"
-            ))
-
-        elif shape == "elliptic_sector":
-            a = self._get_value("a")
-            b = self._get_value("b")
-            angle_deg = self._get_value("angle")
-            if a is None or b is None or angle_deg is None:
-                return self._show_error("请输入有效的参数")
-            if angle_deg > 360:
-                return self._show_error("参数角不能超过360°")
-            # 椭圆弧长：x=a·cos(θ), y=b·sin(θ)
-            # dx/dθ = -a·sin(θ), dy/dθ = b·cos(θ)
-            angle_rad = math.radians(angle_deg)
-            def integrand(theta):
-                dxdt = -a * math.sin(theta)
-                dydt = b * math.cos(theta)
-                return math.sqrt(dxdt ** 2 + dydt ** 2)
-            arc = self._simpson(integrand, 0, angle_rad)
-            # 两条半径：从原点到 (a, 0) 和从原点到椭圆上的点
-            r1 = a  # 到 (a·cos(0), b·sin(0)) = (a, 0)
-            x2 = a * math.cos(angle_rad)
-            y2 = b * math.sin(angle_rad)
-            r2 = math.sqrt(x2 ** 2 + y2 ** 2)
-            perimeter = arc + r1 + r2
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"椭圆扇形 a={a}, b={b}, θ={angle_deg}°\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【参数方程】x = a·cos(θ), y = b·sin(θ)\n"
-                f"【弧长公式】L = ∫√((dx/dθ)² + (dy/dθ)²) dθ\n"
-                f"【周长公式】P = L + r₁ + r₂"
-            ))
-
-        elif shape == "ellipse":
-            a = self._get_value("a")
-            b = self._get_value("b")
-            if a is None or b is None:
-                return self._show_error("请输入有效的半轴长度")
-            # 拉马努金近似公式
-            h_val = ((a - b) / (a + b)) ** 2
-            perimeter = math.pi * (a + b) * (1 + 3 * h_val / (10 + math.sqrt(4 - 3 * h_val)))
-            self.result_label.config(text=f"周长 = {self._fmt(perimeter)}")
-            self.formula_label.config(text=(
-                f"椭圆 长半轴 a={a}, 短半轴 b={b}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"【拉马努金近似】h = ((a-b)/(a+b))²\n"
-                f"【周长公式】P ≈ π(a+b)(1 + 3h/(10+√(4-3h)))"
-            ))
-
     def _fmt(self, val):
-        """格式化数字：整数不显示小数位"""
         if val == int(val):
             return str(int(val))
         return f"{val:.4f}"
 
     def _show_error(self, msg):
-        messagebox.showwarning("输入错误", msg)
+        self.result_text.value = f"错误: {msg}"
+        self.formula_text.value = ""
+        self.show_status(msg, success=False)
+
+    def _set_result(self, perimeter, formula):
+        self.result_text.value = f"周长 = {self._fmt(perimeter)}"
+        self.formula_text.value = formula
+        self.show_status("计算完成", success=True)
+
+    def calculate(self):
+        shape = self.shape_dropdown.value
+
+        if shape == "square":
+            a = self._require("a")
+            self._set_result(4 * a, (
+                f"正方形 边长 a={a}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【周长公式】P = 4a\n"
+                f"【计算过程】P = 4 × {a} = {self._fmt(4 * a)}"
+            ))
+
+        elif shape == "rectangle":
+            a, b = self._require("a", "b")
+            self._set_result(2 * (a + b), (
+                f"矩形 长 a={a}, 宽 b={b}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【周长公式】P = 2(a + b)\n"
+                f"【计算过程】P = 2 × ({a} + {b}) = {self._fmt(2 * (a + b))}"
+            ))
+
+        elif shape == "parallelogram":
+            a, b = self._require("a", "b")
+            self._set_result(2 * (a + b), (
+                f"平行四边形 边 a={a}, 边 b={b}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【周长公式】P = 2(a + b)\n"
+                f"【计算过程】P = 2 × ({a} + {b}) = {self._fmt(2 * (a + b))}"
+            ))
+
+        elif shape == "rhombus":
+            d1, d2 = self._require("d1", "d2")
+            side = math.sqrt(d1 ** 2 + d2 ** 2) / 2
+            self._set_result(4 * side, (
+                f"菱形 对角线 d₁={d1}, d₂={d2}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【边长公式】s = √(d₁² + d₂²) / 2 = {self._fmt(side)}\n"
+                f"【周长公式】P = 4s = 2√(d₁² + d₂²)"
+            ))
+
+        elif shape == "triangle":
+            s1, s2, s3 = self._require("s1", "s2", "s3")
+            if s1 + s2 <= s3 or s1 + s3 <= s2 or s2 + s3 <= s1:
+                raise ValueError("三边无法构成三角形")
+            self._set_result(s1 + s2 + s3, (
+                f"三角形 三边 a={s1}, b={s2}, c={s3}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【周长公式】P = a + b + c\n"
+                f"【计算过程】P = {s1} + {s2} + {s3} = {self._fmt(s1 + s2 + s3)}"
+            ))
+
+        elif shape == "right_triangle":
+            a, b = self._require("a", "b")
+            c = math.sqrt(a ** 2 + b ** 2)
+            self._set_result(a + b + c, (
+                f"直角三角形 a={a}, b={b}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【勾股定理】c = √(a² + b²) = {self._fmt(c)}\n"
+                f"【周长公式】P = a + b + c"
+            ))
+
+        elif shape == "equilateral_triangle":
+            a = self._require("a")
+            self._set_result(3 * a, (
+                f"等边三角形 边长 a={a}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【周长公式】P = 3a\n"
+                f"【计算过程】P = 3 × {a} = {self._fmt(3 * a)}"
+            ))
+
+        elif shape == "circle":
+            r = self._require("r")
+            self._set_result(2 * math.pi * r, (
+                f"圆 半径 r={r}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【周长公式】C = 2πr\n"
+                f"【计算过程】C = 2 × π × {r} = {self._fmt(2 * math.pi * r)}"
+            ))
+
+        elif shape == "sector":
+            r, angle = self._require("r", "angle")
+            arc = (angle / 360) * 2 * math.pi * r
+            self._set_result(arc + 2 * r, (
+                f"扇形 半径 r={r}, 圆心角 θ={angle}°\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【弧长公式】L = (θ / 360) × 2πr = {self._fmt(arc)}\n"
+                f"【周长公式】P = L + 2r"
+            ))
+
+        elif shape == "annulus":
+            R, r = self._require("R", "r")
+            if R <= r:
+                raise ValueError("外半径必须大于内半径")
+            self._set_result(2 * math.pi * (R + r), (
+                f"圆环 外半径 R={R}, 内半径 r={r}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【外圆周长】C₁ = 2πR = {self._fmt(2 * math.pi * R)}\n"
+                f"【内圆周长】C₂ = 2πr = {self._fmt(2 * math.pi * r)}\n"
+                f"【总周长】P = C₁ + C₂ = 2π(R + r)"
+            ))
+
+        elif shape == "parabolic_sector":
+            w, h = self._require("w", "h")
+
+            def integrand(x):
+                dydx = 8 * h * x / (w ** 2)
+                return math.sqrt(1 + dydx ** 2)
+
+            arc = 2 * self._simpson(integrand, 0, w / 2)
+            self._set_result(w + arc, (
+                f"抛物扇形 底宽 w={w}, 高 h={h}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【抛物线方程】y = (4h/w²)x²\n"
+                f"【弧长公式】L = ∫√(1 + (dy/dx)²) dx = {self._fmt(arc)}\n"
+                f"【周长公式】P = w + L"
+            ))
+
+        elif shape == "hyperbolic_sector":
+            a, b, t = self._require("a", "b", "t")
+
+            def integrand(u):
+                dxdu = a * math.sinh(u)
+                dydu = b * math.cosh(u)
+                return math.sqrt(dxdu ** 2 + dydu ** 2)
+
+            arc = self._simpson(integrand, 0, t)
+            r1 = a
+            x2 = a * math.cosh(t)
+            y2 = b * math.sinh(t)
+            r2 = math.sqrt(x2 ** 2 + y2 ** 2)
+            self._set_result(arc + r1 + r2, (
+                f"双曲扇形 a={a}, b={b}, t={t}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【参数方程】x = a·cosh(u), y = b·sinh(u)\n"
+                f"【弧长】L = {self._fmt(arc)}\n"
+                f"【半径】r₁ = {self._fmt(r1)}, r₂ = {self._fmt(r2)}\n"
+                f"【周长公式】P = L + r₁ + r₂"
+            ))
+
+        elif shape == "elliptic_sector":
+            a, b, angle_deg = self._require("a", "b", "angle")
+            if angle_deg > 360:
+                raise ValueError("参数角不能超过 360°")
+            angle_rad = math.radians(angle_deg)
+
+            def integrand(theta):
+                dxdt = -a * math.sin(theta)
+                dydt = b * math.cos(theta)
+                return math.sqrt(dxdt ** 2 + dydt ** 2)
+
+            arc = self._simpson(integrand, 0, angle_rad)
+            r1 = a
+            x2 = a * math.cos(angle_rad)
+            y2 = b * math.sin(angle_rad)
+            r2 = math.sqrt(x2 ** 2 + y2 ** 2)
+            self._set_result(arc + r1 + r2, (
+                f"椭圆扇形 a={a}, b={b}, θ={angle_deg}°\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【参数方程】x = a·cos(θ), y = b·sin(θ)\n"
+                f"【弧长】L = {self._fmt(arc)}\n"
+                f"【半径】r₁ = {self._fmt(r1)}, r₂ = {self._fmt(r2)}\n"
+                f"【周长公式】P = L + r₁ + r₂"
+            ))
+
+        elif shape == "ellipse":
+            a, b = self._require("a", "b")
+            h_val = ((a - b) / (a + b)) ** 2
+            perimeter = math.pi * (a + b) * (1 + 3 * h_val / (10 + math.sqrt(4 - 3 * h_val)))
+            self._set_result(perimeter, (
+                f"椭圆 长半轴 a={a}, 短半轴 b={b}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"【拉马努金近似】h = ((a-b)/(a+b))² = {self._fmt(h_val)}\n"
+                f"【周长公式】P ≈ π(a+b)(1 + 3h/(10+√(4-3h)))"
+            ))
+
+
+def main(page: ft.Page):
+    PolygonPerimeterApp(page)
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = PolygonPerimeterApp(root)
-    root.mainloop()
+    ft.app(target=main)

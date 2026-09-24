@@ -33,17 +33,8 @@ def _resolve_base_class_path():
     return base_py
 
 
-def register_reportlab_font(font_family):
-    """向 reportlab 注册项目自带字体：系统级注册对 reportlab 不可见，必须显式注册 TTF"""
-    try:
-        pdfmetrics.getFont(font_family)
-        return  # 已注册过，无需重复处理
-    except KeyError:
-        pass
-    font_path = get_project_root() / 'Image' / 'AlibabaPuHuiTi-3-55-RegularL3.ttf'
-    if not font_path.exists():
-        raise FileNotFoundError(f"项目自带字体不存在：{font_path}")
-    pdfmetrics.registerFont(RLTTFont(font_family, str(font_path)))
+# 公共基类模块引用（run_startup_preflight 内动态加载后赋值），用于复用基类的字形混排器
+BASE_MODULE = None
 
 
 def run_startup_preflight():
@@ -56,6 +47,9 @@ def run_startup_preflight():
 
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+
+    global BASE_MODULE
+    BASE_MODULE = module
 
     import tkinter as tk
     root = tk.Tk()
@@ -84,7 +78,28 @@ STARTUP_OK, APP_FONT_FAMILY = run_startup_preflight()
 if not STARTUP_OK:
     raise RuntimeError("启动前置检查失败：项目自带字体无法使用")
 
-register_reportlab_font(APP_FONT_FAMILY)
+# 字形混排器：常用字优先用项目常用库 Regular，Regular 没有的生僻字回退到项目生僻库 L3
+# （两套均为项目自带字体，非系统字体回退，不违反字体规范）
+FONT_MIXER = BASE_MODULE.PdfTextFontMixer()
+_ROLE_TO_PATH = dict(FONT_MIXER.font_paths)
+_ROLE_TO_RL_FONT = {}
+
+
+def _reportlab_font_for_role(role):
+    """按需向 reportlab 注册并返回指定角色字体的 reportlab 字体名
+
+    reportlab 不识别系统级注册的字体，必须显式 registerFont；采用懒注册避免
+    纯常用文字水印无谓解析 20MB 生僻字库。缺字体即报错，不静默降级。
+    """
+    if role in _ROLE_TO_RL_FONT:
+        return _ROLE_TO_RL_FONT[role]
+    font_path = _ROLE_TO_PATH.get(role)
+    if font_path is None or not Path(font_path).exists():
+        raise FileNotFoundError(f"混排角色缺少对应项目字体：{role}")
+    rl_name = f"AlibabaPuHuiTi-{role}"
+    pdfmetrics.registerFont(RLTTFont(rl_name, str(font_path)))
+    _ROLE_TO_RL_FONT[role] = rl_name
+    return rl_name
 
 
 class PDFWatermarkApp:
@@ -336,24 +351,42 @@ class PDFWatermarkApp:
         self.opacity_value.update()
 
     def create_text_watermark(self, text, font_size, opacity, position):
-        """用 reportlab 创建文本水印PDF"""
+        """用 reportlab 创建文本水印PDF（常用字/生僻字按字形自动混排两套项目字体）"""
         packet = io.BytesIO()
         can = canvas.Canvas(packet, pagesize=letter)
         can.setFillColorRGB(0.5, 0.5, 0.5, opacity)
-        can.setFont(self.font_family, font_size)
 
         width, height = letter
-        # 根据位置设置文本坐标
-        if position == "center":
-            can.drawCentredString(width / 2, height / 2, text)
-        elif position == "topleft":
-            can.drawString(50, height - 50, text)
-        elif position == "topright":
-            can.drawRightString(width - 50, height - 50, text)
-        elif position == "bottomleft":
-            can.drawString(50, 50, text)
-        elif position == "bottomright":
-            can.drawRightString(width - 50, 50, text)
+
+        # 按字形覆盖切段，逐段映射到 reportlab 已注册字体，并预算各段宽度
+        segments = []
+        for role, seg in FONT_MIXER.split(text):
+            rl_name = _reportlab_font_for_role(role)
+            seg_w = pdfmetrics.stringWidth(seg, rl_name, font_size)
+            segments.append((rl_name, seg, seg_w))
+        total_w = sum(s[2] for s in segments)
+
+        # 垂直位置
+        if position in ("topleft", "topright"):
+            y = height - 50
+        elif position in ("bottomleft", "bottomright"):
+            y = 50
+        else:  # center
+            y = height / 2
+
+        # 水平起始位置（居中/左对齐/右对齐）
+        if position in ("topleft", "bottomleft"):
+            x = 50.0
+        elif position in ("topright", "bottomright"):
+            x = width - 50 - total_w
+        else:  # center
+            x = (width - total_w) / 2
+
+        # 逐段绘制，按段宽推进 x，实现两种字体无缝混排
+        for rl_name, seg, seg_w in segments:
+            can.setFont(rl_name, font_size)
+            can.drawString(x, y, seg)
+            x += seg_w
 
         can.save()
         packet.seek(0)

@@ -1,242 +1,311 @@
-# 禁止生成 .pyc 文件
+# 禁止生成 .pyc 文件，避免输出目录被污染
 import sys
 sys.dont_write_bytecode = True
 
-import json
-import os
 import math
+import importlib.util
 from pathlib import Path
+
+import flet as ft
+
+
+def get_project_root():
+    """返回项目根目录。"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
 
 
 def _resolve_base_class_path():
     """解析公共基类文件路径，打包后自动使用 .pyc 字节码"""
-    base_py = Path(__file__).resolve().parent.parent / 'Core' / 'Public base class.py'
+    base_py = get_project_root() / 'Core' / 'Public base class.py'
     if getattr(sys, 'frozen', False):
-        import importlib.util
         return Path(importlib.util.cache_from_source(str(base_py)))
     return base_py
-import tkinter as tk
-from tkinter import Tk, Label, Entry, Button, StringVar, messagebox, ttk, OptionMenu
 
-# 导入公共基类
-import importlib.util
-_base_spec = importlib.util.spec_from_file_location(
-    "public_base_class",
-    _resolve_base_class_path()
-)
-_base_module = importlib.util.module_from_spec(_base_spec)
-_base_spec.loader.exec_module(_base_module)
-PDFToolBase = _base_module.PDFToolBase
-del _base_spec, _base_module
 
-class AverageCalculator(PDFToolBase):
-    def __init__(self, master):
-        super().__init__(master)
-        if not master.winfo_exists():
-            return
-        self.master = master
-        
-        master.title("代数计算器")
-        
-        # 创建Notebook选项卡
-        self.notebook = ttk.Notebook(master)
-        self.notebook.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
-        
-        # 简单平均值计算选项卡
-        self.simple_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.simple_frame, text="平均值计算")
-        
-        # 数字输入区域
-        Label(self.simple_frame, text="输入数字(用空格分隔):").grid(row=0, column=0, padx=10, pady=5)
-        self.numbers_var = StringVar()
-        Entry(self.simple_frame, textvariable=self.numbers_var, width=30).grid(row=0, column=1, padx=10, pady=5)
-        
-        Button(self.simple_frame, text="计算", command=self.calculate_simple_average).grid(row=1, column=0, columnspan=2, pady=10)
-        
-        # 指数计算选项卡
-        self.exponent_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.exponent_frame, text="指数计算")
-        
-        # 底数输入
-        Label(self.exponent_frame, text="底数:").grid(row=0, column=0, padx=5, pady=5)
-        self.base_var = StringVar()
-        Entry(self.exponent_frame, textvariable=self.base_var, width=10).grid(row=0, column=1, padx=5, pady=5)
-        
-        # 指数输入
-        Label(self.exponent_frame, text="指数:").grid(row=1, column=0, padx=5, pady=5)
-        self.power_var = StringVar()
-        Entry(self.exponent_frame, textvariable=self.power_var, width=10).grid(row=1, column=1, padx=5, pady=5)
-        
-        Button(self.exponent_frame, text="计算", command=self.calculate_exponent).grid(row=2, column=0, columnspan=2, pady=10)
-        
-        # 比例计算选项卡
-        self.ratio_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.ratio_frame, text="比例计算")
-        
-        # 比例输入区域
-        Label(self.ratio_frame, text="a:").grid(row=0, column=0, padx=5, pady=5)
-        self.a_var = StringVar()
-        Entry(self.ratio_frame, textvariable=self.a_var, width=10).grid(row=0, column=1, padx=5, pady=5)
-        
-        Label(self.ratio_frame, text=":").grid(row=0, column=2)
-        
-        Label(self.ratio_frame, text="b:").grid(row=0, column=3, padx=5, pady=5)
-        self.b_var = StringVar()
-        Entry(self.ratio_frame, textvariable=self.b_var, width=10).grid(row=0, column=4, padx=5, pady=5)
-        
-        Label(self.ratio_frame, text="=").grid(row=0, column=5)
-        
-        Label(self.ratio_frame, text="c:").grid(row=0, column=6, padx=5, pady=5)
-        self.c_var = StringVar()
-        Entry(self.ratio_frame, textvariable=self.c_var, width=10).grid(row=0, column=7, padx=5, pady=5)
-        
-        Label(self.ratio_frame, text=":").grid(row=0, column=8)
-        
-        Label(self.ratio_frame, text="d:").grid(row=0, column=9, padx=5, pady=5)
-        self.d_var = StringVar()
-        Entry(self.ratio_frame, textvariable=self.d_var, width=10).grid(row=0, column=10, padx=5, pady=5)
-        
-        Button(self.ratio_frame, text="计算", command=self.calculate_ratio).grid(row=1, column=0, columnspan=11, pady=10)
-        
-        # 最小公倍数计算选项卡
-        self.lcm_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.lcm_frame, text="最小公倍数")
-        
-        Label(self.lcm_frame, text="输入数字(用空格分隔):").grid(row=0, column=0, padx=10, pady=5)
-        self.lcm_numbers_var = StringVar()
-        Entry(self.lcm_frame, textvariable=self.lcm_numbers_var, width=30).grid(row=0, column=1, padx=10, pady=5)
-        
-        Button(self.lcm_frame, text="计算", command=self.calculate_lcm).grid(row=1, column=0, columnspan=2, pady=10)
-        
-        # 最大公因数计算选项卡
-        self.gcd_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.gcd_frame, text="最大公因数")
-        
-        Label(self.gcd_frame, text="输入数字(用空格分隔):").grid(row=0, column=0, padx=10, pady=5)
-        self.gcd_numbers_var = StringVar()
-        Entry(self.gcd_frame, textvariable=self.gcd_numbers_var, width=30).grid(row=0, column=1, padx=10, pady=5)
-        
-        Button(self.gcd_frame, text="计算", command=self.calculate_gcd).grid(row=1, column=0, columnspan=2, pady=10)
-        
-        # 对数计算选项卡
-        self.log_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.log_frame, text="对数计算")
-        
-        # 数字输入
-        Label(self.log_frame, text="数字:").grid(row=0, column=0, padx=5, pady=5)
-        self.log_number_var = StringVar()
-        Entry(self.log_frame, textvariable=self.log_number_var, width=15).grid(row=0, column=1, padx=5, pady=5)
-        
-        # 底数输入
-        Label(self.log_frame, text="底数:").grid(row=1, column=0, padx=5, pady=5)
-        self.log_base_var = StringVar()
-        Entry(self.log_frame, textvariable=self.log_base_var, width=15).grid(row=1, column=1, padx=5, pady=5)
-        
-        Button(self.log_frame, text="计算", command=self.calculate_log).grid(row=2, column=0, columnspan=2, pady=5)
-        
-        # 自然对数计算选项卡
-        self.ln_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.ln_frame, text="自然对数")
-        
-        # 数字输入
-        Label(self.ln_frame, text="输入正数:").grid(row=0, column=0, padx=5, pady=5)
-        self.ln_number_var = StringVar()
-        Entry(self.ln_frame, textvariable=self.ln_number_var, width=15).grid(row=0, column=1, padx=5, pady=5)
-        
-        Button(self.ln_frame, text="计算", command=self.calculate_ln).grid(row=1, column=0, columnspan=2, pady=5)
-        
-        # 反对数计算选项卡
-        self.antilog_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.antilog_frame, text="反对数计算")
-        
-        # 数字输入
-        Label(self.antilog_frame, text="输入数字:").grid(row=0, column=0, padx=5, pady=5)
-        self.antilog_number_var = StringVar()
-        Entry(self.antilog_frame, textvariable=self.antilog_number_var, width=15).grid(row=0, column=1, padx=5, pady=5)
-        
-        # 底数选择
-        Label(self.antilog_frame, text="选择底数:").grid(row=1, column=0, padx=5, pady=5)
-        self.antilog_base_var = StringVar(value="10")
-        ttk.Combobox(self.antilog_frame, textvariable=self.antilog_base_var, 
-                    values=["10", "e", "2"], state="readonly", width=12).grid(row=1, column=1, padx=5, pady=5)
-        
-        Button(self.antilog_frame, text="计算", command=self.calculate_antilog).grid(row=2, column=0, columnspan=2, pady=5)
-        
-        # 结果展示框架
-        self.result_frame = ttk.Frame(master)
-        self.result_frame.grid(row=1, column=0, columnspan=2, pady=10)
-        
-        # 结果标签
-        Label(self.result_frame, text="结果:").grid(row=0, column=0, padx=5)
-        
-        # 结果显示
-        self.result_var = StringVar()
-        self.result_label = Label(self.result_frame, textvariable=self.result_var)
-        self.result_label.grid(row=0, column=1, padx=5)
+def run_startup_preflight():
+    """执行启动前置检查：加载公共基类并验证字体可用性。"""
+    base_file = _resolve_base_class_path()
 
-    def calculate_simple_average(self):
+    spec = importlib.util.spec_from_file_location('public_base_class', str(base_file))
+    if spec is None or spec.loader is None:
+        raise ImportError(f"无法加载公共基类：{base_file}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    import tkinter as tk
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        base = module.PDFToolBase(root)
+        if not root.winfo_exists():
+            raise RuntimeError("授权或窗口初始化失败")
+
+        current_font = getattr(base, 'current_font', None)
+        if not current_font:
+            raise RuntimeError("公共基类未成功加载字体")
+
+        font_family = current_font[0]
+        icon_path = str(base._get_project_root() / 'Image' / 'icon.ico')
+        return font_family, icon_path
+    finally:
         try:
-            numbers_str = self.numbers_var.get()
-            if not numbers_str:
+            if root.winfo_exists():
+                root.destroy()
+        except Exception:
+            pass
+
+
+APP_FONT_FAMILY, APP_ICON_PATH = run_startup_preflight()
+
+
+class AlgebraCalculatorApp:
+    """代数计算器 Flet 应用"""
+
+    def __init__(self, page: ft.Page):
+        self.page = page
+        self.font_family = APP_FONT_FAMILY
+
+        page.title = "代数计算器"
+        page.window.width = 860
+        page.window.height = 680
+        page.window.min_width = 680
+        page.window.min_height = 560
+        page.padding = 0
+        page.bgcolor = ft.Colors.GREY_100
+        page.theme = ft.Theme(font_family=self.font_family)
+
+        # 窗口图标由公共基类解析，直接使用
+        page.window.icon = APP_ICON_PATH
+
+        # 平均值
+        self.avg_input = ft.TextField(
+            label="数字（空格分隔）", hint_text="例如 1 2 3 4 5",
+            text_size=13, border_radius=8, expand=1,
+        )
+
+        # 指数
+        self.exp_base = ft.TextField(label="底数", text_size=13,
+                                        border_radius=8, expand=1)
+        self.exp_power = ft.TextField(label="指数", text_size=13,
+                                         border_radius=8, expand=1)
+
+        # 比例
+        self.ratio_a = ft.TextField(label="a", text_size=13,
+                                       border_radius=8, expand=1)
+        self.ratio_b = ft.TextField(label="b", text_size=13,
+                                       border_radius=8, expand=1)
+        self.ratio_c = ft.TextField(label="c", text_size=13,
+                                       border_radius=8, expand=1)
+        self.ratio_d = ft.TextField(label="d", text_size=13,
+                                       border_radius=8, expand=1)
+
+        # LCM/GCD
+        self.lcm_input = ft.TextField(
+            label="数字（空格分隔）", hint_text="例如 4 6 8",
+            text_size=13, border_radius=8, expand=1,
+        )
+        self.gcd_input = ft.TextField(
+            label="数字（空格分隔）", hint_text="例如 12 18 24",
+            text_size=13, border_radius=8, expand=1,
+        )
+
+        # 对数
+        self.log_number = ft.TextField(label="数字", text_size=13,
+                                          border_radius=8, expand=1)
+        self.log_base = ft.TextField(label="底数", text_size=13,
+                                        border_radius=8, expand=1)
+
+        # 自然对数
+        self.ln_input = ft.TextField(label="输入正数", text_size=13,
+                                        border_radius=8, expand=1)
+
+        # 反对数
+        self.antilog_input = ft.TextField(label="输入数字", text_size=13,
+                                              border_radius=8, expand=1)
+        self.antilog_base = ft.Dropdown(
+            label="底数", value="10",
+            options=[ft.dropdown.Option(x) for x in ["10", "e", "2"]],
+            text_size=13, border_radius=8, width=140,
+        )
+
+        # 结果
+        self.result_text = ft.Text(
+            "结果将显示在这里",
+            size=15, weight=ft.FontWeight.BOLD,
+            color=ft.Colors.BLUE_GREY_800,
+            text_align=ft.TextAlign.CENTER,
+            font_family=self.font_family,
+            selectable=True,
+        )
+
+        self.status_text = ft.Text("就绪", size=12, color=ft.Colors.BLUE_GREY_700,
+                                    font_family=self.font_family)
+
+        self._build_ui()
+
+    def _make_card(self, title, content):
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(title, size=13, weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.BLUE_GREY_700, font_family=self.font_family),
+                content,
+            ], spacing=8),
+            padding=ft.padding.all(12),
+            border_radius=10,
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.all(1, ft.Colors.GREY_200),
+        )
+
+    def _btn(self, label, callback):
+        return ft.ElevatedButton(
+            label, bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE,
+            on_click=callback,
+        )
+
+    def _pad(self, content):
+        return ft.Container(content=content, padding=ft.padding.all(8))
+
+    def _build_ui(self):
+        avg_tab = ft.Row([self.avg_input, self._btn("计算", self.calc_average)],
+                            spacing=8)
+
+        exp_tab = ft.Row([self.exp_base, self.exp_power,
+                             self._btn("计算", self.calc_exponent)], spacing=8)
+
+        ratio_tab = ft.Row([
+            self.ratio_a,
+            ft.Text(":", size=16, font_family=self.font_family),
+            self.ratio_b,
+            ft.Text("=", size=16, font_family=self.font_family),
+            self.ratio_c,
+            ft.Text(":", size=16, font_family=self.font_family),
+            self.ratio_d,
+            self._btn("计算", self.calc_ratio),
+        ], spacing=8)
+
+        lcm_tab = ft.Row([self.lcm_input, self._btn("计算 LCM", self.calc_lcm)],
+                             spacing=8)
+        gcd_tab = ft.Row([self.gcd_input, self._btn("计算 GCD", self.calc_gcd)],
+                             spacing=8)
+
+        log_tab = ft.Row([self.log_number, self.log_base,
+                             self._btn("计算", self.calc_log)], spacing=8)
+        ln_tab = ft.Row([self.ln_input, self._btn("计算 ln", self.calc_ln)],
+                            spacing=8)
+        antilog_tab = ft.Row([self.antilog_input, self.antilog_base,
+                                 self._btn("计算", self.calc_antilog)], spacing=8)
+
+        tabs = ft.Tabs(
+            selected_index=0,
+            animation_duration=200,
+            height=340,
+            scrollable=True,
+            tabs=[
+                ft.Tab(text="平均值", content=self._pad(avg_tab)),
+                ft.Tab(text="指数", content=self._pad(exp_tab)),
+                ft.Tab(text="比例 a:b=c:d", content=self._pad(ratio_tab)),
+                ft.Tab(text="最小公倍数", content=self._pad(lcm_tab)),
+                ft.Tab(text="最大公因数", content=self._pad(gcd_tab)),
+                ft.Tab(text="对数", content=self._pad(log_tab)),
+                ft.Tab(text="自然对数", content=self._pad(ln_tab)),
+                ft.Tab(text="反对数", content=self._pad(antilog_tab)),
+            ],
+        )
+        tabs_card = self._make_card("计算类型", tabs)
+
+        result_container = ft.Container(
+            content=self.result_text,
+            padding=ft.padding.all(18),
+            border_radius=8,
+            bgcolor=ft.Colors.BLUE_GREY_50,
+            alignment=ft.alignment.center,
+        )
+        result_card = self._make_card("计算结果", result_container)
+
+        status_bar = ft.Container(
+            content=self.status_text,
+            padding=ft.padding.symmetric(horizontal=12, vertical=6),
+            bgcolor=ft.Colors.WHITE,
+            border=ft.border.only(top=ft.BorderSide(1, ft.Colors.GREY_200)),
+        )
+
+        self.page.add(
+            ft.Container(
+                content=ft.Column(
+                    [tabs_card, result_card],
+                    spacing=10,
+                    scroll=ft.ScrollMode.AUTO,
+                    expand=True,
+                ),
+                padding=12,
+                expand=True,
+            ),
+        )
+        self.page.add(status_bar)
+
+    def show_status(self, message, success=True):
+        self.status_text.value = message
+        self.page.snack_bar = ft.SnackBar(
+            ft.Text(message, font_family=self.font_family),
+            bgcolor=ft.Colors.GREEN if success else ft.Colors.RED,
+            open=True,
+        )
+        self.page.update()
+
+    def _show_result(self, text):
+        self.result_text.value = text
+        self.show_status("计算完成", success=True)
+
+    def _show_error(self, msg):
+        self.result_text.value = f"错误: {msg}"
+        self.show_status(msg, success=False)
+
+    # ----- 平均值 -----
+    def calc_average(self, e):
+        try:
+            text = (self.avg_input.value or "").strip()
+            if not text:
                 raise ValueError("请输入数字")
-                
-            numbers = [float(num) for num in numbers_str.split()]
+            numbers = [float(x) for x in text.split()]
+            if not numbers:
+                raise ValueError("请输入数字")
             average = sum(numbers) / len(numbers)
-            
-            self.result_var.set(f"{average:.4f}")
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
-    
-    def calculate_lcm(self):
-        """计算最小公倍数"""
+            self._show_result(f"平均值 = {average:.4f}（共 {len(numbers)} 个数字）")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- 指数 -----
+    def calc_exponent(self, e):
         try:
-            numbers_str = self.lcm_numbers_var.get()
-            if not numbers_str:
-                raise ValueError("请输入数字")
-                
-            numbers = [int(num) for num in numbers_str.split()]
-            if len(numbers) < 2:
-                raise ValueError("至少需要输入两个数字")
-                
-            if any(num <= 0 for num in numbers):
-                raise ValueError("数字必须为正整数")
-                
-            def gcd(a, b):
-                """计算最大公约数"""
-                while b:
-                    a, b = b, a % b
-                return a
-                
-            def lcm(a, b):
-                """计算两个数的最小公倍数"""
-                return a * b // gcd(a, b)
-                
-            current_lcm = numbers[0]
-            for num in numbers[1:]:
-                current_lcm = lcm(current_lcm, num)
-                
-            self.result_var.set(f"最小公倍数: {current_lcm}")
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
-            
-    def calculate_ratio(self):
-        """计算比例中的未知值 a:b = c:d"""
+            base_str = (self.exp_base.value or "").strip()
+            power_str = (self.exp_power.value or "").strip()
+            if not base_str or not power_str:
+                raise ValueError("请输入底数和指数")
+            base = float(base_str)
+            power = float(power_str)
+            result = base ** power
+            self._show_result(f"{base}^{power} = {result:.6g}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- 比例 -----
+    def calc_ratio(self, e):
         try:
-            # 获取输入值
-            a = self.a_var.get()
-            b = self.b_var.get()
-            c = self.c_var.get()
-            d = self.d_var.get()
-            
-            # 统计空值的数量
-            empty_count = sum(1 for x in [a, b, c, d] if not x)
-            
+            values_str = [
+                (self.ratio_a.value or "").strip(),
+                (self.ratio_b.value or "").strip(),
+                (self.ratio_c.value or "").strip(),
+                (self.ratio_d.value or "").strip(),
+            ]
+            empty_count = sum(1 for x in values_str if not x)
             if empty_count != 1:
                 raise ValueError("必须且只能留空一个值")
-                
-            # 转换非空值为浮点数
+
             values = []
-            for val in [a, b, c, d]:
+            for val in values_str:
                 if val:
                     try:
                         values.append(float(val))
@@ -244,145 +313,135 @@ class AverageCalculator(PDFToolBase):
                         raise ValueError("请输入有效的数字")
                 else:
                     values.append(None)
-            
-            a_val, b_val, c_val, d_val = values
-            
-            # 计算未知值
-            if a_val is None:
-                result = (b_val * c_val) / d_val
-                self.a_var.set(f"{result:.4f}")
-                self.result_var.set(f"计算结果: a = {result:.4f}")
-            elif b_val is None:
-                result = (a_val * d_val) / c_val
-                self.b_var.set(f"{result:.4f}")
-                self.result_var.set(f"计算结果: b = {result:.4f}")
-            elif c_val is None:
-                result = (a_val * d_val) / b_val
-                self.c_var.set(f"{result:.4f}")
-                self.result_var.set(f"计算结果: c = {result:.4f}")
-            elif d_val is None:
-                result = (b_val * c_val) / a_val
-                self.d_var.set(f"{result:.4f}")
-                self.result_var.set(f"计算结果: d = {result:.4f}")
-                
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
-        except ZeroDivisionError:
-            messagebox.showerror("错误", "除数不能为零")
-            
-    def calculate_exponent(self):
-        """计算指数 a^b"""
+
+            a, b, c, d = values
+
+            if a is None:
+                if d == 0:
+                    raise ValueError("除数不能为零")
+                result = (b * c) / d
+                self.ratio_a.value = f"{result:.4f}"
+                self._show_result(f"计算结果: a = {result:.4f}")
+            elif b is None:
+                if c == 0:
+                    raise ValueError("除数不能为零")
+                result = (a * d) / c
+                self.ratio_b.value = f"{result:.4f}"
+                self._show_result(f"计算结果: b = {result:.4f}")
+            elif c is None:
+                if b == 0:
+                    raise ValueError("除数不能为零")
+                result = (a * d) / b
+                self.ratio_c.value = f"{result:.4f}"
+                self._show_result(f"计算结果: c = {result:.4f}")
+            elif d is None:
+                if a == 0:
+                    raise ValueError("除数不能为零")
+                result = (b * c) / a
+                self.ratio_d.value = f"{result:.4f}"
+                self._show_result(f"计算结果: d = {result:.4f}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- LCM -----
+    def calc_lcm(self, e):
         try:
-            base = self.base_var.get()
-            power = self.power_var.get()
-            
-            if not base or not power:
-                raise ValueError("请输入底数和指数")
-                
-            base_num = float(base)
-            power_num = float(power)
-            
-            result = base_num ** power_num
-            self.result_var.set(f"{base_num}^{power_num} = {result:.6g}")
-            
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
-            
-    def calculate_gcd(self):
-        """计算最大公因数"""
-        try:
-            numbers_str = self.gcd_numbers_var.get()
-            if not numbers_str:
+            text = (self.lcm_input.value or "").strip()
+            if not text:
                 raise ValueError("请输入数字")
-                
-            numbers = [int(num) for num in numbers_str.split()]
+            numbers = [int(x) for x in text.split()]
             if len(numbers) < 2:
                 raise ValueError("至少需要输入两个数字")
-                
-            if any(num <= 0 for num in numbers):
+            if any(n <= 0 for n in numbers):
                 raise ValueError("数字必须为正整数")
-                
-            def gcd(a, b):
-                """计算两个数的最大公约数"""
-                while b:
-                    a, b = b, a % b
-                return a
-                
-            current_gcd = numbers[0]
-            for num in numbers[1:]:
-                current_gcd = gcd(current_gcd, num)
-                
-            self.result_var.set(f"最大公因数: {current_gcd}")
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
-            
-    def calculate_log(self):
-        """计算对数"""
+
+            def lcm(a, b):
+                return a * b // math.gcd(a, b)
+
+            current = numbers[0]
+            for n in numbers[1:]:
+                current = lcm(current, n)
+            self._show_result(f"最小公倍数 LCM = {current}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- GCD -----
+    def calc_gcd(self, e):
         try:
-            number = self.log_number_var.get()
-            base = self.log_base_var.get()
-            
-            if not number or not base:
+            text = (self.gcd_input.value or "").strip()
+            if not text:
+                raise ValueError("请输入数字")
+            numbers = [int(x) for x in text.split()]
+            if len(numbers) < 2:
+                raise ValueError("至少需要输入两个数字")
+            if any(n <= 0 for n in numbers):
+                raise ValueError("数字必须为正整数")
+
+            current = numbers[0]
+            for n in numbers[1:]:
+                current = math.gcd(current, n)
+            self._show_result(f"最大公因数 GCD = {current}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- 对数 -----
+    def calc_log(self, e):
+        try:
+            num_str = (self.log_number.value or "").strip()
+            base_str = (self.log_base.value or "").strip()
+            if not num_str or not base_str:
                 raise ValueError("请输入数字和底数")
-                
-            number_val = float(number)
-            base_val = float(base)
-            
-            if number_val <= 0:
-                raise ValueError("数字必须大于0")
-            if base_val <= 0 or base_val == 1:
-                raise ValueError("底数必须大于0且不等于1")
-                
-            result = math.log(number_val, base_val)
-            self.result_var.set(f"log{base_val}({number_val}) = {result:.6g}")
-            
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
-            
-    def calculate_ln(self):
-        """计算自然对数"""
+            num = float(num_str)
+            base = float(base_str)
+            if num <= 0:
+                raise ValueError("数字必须大于 0")
+            if base <= 0 or base == 1:
+                raise ValueError("底数必须大于 0 且不等于 1")
+            result = math.log(num, base)
+            self._show_result(f"log{base}({num}) = {result:.6g}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- 自然对数 -----
+    def calc_ln(self, e):
         try:
-            number = self.ln_number_var.get()
-            
-            if not number:
+            text = (self.ln_input.value or "").strip()
+            if not text:
                 raise ValueError("请输入数字")
-                
-            number_val = float(number)
-            
-            if number_val <= 0:
-                raise ValueError("数字必须大于0")
-                
-            result = math.log(number_val)
-            self.result_var.set(f"ln({number_val}) = {result:.6g}")
-            
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
-            
-    def calculate_antilog(self):
-        """计算反对数"""
+            num = float(text)
+            if num <= 0:
+                raise ValueError("数字必须大于 0")
+            result = math.log(num)
+            self._show_result(f"ln({num}) = {result:.6g}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+
+    # ----- 反对数 -----
+    def calc_antilog(self, e):
         try:
-            number = self.antilog_number_var.get()
-            base = self.antilog_base_var.get()
-            
-            if not number:
+            text = (self.antilog_input.value or "").strip()
+            if not text:
                 raise ValueError("请输入数字")
-                
-            number_val = float(number)
-            
+            num = float(text)
+            base = self.antilog_base.value
             if base == "10":
-                result = 10 ** number_val
-                self.result_var.set(f"antilog₁₀({number_val}) = {result:.6g}")
+                result = 10 ** num
+                self._show_result(f"antilog₁₀({num}) = {result:.6g}")
             elif base == "e":
-                result = math.exp(number_val)
-                self.result_var.set(f"antilogₑ({number_val}) = {result:.6g}")
+                result = math.exp(num)
+                self._show_result(f"antilogₑ({num}) = {result:.6g}")
             elif base == "2":
-                result = 2 ** number_val
-                self.result_var.set(f"antilog₂({number_val}) = {result:.6g}")
-                
-        except ValueError as e:
-            messagebox.showerror("错误", str(e))
+                result = 2 ** num
+                self._show_result(f"antilog₂({num}) = {result:.6g}")
+        except ValueError as ex:
+            self._show_error(str(ex))
+        except OverflowError:
+            self._show_error("结果溢出，请减小输入值")
+
+
+def main(page: ft.Page):
+    AlgebraCalculatorApp(page)
+
 
 if __name__ == "__main__":
-    root = Tk()
-    app = AverageCalculator(root)
-    root.mainloop()
+    ft.app(target=main)
